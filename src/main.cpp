@@ -96,4 +96,5 @@ extern "C" void __declspec(dllexport) dllStopPlugin(void)
     printf("dllStopPlugin()\n");
     
     Ogre::Root::getSingleton().uninstallPlugin(g_instance);
+    delete g_instance;
 }

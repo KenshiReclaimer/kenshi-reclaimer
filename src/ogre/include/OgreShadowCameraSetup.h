@@ -65,13 +65,26 @@ namespace Ogre {
     */
     class _OgreExport ShadowCameraSetup : public ShadowDataAlloc
     {
+    protected:
+        /// Defines the min & max frustum distance. TODO: put as output from getShadowCamera
+        mutable Real mMinDistance;
+        mutable Real mMaxDistance;
+        /// Setup for some corner cases is different for exponential shadow maps
+        static bool mUseEsm;
+
     public:
         /// Function to implement -- must set the shadow camera properties
-        virtual void getShadowCamera (const SceneManager *sm, const Camera *cam, 
-                                      const Viewport *vp, const Light *light, Camera *texCam, size_t iteration) const = 0;
+        virtual void getShadowCamera( const SceneManager *sm, const Camera *cam,
+                                      const Light *light, Camera *texCam, size_t iteration,
+                                      const Vector2 &viewportRealSize ) const = 0;
+        ShadowCameraSetup() : mMinDistance( 0.0f ), mMaxDistance( 1000000.0f ) {}
         /// Need virtual destructor in case subclasses use it
         virtual ~ShadowCameraSetup() {}
 
+        Real getMinDistance() const         { return mMinDistance; }
+        Real getMaxDistance() const         { return mMaxDistance; }
+
+        static void setUseEsm(bool useEsm)  { mUseEsm = useEsm; }
     };
 
 
@@ -84,17 +97,15 @@ namespace Ogre {
     class _OgreExport DefaultShadowCameraSetup : public ShadowCameraSetup
     {
     public:
+        /// Default constructor
         DefaultShadowCameraSetup();
+        /// Destructor
         virtual ~DefaultShadowCameraSetup();
 
-        static ShadowCameraSetupPtr create()
-        {
-            return std::make_shared<DefaultShadowCameraSetup>();
-        }
-
         /// Default shadow camera setup
-        virtual void getShadowCamera (const SceneManager *sm, const Camera *cam, 
-                                      const Viewport *vp, const Light *light, Camera *texCam, size_t iteration) const;
+        virtual void getShadowCamera( const SceneManager *sm, const Camera *cam,
+                                      const Light *light, Camera *texCam, size_t iteration,
+                                      const Vector2 &viewportRealSize ) const;
     };
 
     /** @} */

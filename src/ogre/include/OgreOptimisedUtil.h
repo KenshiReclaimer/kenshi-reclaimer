@@ -30,7 +30,8 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreEdgeListBuilder.h"
-#include <cstddef>
+
+#include "stddef.h"
 
 namespace Ogre {
 
@@ -100,7 +101,7 @@ namespace Ogre {
             const float *srcPosPtr, float *destPosPtr,
             const float *srcNormPtr, float *destNormPtr,
             const float *blendWeightPtr, const unsigned char* blendIndexPtr,
-            const Affine3* const* blendMatrices,
+            const Matrix4* const* blendMatrices,
             size_t srcPosStride, size_t destPosStride,
             size_t srcNormStride, size_t destNormStride,
             size_t blendWeightStride, size_t blendIndexStride,
@@ -120,7 +121,6 @@ namespace Ogre {
         @param numVertices Number of vertices to morph, which agree with
             the number in start, end and destination buffer. Bear in mind
             three floating-point values per vertex
-        @param morphNormals
         */
         virtual void softwareVertexMorph(
             Real t,
@@ -140,9 +140,9 @@ namespace Ogre {
         @param numMatrices Number of matrices in the array.
         */
         virtual void concatenateAffineMatrices(
-            const Affine3& baseMatrix,
-            const Affine3* srcMatrices,
-            Affine3* dstMatrices,
+            const Matrix4& baseMatrix,
+            const Matrix4* srcMatrices,
+            Matrix4* dstMatrices,
             size_t numMatrices) = 0;
 
         /** Calculate the face normals for the triangles based on position
@@ -158,7 +158,7 @@ namespace Ogre {
         */
         virtual void calculateFaceNormals(
             const float *positions,
-            const EdgeData::Triangle *triangles,
+            const v1::EdgeData::Triangle *triangles,
             Vector4 *faceNormals,
             size_t numTriangles) = 0;
 
@@ -211,13 +211,13 @@ namespace Ogre {
         The offset are in bytes, no matter what type of the pointer.
     */
     template <class T>
-    static OGRE_FORCE_INLINE const T* rawOffsetPointer(const T* ptr, ptrdiff_t offset)
+    static FORCEINLINE const T* rawOffsetPointer(const T* ptr, ptrdiff_t offset)
     {
         return (const T*)((const char*)(ptr) + offset);
     }
 
     template <class T>
-    static OGRE_FORCE_INLINE T* rawOffsetPointer(T* ptr, ptrdiff_t offset)
+    static FORCEINLINE T* rawOffsetPointer(T* ptr, ptrdiff_t offset)
     {
         return (T*)((char*)(ptr) + offset);
     }
@@ -227,13 +227,13 @@ namespace Ogre {
         The offset are in bytes, no matter what type of the pointer.
     */
     template <class T>
-    static OGRE_FORCE_INLINE void advanceRawPointer(const T*& ptr, ptrdiff_t offset)
+    static FORCEINLINE void advanceRawPointer(const T*& ptr, ptrdiff_t offset)
     {
         ptr = rawOffsetPointer(ptr, offset);
     }
 
     template <class T>
-    static OGRE_FORCE_INLINE void advanceRawPointer(T*& ptr, ptrdiff_t offset)
+    static FORCEINLINE void advanceRawPointer(T*& ptr, ptrdiff_t offset)
     {
         ptr = rawOffsetPointer(ptr, offset);
     }

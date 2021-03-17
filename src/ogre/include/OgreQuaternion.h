@@ -61,14 +61,10 @@ namespace Ogre {
             : w(1), x(0), y(0), z(0)
         {
         }
-        /// Copy constructor
-        inline Quaternion(const Ogre::Quaternion& rhs)
-            : w(rhs.w), x(rhs.x), y(rhs.y), z(rhs.z)
-        {}
         /// Construct from an explicit list of values
         inline Quaternion (
-            float fW,
-            float fX, float fY, float fZ)
+            Real fW,
+            Real fX, Real fY, Real fZ)
             : w(fW), x(fX), y(fY), z(fZ)
         {
         }
@@ -93,9 +89,9 @@ namespace Ogre {
             this->FromAxes(akAxis);
         }
         /// Construct a quaternion from 4 manual w/x/y/z values
-        inline Quaternion(float* valptr)
+        inline Quaternion(Real* valptr)
         {
-            memcpy(&w, valptr, sizeof(float)*4);
+            memcpy(&w, valptr, sizeof(Real)*4);
         }
 
         /** Exchange the contents of this quaternion with another. 
@@ -109,7 +105,7 @@ namespace Ogre {
         }
 
         /// Array accessor operator
-        inline float operator [] ( const size_t i ) const
+        inline Real operator [] ( const size_t i ) const
         {
             assert( i < 4 );
 
@@ -117,7 +113,7 @@ namespace Ogre {
         }
 
         /// Array accessor operator
-        inline float& operator [] ( const size_t i )
+        inline Real& operator [] ( const size_t i )
         {
             assert( i < 4 );
 
@@ -125,13 +121,13 @@ namespace Ogre {
         }
 
         /// Pointer accessor for direct copying
-        inline float* ptr()
+        inline Real* ptr()
         {
             return &w;
         }
 
         /// Pointer accessor for direct copying
-        inline const float* ptr() const
+        inline const Real* ptr() const
         {
             return &w;
         }
@@ -182,16 +178,11 @@ namespace Ogre {
         }
         Quaternion operator+ (const Quaternion& rkQ) const;
         Quaternion operator- (const Quaternion& rkQ) const;
-        Quaternion operator*(const Quaternion& rkQ) const;
-        Quaternion operator*(float s) const
-        {
-            return Quaternion(s * w, s * x, s * y, s * z);
-        }
-        friend Quaternion operator*(float s, const Quaternion& q)
-        {
-            return q * s;
-        }
-        Quaternion operator-() const { return Quaternion(-w, -x, -y, -z); }
+        Quaternion operator* (const Quaternion& rkQ) const;
+        Quaternion operator* (Real fScalar) const;
+        _OgreExport friend Quaternion operator* (Real fScalar,
+            const Quaternion& rkQ);
+        Quaternion operator- () const;
         inline bool operator== (const Quaternion& rhs) const
         {
             return (rhs.x == x) && (rhs.y == y) &&
@@ -203,19 +194,13 @@ namespace Ogre {
         }
         // functions of a quaternion
         /// Returns the dot product of the quaternion
-        float Dot(const Quaternion& rkQ) const
-        {
-            return w * rkQ.w + x * rkQ.x + y * rkQ.y + z * rkQ.z;
-        }
-        /// Returns the normal length of this quaternion.
-        float Norm() const { return std::sqrt(w * w + x * x + y * y + z * z); }
+        Real Dot (const Quaternion& rkQ) const;
+        /* Returns the normal length of this quaternion.
+            @note This does <b>not</b> alter any values.
+        */
+        Real Norm () const;
         /// Normalises this quaternion, and returns the previous length
-        float normalise(void)
-        {
-            float len = Norm();
-            *this = 1.0f / len * *this;
-            return len;
-        }
+        Real normalise(void); 
         Quaternion Inverse () const;  /// Apply to non-zero quaternion
         Quaternion UnitInverse () const;  /// Apply to unit-length quaternion
         Quaternion Exp () const;
@@ -226,49 +211,40 @@ namespace Ogre {
 
         /** Calculate the local roll element of this quaternion.
         @param reprojectAxis By default the method returns the 'intuitive' result
-            that is, if you projected the local X of the quaternion onto the XY plane,
-            the angle between it and global X is returned. The co-domain of the returned
-            value is from -180 to 180 degrees. If set to false though, the result is
-            the rotation around Z axis that could be used to implement the quaternion
-            using some non-intuitive order of rotations. This behavior is preserved for
-            backward compatibility, to decompose quaternion into yaw, pitch and roll use
-            q.ToRotationMatrix().ToEulerAnglesYXZ(yaw, pitch, roll) instead.
+            that is, if you projected the local Y of the quaternion onto the X and
+            Y axes, the angle between them is returned. If set to false though, the
+            result is the actual yaw that will be used to implement the quaternion,
+            which is the shortest possible path to get to the same orientation and 
+             may involve less axial rotation.  The co-domain of the returned value is 
+             from -180 to 180 degrees.
         */
         Radian getRoll(bool reprojectAxis = true) const;
         /** Calculate the local pitch element of this quaternion
         @param reprojectAxis By default the method returns the 'intuitive' result
-            that is, if you projected the local Y of the quaternion onto the YZ plane,
-            the angle between it and global Y is returned. The co-domain of the returned
-            value is from -180 to 180 degrees. If set to false though, the result is
-            the rotation around X axis that could be used to implement the quaternion
-            using some non-intuitive order of rotations. This behavior is preserved for
-            backward compatibility, to decompose quaternion into yaw, pitch and roll use
-            q.ToRotationMatrix().ToEulerAnglesYXZ(yaw, pitch, roll) instead.
+            that is, if you projected the local Z of the quaternion onto the X and
+            Y axes, the angle between them is returned. If set to true though, the
+            result is the actual yaw that will be used to implement the quaternion,
+            which is the shortest possible path to get to the same orientation and 
+            may involve less axial rotation.  The co-domain of the returned value is 
+            from -180 to 180 degrees.
         */
         Radian getPitch(bool reprojectAxis = true) const;
         /** Calculate the local yaw element of this quaternion
         @param reprojectAxis By default the method returns the 'intuitive' result
-            that is, if you projected the local Z of the quaternion onto the ZX plane,
-            the angle between it and global Z is returned. The co-domain of the returned
-            value is from -180 to 180 degrees. If set to false though, the result is
-            the rotation around Y axis that could be used to implement the quaternion 
-            using some non-intuitive order of rotations. This behavior is preserved for
-            backward compatibility, to decompose quaternion into yaw, pitch and roll use
-            q.ToRotationMatrix().ToEulerAnglesYXZ(yaw, pitch, roll) instead.
+            that is, if you projected the local Y of the quaternion onto the X and
+            Z axes, the angle between them is returned. If set to true though, the
+            result is the actual yaw that will be used to implement the quaternion,
+            which is the shortest possible path to get to the same orientation and 
+            may involve less axial rotation. The co-domain of the returned value is 
+            from -180 to 180 degrees.
         */
-        Radian getYaw(bool reprojectAxis = true) const;
+        Radian getYaw(bool reprojectAxis = true) const;        
         
         /** Equality with tolerance (tolerance is max angle difference)
         @remark Both equals() and orientationEquals() measure the exact same thing.
                 One measures the difference by angle, the other by a different, non-linear metric.
         */
-        bool equals(const Quaternion& rhs, const Radian& tolerance) const
-        {
-            float d = Dot(rhs);
-            Radian angle = Math::ACos(2.0f * d*d - 1.0f);
-
-            return Math::Abs(angle.valueRadians()) <= tolerance.valueRadians();
-        }
+        bool equals(const Quaternion& rhs, const Radian& tolerance) const;
         
         /** Compare two quaternions which are assumed to be used as orientations.
         @remark Both equals() and orientationEquals() measure the exact same thing.
@@ -278,9 +254,9 @@ namespace Ogre {
             therefore be careful if your code relies in the order of the operands.
             This is specially important in IK animation.
         */
-        inline bool orientationEquals( const Quaternion& other, float tolerance = 1e-3f ) const
+        inline bool orientationEquals( const Quaternion& other, Real tolerance = 1e-3 ) const
         {
-            float d = this->Dot(other);
+            Real d = this->Dot(other);
             return 1 - d*d < tolerance;
         }
         
@@ -335,13 +311,13 @@ namespace Ogre {
             const Quaternion& rkQ, bool shortestPath = false);
 
         /// Cutoff for sine near zero
-        static const float msEpsilon;
+        static const Real msEpsilon;
 
         // special values
         static const Quaternion ZERO;
         static const Quaternion IDENTITY;
 
-        float w, x, y, z;
+        Real w, x, y, z;
 
         /// Check whether this quaternion contains valid values
         inline bool isNaN() const
@@ -352,13 +328,7 @@ namespace Ogre {
         /** Function for writing to a stream. Outputs "Quaternion(w, x, y, z)" with w,x,y,z
             being the member values of the quaternion.
         */
-        inline friend std::ostream& operator <<
-            ( std::ostream& o, const Quaternion& q )
-        {
-            o << "Quaternion(" << q.w << ", " << q.x << ", " << q.y << ", " << q.z << ")";
-            return o;
-        }
-
+        _OgreExport friend std::ostream &operator<<( std::ostream &o, const Quaternion &q );
     };
     /** @} */
     /** @} */

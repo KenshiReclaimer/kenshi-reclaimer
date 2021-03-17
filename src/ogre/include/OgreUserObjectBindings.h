@@ -43,15 +43,21 @@ namespace Ogre {
 
     /** Class that provides convenient interface to establish a linkage between
     custom user application objects and Ogre core classes.
-    Any instance of Ogre class that will derive from this class could be associated with custom
+    Any instance of Ogre class that will derive from this class could be associated with custom 
     application object using this class interface.
     */
     class _OgreExport UserObjectBindings : public GeneralAllocatedObject
     {
-    public:
+    public: 
+        /** Class constructor. */
+        UserObjectBindings();
+
+        /** Class destructor. */
+        virtual ~UserObjectBindings();
+
         /** Sets any kind of user object on this class instance.
         @remarks
-        This method allows you to associate any user object you like with
+        This method allows you to associate any user object you like with 
         this class. This can be a pointer back to one of your own
         classes for instance.
         @note This method is key less meaning that each call for it will override
@@ -66,9 +72,9 @@ namespace Ogre {
 
         /** Sets any kind of user object on this class instance.
         @remarks
-        This method allows you to associate multiple object with this class.
+        This method allows you to associate multiple object with this class. 
         This can be a pointer back to one of your own classes for instance.
-        Use a unique key to distinguish between each of these objects.
+        Use a unique key to distinguish between each of these objects. 
         @param key The key that this data is associate with.
         @param anything The data to associate with the given key.
         */
@@ -82,53 +88,41 @@ namespace Ogre {
         const Any& getUserAny(const String& key) const;
 
         /** Erase the custom user object associated with this class and key from this binding.
-        @param key The key that the requested user object is associated with.
+        @param key The key that the requested user object is associated with.       
         */
         void eraseUserAny(const String& key);
 
         /** Clear all user objects from this binding.   */
-        void clear();
+        void clear() const;
 
-        UserObjectBindings() = default;
-
-        /** Copy constructor. Performs a copy of all stored UserAny. */
-        UserObjectBindings(const UserObjectBindings& other);
-
-        UserObjectBindings& swap(UserObjectBindings& rhs);
-
-        UserObjectBindings& operator=(const UserObjectBindings& rhs);
+        /** Returns empty user any object.
+        */
+        static const Any& getEmptyUserAny() { return msEmptyAny; }
 
     // Types.
-    protected:
-        typedef std::map<String, Any>          UserObjectsMap;
-        typedef UserObjectsMap::iterator        UserObjectsMapIterator;
-        typedef UserObjectsMap::const_iterator  UserObjectsMapConstIterator;
+    protected:      
+        typedef StdMap<String, Any> UserObjectsMap;
 
         /** Internal class that uses as data storage container.
         */
-        struct Attributes : public GeneralAllocatedObject
+        class Attributes : public GeneralAllocatedObject
         {
-            Attributes() = default;
+        public:
+            /** Attribute storage ctor. */
+            Attributes() : mUserObjectsMap(NULL) {}
 
-            /** Copy ctor. Copies the attribute storage. */
-            Attributes(const Attributes& other) :
-                mKeylessAny(other.mKeylessAny)
-            {
-                if (other.mUserObjectsMap)
-                    mUserObjectsMap.reset(new UserObjectsMap(*other.mUserObjectsMap));
-            }
+            /** Attribute storage dtor. */
+            ~Attributes();
 
-            Any                 mKeylessAny;// Will hold key less associated user object for fast access.
-            std::unique_ptr<UserObjectsMap> mUserObjectsMap;// Will hold a map between user keys to user objects.
+            Any                 mKeylessAny;        // Will hold key less associated user object for fast access.   
+            UserObjectsMap*     mUserObjectsMap;    // Will hold a map between user keys to user objects.
         };
-
-        /** \brief Protected getter for the attributes map, to allow derived classes to inspect its elements. */
-        const Attributes* getAttributes() const { return mAttributes.get(); }
-        Attributes* getAttributes() { return mAttributes.get(); }
 
     // Attributes.
     private:
-        std::unique_ptr<Attributes>     mAttributes;        // Class attributes - will be allocated on demand.
+        static Any              msEmptyAny;         // Shared empty any object.
+        mutable Attributes*     mAttributes;        // Class attributes - will be allocated on demand.
+        
     };
 
     /** @} */

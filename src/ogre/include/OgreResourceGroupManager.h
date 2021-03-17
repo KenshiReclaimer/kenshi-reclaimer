@@ -32,10 +32,15 @@ THE SOFTWARE.
 #include "OgreSingleton.h"
 #include "OgreDataStream.h"
 #include "OgreArchive.h"
-#include "OgreIteratorWrapper.h"
+#include "OgreIteratorWrappers.h"
 #include "OgreCommon.h"
 #include "Threading/OgreThreadHeaders.h"
 #include <ctime>
+
+#include "ogrestd/list.h"
+#include "ogrestd/map.h"
+#include "ogrestd/unordered_set.h"
+
 #include "OgreHeaderPrefix.h"
 
 // If X11/Xlib.h gets included before this header (for example it happens when
@@ -43,14 +48,6 @@ THE SOFTWARE.
 // want as we have an enum named Status.
 #ifdef Status
 #undef Status
-#endif
-
-#if OGRE_RESOURCEMANAGER_STRICT == 0
-#   define OGRE_RESOURCE_GROUP_INIT = RGN_AUTODETECT
-#elif OGRE_RESOURCEMANAGER_STRICT == 1
-#   define OGRE_RESOURCE_GROUP_INIT
-#else
-#   define OGRE_RESOURCE_GROUP_INIT = RGN_DEFAULT
 #endif
 
 namespace Ogre {
@@ -61,17 +58,9 @@ namespace Ogre {
     /** \addtogroup Resources
     *  @{
     */
-
-    /// Default resource group name
-    _OgreExport extern const char* const RGN_DEFAULT;
-    /// Internal resource group name (should be used by OGRE internal only)
-    _OgreExport extern const char* const RGN_INTERNAL;
-    /// Special resource group name which causes resource group to be automatically determined based on searching for the resource in all groups.
-    _OgreExport extern const char* const RGN_AUTODETECT;
-
-    /** This class defines an interface which is called back during
+    /** This abstract class defines an interface which is called back during
         resource group loading to indicate the progress of the load. 
-
+    @remarks
         Resource group loading is in 2 phases - creating resources from 
         declarations (which includes parsing scripts), and loading
         resources. Note that you don't necessarily have to have both; it
@@ -102,7 +91,7 @@ namespace Ogre {
     class _OgreExport ResourceGroupListener
     {
     public:
-        virtual ~ResourceGroupListener() {}
+        virtual ~ResourceGroupListener();
 
         /** This event is fired when a resource group begins parsing scripts.
         @note
@@ -113,7 +102,7 @@ namespace Ogre {
         @param groupName The name of the group 
         @param scriptCount The number of scripts which will be parsed
         */
-        virtual void resourceGroupScriptingStarted(const String& groupName, size_t scriptCount) {}
+        virtual void resourceGroupScriptingStarted(const String& groupName, size_t scriptCount) = 0;
         /** This event is fired when a script is about to be parsed.
             @param scriptName Name of the to be parsed
             @param skipThisScript A boolean passed by reference which is by default set to 
@@ -121,13 +110,13 @@ namespace Ogre {
             parsed. Note that in this case the scriptParseEnded event will not be raised
             for this script.
         */
-        virtual void scriptParseStarted(const String& scriptName, bool& skipThisScript) {}
+        virtual void scriptParseStarted(const String& scriptName, bool& skipThisScript) = 0;
 
         /** This event is fired when the script has been fully parsed.
         */
-        virtual void scriptParseEnded(const String& scriptName, bool skipped) {}
+        virtual void scriptParseEnded(const String& scriptName, bool skipped) = 0;
         /** This event is fired when a resource group finished parsing scripts. */
-        virtual void resourceGroupScriptingEnded(const String& groupName) {}
+        virtual void resourceGroupScriptingEnded(const String& groupName) = 0;
 
         /** This event is fired  when a resource group begins preparing.
         @param groupName The name of the group being prepared
@@ -146,6 +135,19 @@ namespace Ogre {
         /** This event is fired when the resource has been prepared. 
         */
         virtual void resourcePrepareEnded(void) {}
+        /** This event is fired when a stage of preparing linked world geometry 
+            is about to start. The number of stages required will have been 
+            included in the resourceCount passed in resourceGroupLoadStarted.
+        @param description Text description of what was just prepared
+        */
+        virtual void worldGeometryPrepareStageStarted(const String& description)
+        { (void)description; }
+
+        /** This event is fired when a stage of preparing linked world geometry 
+            has been completed. The number of stages required will have been 
+            included in the resourceCount passed in resourceGroupLoadStarted.
+        */
+        virtual void worldGeometryPrepareStageEnded(void) {}
         /** This event is fired when a resource group finished preparing. */
         virtual void resourceGroupPrepareEnded(const String& groupName)
         { (void)groupName; }
@@ -155,27 +157,27 @@ namespace Ogre {
         @param resourceCount The number of resources which will be loaded, including
             a number of stages required to load any linked world geometry
         */
-        virtual void resourceGroupLoadStarted(const String& groupName, size_t resourceCount) {}
+        virtual void resourceGroupLoadStarted(const String& groupName, size_t resourceCount) = 0;
         /** This event is fired when a declared resource is about to be loaded. 
         @param resource Weak reference to the resource loaded.
         */
-        virtual void resourceLoadStarted(const ResourcePtr& resource) {}
+        virtual void resourceLoadStarted(const ResourcePtr& resource) = 0;
         /** This event is fired when the resource has been loaded. 
         */
-        virtual void resourceLoadEnded(void) {}
+        virtual void resourceLoadEnded(void) = 0;
         /** This event is fired when a stage of loading linked world geometry 
             is about to start. The number of stages required will have been 
             included in the resourceCount passed in resourceGroupLoadStarted.
         @param description Text description of what was just loaded
         */
-        virtual void worldGeometryStageStarted(const String& description){}
+        virtual void worldGeometryStageStarted(const String& description) = 0;
         /** This event is fired when a stage of loading linked world geometry 
             has been completed. The number of stages required will have been 
             included in the resourceCount passed in resourceGroupLoadStarted.
         */
-        virtual void worldGeometryStageEnded(void) {}
+        virtual void worldGeometryStageEnded(void) = 0;
         /** This event is fired when a resource group finished loading. */
-        virtual void resourceGroupLoadEnded(const String& groupName) {}
+        virtual void resourceGroupLoadEnded(const String& groupName) = 0;
         /** This event is fired when a resource was just created.
         @param resource Weak reference to the resource created.
         */
@@ -189,33 +191,43 @@ namespace Ogre {
     };
 
     /**
-    This class allows users to override resource loading behavior.
-
-    By overriding this class' methods, you can change how resources
-    are loaded and the behavior for resource name collisions.
+     @remarks   This class allows users to override resource loading behavior.
+                By overriding this class' methods, you can change how resources
+                are loaded and the behavior for resource name collisions.
     */
-    class ResourceLoadingListener
+    class _OgreExport ResourceLoadingListener
     {
     public:
-        virtual ~ResourceLoadingListener() {}
+        virtual ~ResourceLoadingListener();
 
         /** This event is called when a resource beings loading. */
-        virtual DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) { return NULL; }
+        virtual DataStreamPtr resourceLoading(const String &name, const String &group, Resource *resource) = 0;
+
+        /// Gets called when a groupless manager (like TextureGpuManager) wants to check if there's
+        /// a resource with that name provided by this listener.
+        /// This function is called from main thread.
+        virtual bool grouplessResourceExists( const String &name ) = 0;
+
+        /// Gets called when a groupless manager (like TextureGpuManager) loads a resource.
+        /// WARNING: This function is likely going to be called from a worker thread.
+        virtual DataStreamPtr grouplessResourceLoading( const String &name ) = 0;
+        /// Similar to resourceStreamOpened, gets called when a groupless manager has already
+        /// opened a resource and you may want to modify the stream.
+        /// If grouplessResourceLoading has been called, then this function won't.
+        /// WARNING: This function is likely going to be called from a worker thread.
+        virtual DataStreamPtr grouplessResourceOpened( const String &name, Archive *archive,
+                                                       DataStreamPtr &dataStream ) = 0;
 
         /** This event is called when a resource stream has been opened, but not processed yet. 
-
+        @remarks
             You may alter the stream if you wish or alter the incoming pointer to point at
             another stream if you wish.
         */
-        virtual void resourceStreamOpened(const String &name, const String &group, Resource *resource, DataStreamPtr& dataStream) {}
+        virtual void resourceStreamOpened(const String &name, const String &group, Resource *resource, DataStreamPtr& dataStream) = 0;
 
         /** This event is called when a resource collides with another existing one in a resource manager
-
-            @param resource the new resource that conflicts with an existing one
-            @param resourceManager the according resource manager 
-            @return false to skip registration of the conflicting resource and continue using the previous instance.
           */
-        virtual bool resourceCollision(Resource *resource, ResourceManager *resourceManager) { return true; }
+        virtual bool resourceCollision(Resource *resource, ResourceManager *resourceManager) = 0;
     };
 
     /** This singleton class manages the list of resource groups, and notifying
@@ -223,27 +235,61 @@ namespace Ogre {
         resources in a group. It also provides facilities to monitor resource
         loading per group (to do progress bars etc), provided the resources 
         that are required are pre-registered.
-
-        Defining new resource groups, and declaring the resources you intend to
+    @par
+        Defining new resource groups,  and declaring the resources you intend to
         use in advance is optional, however it is a very useful feature. In addition, 
         if a ResourceManager supports the definition of resources through scripts, 
         then this is the class which drives the locating of the scripts and telling
         the ResourceManager to parse them. 
-        
-        @see @ref Resource-Management
+    @par
+        There are several states that a resource can be in (the concept, not the
+        object instance in this case):
+        <ol>
+        <li><b>Undefined</b>. Nobody knows about this resource yet. It might be
+        in the filesystem, but Ogre is oblivious to it at the moment - there 
+        is no Resource instance. This might be because it's never been declared
+        (either in a script, or using ResourceGroupManager::declareResource), or
+        it may have previously been a valid Resource instance but has been 
+        removed, either individually through ResourceManager::remove or as a group
+        through ResourceGroupManager::clearResourceGroup.</li>
+        <li><b>Declared</b>. Ogre has some forewarning of this resource, either
+        through calling ResourceGroupManager::declareResource, or by declaring
+        the resource in a script file which is on one of the resource locations
+        which has been defined for a group. There is still no instance of Resource,
+        but Ogre will know to create this resource when 
+        ResourceGroupManager::initialiseResourceGroup is called (which is automatic
+        if you declare the resource group before Root::initialise).</li>
+        <li><b>Unloaded</b>. There is now a Resource instance for this resource, 
+        although it is not loaded. This means that code which looks for this
+        named resource will find it, but the Resource is not using a lot of memory
+        because it is in an unloaded state. A Resource can get into this state
+        by having just been created by ResourceGroupManager::initialiseResourceGroup 
+        (either from a script, or from a call to declareResource), by 
+        being created directly from code (ResourceManager::create), or it may 
+        have previously been loaded and has been unloaded, either individually
+        through Resource::unload, or as a group through ResourceGroupManager::unloadResourceGroup.</li>
+        <li><b>Loaded</b>The Resource instance is fully loaded. This may have
+        happened implicitly because something used it, or it may have been 
+        loaded as part of a group.</li>
+        </ol>
+        @see ResourceGroupManager::declareResource
+        @see ResourceGroupManager::initialiseResourceGroup
+        @see ResourceGroupManager::loadResourceGroup
+        @see ResourceGroupManager::unloadResourceGroup
+        @see ResourceGroupManager::clearResourceGroup
     */
     class _OgreExport ResourceGroupManager : public Singleton<ResourceGroupManager>, public ResourceAlloc
     {
     public:
         OGRE_AUTO_MUTEX; // public to allow external locking
-        /// same as @ref RGN_DEFAULT
-        static const String DEFAULT_RESOURCE_GROUP_NAME;
-        /// same as @ref RGN_INTERNAL
-        static const String INTERNAL_RESOURCE_GROUP_NAME;
-        /// same as @ref RGN_AUTODETECT
-        static const String AUTODETECT_RESOURCE_GROUP_NAME;
+        /// Default resource group name
+        static String DEFAULT_RESOURCE_GROUP_NAME;
+        /// Internal resource group name (should be used by OGRE internal only)
+        static String INTERNAL_RESOURCE_GROUP_NAME;
+        /// Special resource group name which causes resource group to be automatically determined based on searching for the resource in all groups.
+        static String AUTODETECT_RESOURCE_GROUP_NAME;
         /// The number of reference counts held per resource by the resource system
-        static const long RESOURCE_SYSTEM_NUM_REFERENCE_COUNTS;
+        static size_t RESOURCE_SYSTEM_NUM_REFERENCE_COUNTS;
         /// Nested struct defining a resource declaration
         struct ResourceDeclaration
         {
@@ -253,8 +299,8 @@ namespace Ogre {
             NameValuePairList parameters;
         };
         /// List of resource declarations
-        typedef std::list<ResourceDeclaration> ResourceDeclarationList;
-        typedef std::map<String, ResourceManager*> ResourceManagerMap;
+        typedef list<ResourceDeclaration>::type ResourceDeclarationList;
+        typedef map<String, ResourceManager*>::type ResourceManagerMap;
         typedef MapIterator<ResourceManagerMap> ResourceManagerIterator;
         /// Resource location entry
         struct ResourceLocation
@@ -265,26 +311,26 @@ namespace Ogre {
             bool recursive;
         };
         /// List of possible file locations
-        typedef std::vector<ResourceLocation> LocationList;
+        typedef list<ResourceLocation*>::type LocationList;
 
     protected:
         /// Map of resource types (strings) to ResourceManagers, used to notify them to load / unload group contents
         ResourceManagerMap mResourceManagerMap;
 
         /// Map of loading order (Real) to ScriptLoader, used to order script parsing
-        typedef std::multimap<Real, ScriptLoader*> ScriptLoaderOrderMap;
+        typedef multimap<Real, ScriptLoader*>::type ScriptLoaderOrderMap;
         ScriptLoaderOrderMap mScriptLoaderOrderMap;
 
-        typedef std::vector<ResourceGroupListener*> ResourceGroupListenerList;
+        typedef vector<ResourceGroupListener*>::type ResourceGroupListenerList;
         ResourceGroupListenerList mResourceGroupListenerList;
 
         ResourceLoadingListener *mLoadingListener;
 
         /// Resource index entry, resourcename->location 
-        typedef std::map<String, Archive*> ResourceLocationIndex;
+        typedef map<String, Archive*>::type ResourceLocationIndex;
 
         /// List of resources which can be loaded / unloaded
-        typedef std::list<ResourcePtr> LoadUnloadResourceList;
+        typedef unordered_set<ResourcePtr>::type LoadUnloadResourceSet;
         /// Resource group entry
         struct ResourceGroup
         {
@@ -308,16 +354,14 @@ namespace Ogre {
             LocationList locationList;
             /// Index of resource names to locations, built for speedy access (case sensitive archives)
             ResourceLocationIndex resourceIndexCaseSensitive;
-#if !OGRE_RESOURCEMANAGER_STRICT
             /// Index of resource names to locations, built for speedy access (case insensitive archives)
             ResourceLocationIndex resourceIndexCaseInsensitive;
-#endif
             /// Pre-declared resources, ready to be created
             ResourceDeclarationList resourceDeclarations;
             /// Created resources which are ready to be loaded / unloaded
             // Group by loading order of the type (defined by ResourceManager)
             // (e.g. skeletons and materials before meshes)
-            typedef std::map<Real, LoadUnloadResourceList> LoadResourceOrderMap;
+            typedef map<Real, LoadUnloadResourceSet*>::type LoadResourceOrderMap;
             LoadResourceOrderMap loadResourceOrderMap;
             /// Linked world geometry, as passed to setWorldGeometry
             String worldGeometry;
@@ -332,7 +376,7 @@ namespace Ogre {
 
         };
         /// Map from resource group names to groups
-        typedef std::map<String, ResourceGroup*> ResourceGroupMap;
+        typedef map<String, ResourceGroup*>::type ResourceGroupMap;
         ResourceGroupMap mResourceGroupMap;
 
         /// Group name for world resources
@@ -343,66 +387,58 @@ namespace Ogre {
         @remarks
             Called as part of initialiseResourceGroup
         */
-        void parseResourceGroupScripts(ResourceGroup* grp) const;
+        void parseResourceGroupScripts(ResourceGroup* grp);
         /** Create all the pre-declared resources.
         @remarks
             Called as part of initialiseResourceGroup
         */
         void createDeclaredResources(ResourceGroup* grp);
         /** Adds a created resource to a group. */
-        void addCreatedResource(ResourcePtr& res, ResourceGroup& group) const;
+        void addCreatedResource(ResourcePtr& res, ResourceGroup& group);
         /** Get resource group */
-        ResourceGroup* getResourceGroup(const String& name) const;
+        ResourceGroup* getResourceGroup(const String& name);
         /** Drops contents of a group, leave group there, notify ResourceManagers. */
         void dropGroupContents(ResourceGroup* grp);
         /** Delete a group for shutdown - don't notify ResourceManagers. */
         void deleteGroup(ResourceGroup* grp);
         /// Internal find method for auto groups
-        std::pair<Archive*, ResourceGroup*>
-        resourceExistsInAnyGroupImpl(const String& filename) const;
+        ResourceGroup* findGroupContainingResourceImpl(const String& filename);
         /// Internal event firing method
-        void fireResourceGroupScriptingStarted(const String& groupName, size_t scriptCount) const;
+        void fireResourceGroupScriptingStarted(const String& groupName, size_t scriptCount);
         /// Internal event firing method
-        void fireScriptStarted(const String& scriptName, bool &skipScript) const;
+        void fireScriptStarted(const String& scriptName, bool &skipScript);
         /// Internal event firing method
-        void fireScriptEnded(const String& scriptName, bool skipped) const;
+        void fireScriptEnded(const String& scriptName, bool skipped);
         /// Internal event firing method
-        void fireResourceGroupScriptingEnded(const String& groupName) const;
+        void fireResourceGroupScriptingEnded(const String& groupName);
         /// Internal event firing method
-        void fireResourceGroupLoadStarted(const String& groupName, size_t resourceCount) const;
+        void fireResourceGroupLoadStarted(const String& groupName, size_t resourceCount);
         /// Internal event firing method
-        void fireResourceLoadStarted(const ResourcePtr& resource) const;
+        void fireResourceLoadStarted(const ResourcePtr& resource);
         /// Internal event firing method
-        void fireResourceLoadEnded(void) const;
+        void fireResourceLoadEnded(void);
         /// Internal event firing method
-        void fireResourceGroupLoadEnded(const String& groupName) const;
+        void fireResourceGroupLoadEnded(const String& groupName);
         /// Internal event firing method
-        void fireResourceGroupPrepareStarted(const String& groupName, size_t resourceCount) const;
+        void fireResourceGroupPrepareStarted(const String& groupName, size_t resourceCount);
         /// Internal event firing method
-        void fireResourcePrepareStarted(const ResourcePtr& resource) const;
+        void fireResourcePrepareStarted(const ResourcePtr& resource);
         /// Internal event firing method
-        void fireResourcePrepareEnded(void) const;
+        void fireResourcePrepareEnded(void);
         /// Internal event firing method
-        void fireResourceGroupPrepareEnded(const String& groupName) const;
+        void fireResourceGroupPrepareEnded(const String& groupName);
         /// Internal event firing method
-        void fireResourceCreated(const ResourcePtr& resource) const;
+        void fireResourceCreated(const ResourcePtr& resource);
         /// Internal event firing method
-        void fireResourceRemove(const ResourcePtr& resource) const;
+        void fireResourceRemove(const ResourcePtr& resource);
         /** Internal modification time retrieval */
-        time_t resourceModifiedTime(ResourceGroup* group, const String& filename) const;
+        time_t resourceModifiedTime(ResourceGroup* group, const String& filename);
 
         /** Find out if the named file exists in a group. Internal use only
          @param group Pointer to the resource group
          @param filename Fully qualified name of the file to test for
          */
-        Archive* resourceExists(ResourceGroup* group, const String& filename) const;
-
-        /** Open resource with optional searching in other groups if it is not found. Internal use only */
-        DataStreamPtr openResourceImpl(const String& resourceName,
-            const String& groupName,
-            bool searchGroupsIfNotFound,
-            Resource* resourceBeingLoaded,
-            bool throwOnFailure = true) const;
+        bool resourceExists(ResourceGroup* group, const String& filename);
 
         /// Stored current group - optimisation for when bulk loading a group
         ResourceGroup* mCurrentGroup;
@@ -411,16 +447,73 @@ namespace Ogre {
         virtual ~ResourceGroupManager();
 
         /** Create a resource group.
-
+        @remarks
+            A resource group allows you to define a set of resources that can 
+            be loaded / unloaded as a unit. For example, it might be all the 
+            resources used for the level of a game. There is always one predefined
+            resource group called ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+            which is typically used to hold all resources which do not need to 
+            be unloaded until shutdown. There is another predefined resource
+            group called ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME too,
+            which should be used by OGRE internal only, the resources created
+            in this group aren't supposed to modify, unload or remove by user.
+            You can create additional ones so that you can control the life of
+            your resources in whichever way you wish.
+            There is one other predefined value, 
+            ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME; using this 
+            causes the group name to be derived at load time by searching for 
+            the resource in the resource locations of each group in turn.
+        @par
+            Once you have defined a resource group, resources which will be loaded
+            as part of it are defined in one of 3 ways:
+            <ol>
+            <li>Manually through declareResource(); this is useful for scripted
+                declarations since it is entirely generalised, and does not 
+                create Resource instances right away</li>
+            <li>Through the use of scripts; some ResourceManager subtypes have
+                script formats (e.g. .material, .overlay) which can be used
+                to declare resources</li>
+            <li>By calling ResourceManager::create to create a resource manually.
+            This resource will go on the list for it's group and will be loaded
+            and unloaded with that group</li>
+            </ol>
+            You must remember to call initialiseResourceGroup if you intend to use
+            the first 2 types.
         @param name The name to give the resource group.
         @param inGlobalPool if true the resource will be loaded even a different
             group was requested in the load method as a parameter.
-        @see @ref Resource-Management
         */
-        void createResourceGroup(const String& name, bool inGlobalPool = !OGRE_RESOURCEMANAGER_STRICT);
+        void createResourceGroup(const String& name, const bool inGlobalPool = true);
 
 
         /** Initialises a resource group.
+        @remarks
+            After creating a resource group, adding some resource locations, and
+            perhaps pre-declaring some resources using declareResource(), but 
+            before you need to use the resources in the group, you 
+            should call this method to initialise the group. By calling this,
+            you are triggering the following processes:
+            <ol>
+            <li>Scripts for all resource types which support scripting are
+                parsed from the resource locations, and resources within them are
+                created (but not loaded yet).</li>
+            <li>Creates all the resources which have just pre-declared using
+            declareResource (again, these are not loaded yet)</li>
+            </ol>
+            So what this essentially does is create a bunch of unloaded Resource entries
+            in the respective ResourceManagers based on scripts, and resources
+            you've pre-declared. That means that code looking for these resources
+            will find them, but they won't be taking up much memory yet, until
+            they are either used, or they are loaded in bulk using loadResourceGroup.
+            Loading the resource group in bulk is entirely optional, but has the 
+            advantage of coming with progress reporting as resources are loaded.
+        @par
+            Failure to call this method means that loadResourceGroup will do 
+            nothing, and any resources you define in scripts will not be found.
+            Similarly, once you have called this method you won't be able to
+            pick up any new scripts or pre-declared resources, unless you
+            call clearResourceGroup, set up declared resources, and call this
+            method again.
         @note 
             When you call Root::initialise, all resource groups that have already been
             created are automatically initialised too. Therefore you do not need to 
@@ -430,43 +523,53 @@ namespace Ogre {
             has occurred (e.g. a group per game level), you must remember to call this
             method for the groups you create after this.
 
-        @param name The name of the resource group to initialise
-        @see @ref Resource-Management
+        @param name
+            The name of the resource group to initialise
+        @param changeLocaleTemporarily
+            Ogre regrettably relies on locale conversion for parsing scripts, which means
+            a script with value "1.76" will be read as "1" in some systems because the
+            locale is configured to expect "1,76" instead.
+            When you pass true to this function, we will temporarily change the locale
+            to "C" and then restore it back when we're done.
+            However this is not ideal as it may affect your program if you have
+            other threads; or it could affect your code if a listener is triggered
+            and you expect a particular locale; therefore the final decision of changing
+            the locale is left to you.
         */
-        void initialiseResourceGroup(const String& name);
+        void initialiseResourceGroup( const String& name, bool changeLocaleTemporarily );
 
         /** Initialise all resource groups which are yet to be initialised.
-        @see #initialiseResourceGroup
+        @see ResourceGroupManager::intialiseResourceGroup
         */
-        void initialiseAllResourceGroups(void);
+        void initialiseAllResourceGroups( bool changeLocaleTemporarily );
 
         /** Prepares a resource group.
-
+        @remarks
             Prepares any created resources which are part of the named group.
             Note that resources must have already been created by calling
-            ResourceManager::createResource, or declared using declareResource() or
+            ResourceManager::create, or declared using declareResource() or
             in a script (such as .material and .overlay). The latter requires
-            that initialiseResourceGroup() has been called.
+            that initialiseResourceGroup has been called. 
         
-            When this method is called, this class will callback any ResourceGroupListener
+            When this method is called, this class will callback any ResourceGroupListeners
             which have been registered to update them on progress. 
         @param name The name of the resource group to prepare.
         @param prepareMainResources If true, prepares normal resources associated 
             with the group (you might want to set this to false if you wanted
             to just prepare world geometry in bulk)
         @param prepareWorldGeom If true, prepares any linked world geometry
-            @see #linkWorldGeometryToResourceGroup
+            @see ResourceGroupManager::linkWorldGeometryToResourceGroup
         */
         void prepareResourceGroup(const String& name, bool prepareMainResources = true, 
             bool prepareWorldGeom = true);
 
         /** Loads a resource group.
-
+        @remarks
             Loads any created resources which are part of the named group.
             Note that resources must have already been created by calling
-            ResourceManager::createResource, or declared using declareResource() or
+            ResourceManager::create, or declared using declareResource() or
             in a script (such as .material and .overlay). The latter requires
-            that initialiseResourceGroup() has been called.
+            that initialiseResourceGroup has been called. 
         
             When this method is called, this class will callback any ResourceGroupListeners
             which have been registered to update them on progress. 
@@ -475,18 +578,18 @@ namespace Ogre {
             with the group (you might want to set this to false if you wanted
             to just load world geometry in bulk)
         @param loadWorldGeom If true, loads any linked world geometry
-            @see #linkWorldGeometryToResourceGroup
+            @see ResourceGroupManager::linkWorldGeometryToResourceGroup
         */
         void loadResourceGroup(const String& name, bool loadMainResources = true, 
             bool loadWorldGeom = true);
 
         /** Unloads a resource group.
-
+        @remarks
             This method unloads all the resources that have been declared as
             being part of the named resource group. Note that these resources
             will still exist in their respective ResourceManager classes, but
             will be in an unloaded state. If you want to remove them entirely,
-            you should use clearResourceGroup() or destroyResourceGroup().
+            you should use clearResourceGroup or destroyResourceGroup.
         @param name The name to of the resource group to unload.
         @param reloadableOnly If set to true, only unload the resource that is
             reloadable. Because some resources isn't reloadable, they will be
@@ -498,8 +601,8 @@ namespace Ogre {
         void unloadResourceGroup(const String& name, bool reloadableOnly = true);
 
         /** Unload all resources which are not referenced by any other object.
-
-            This method behaves like unloadResourceGroup(), except that it only
+        @remarks
+            This method behaves like unloadResourceGroup, except that it only
             unloads resources in the group which are not in use, ie not referenced
             by other objects. This allows you to free up some memory selectively
             whilst still keeping the group around (and the resources present,
@@ -536,7 +639,7 @@ namespace Ogre {
             group return true, otherwise return false.
         @param name The name to of the resource group to access.
         */
-        bool isResourceGroupInitialised(const String& name) const;
+        bool isResourceGroupInitialised(const String& name);
 
         /** Checks the status of a resource group.
         @remarks
@@ -545,36 +648,33 @@ namespace Ogre {
             group return true, otherwise return false.
         @param name The name to of the resource group to access.
         */
-        bool isResourceGroupLoaded(const String& name) const;
+        bool isResourceGroupLoaded(const String& name);
 
         /*** Verify if a resource group exists
         @param name The name of the resource group to look for
         */
-        bool resourceGroupExists(const String& name) const;
+        bool resourceGroupExists(const String& name);
 
-        /** Adds a location to the list of searchable locations for a
-            Resource type.
-
-            @param
-                name The name of the location, e.g. './data' or
-                '/compressed/gamedata.zip'
-            @param
-                locType A string identifying the location type, e.g.
-                'FileSystem' (for folders), 'Zip' etc. Must map to a
-                registered plugin which deals with this type (FileSystem and
-                Zip should always be available)
-            @param
-                resGroup the resource group which this location
-                should apply to; defaults to the General group which applies to
-                all non-specific resources.
-            @param
-                recursive If the resource location has a concept of recursive
-                directory traversal, enabling this option will mean you can load
-                resources in subdirectories using only their unqualified name.
-                The default is to disable this so that resources in subdirectories
-                with the same name are still unique.
-            @param readOnly whether the Archive is read only
-            @see @ref Resource-Management
+        /** Method to add a resource location to for a given resource group. 
+        @remarks
+            Resource locations are places which are searched to load resource files.
+            When you choose to load a file, or to search for valid files to load, 
+            the resource locations are used.
+        @param name The name of the resource location; probably a directory, zip file, URL etc.
+        @param locType The codename for the resource type, which must correspond to the 
+            Archive factory which is providing the implementation.
+        @param resGroup The name of the resource group for which this location is
+            to apply. ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME is the 
+            default group which always exists, and can
+            be used for resources which are unlikely to be unloaded until application
+            shutdown. Otherwise it must be the name of a group; if it
+            has not already been created with createResourceGroup then it is created
+            automatically.
+        @param recursive Whether subdirectories will be searched for files when using 
+            a pattern match (such as *.material), and whether subdirectories will be
+            indexed. This can slow down initial loading of the archive and searches.
+            When opening a resource you still need to use the fully qualified name, 
+            this allows duplicate names in alternate paths.
         */
         void addResourceLocation(const String& name, const String& locType, 
             const String& resGroup = DEFAULT_RESOURCE_GROUP_NAME, bool recursive = false, bool readOnly = true);
@@ -583,11 +683,24 @@ namespace Ogre {
             const String& resGroup = DEFAULT_RESOURCE_GROUP_NAME);
         /** Verify if a resource location exists for the given group. */ 
         bool resourceLocationExists(const String& name, 
-            const String& resGroup = DEFAULT_RESOURCE_GROUP_NAME) const;
+            const String& resGroup = DEFAULT_RESOURCE_GROUP_NAME);
 
         /** Declares a resource to be a part of a resource group, allowing you 
             to load and unload it as part of the group.
-
+        @remarks
+            By declaring resources before you attempt to use them, you can 
+            more easily control the loading and unloading of those resources
+            by their group. Declaring them also allows them to be enumerated, 
+            which means events can be raised to indicate the loading progress
+            (@see ResourceGroupListener). Note that another way of declaring
+            resources is to use a script specific to the resource type, if
+            available (e.g. .material).
+        @par
+            Declared resources are not created as Resource instances (and thus
+            are not available through their ResourceManager) until initialiseResourceGroup
+            is called, at which point all declared resources will become created 
+            (but unloaded) Resource instances, along with any resources declared
+            in scripts in resource locations associated with the group.
         @param name The resource name. 
         @param resourceType The type of the resource. Ogre comes preconfigured with 
             a number of resource types: 
@@ -605,17 +718,48 @@ namespace Ogre {
         @param loadParameters A list of name / value pairs which supply custom
             parameters to the resource which will be required before it can 
             be loaded. These are specific to the resource type.
-        @see @ref Resource-Management
         */
         void declareResource(const String& name, const String& resourceType,
             const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
             const NameValuePairList& loadParameters = NameValuePairList());
-        /** @copydoc declareResource
-            @param loader Pointer to a ManualResourceLoader implementation which will
+        /** Declares a resource to be a part of a resource group, allowing you
+            to load and unload it as part of the group.
+        @remarks
+            By declaring resources before you attempt to use them, you can
+            more easily control the loading and unloading of those resources
+            by their group. Declaring them also allows them to be enumerated,
+            which means events can be raised to indicate the loading progress
+            (@see ResourceGroupListener). Note that another way of declaring
+            resources is to use a script specific to the resource type, if
+            available (e.g. .material).
+        @par
+            Declared resources are not created as Resource instances (and thus
+            are not available through their ResourceManager) until initialiseResourceGroup
+            is called, at which point all declared resources will become created
+            (but unloaded) Resource instances, along with any resources declared
+            in scripts in resource locations associated with the group.
+        @param name The resource name.
+        @param resourceType The type of the resource. Ogre comes preconfigured with
+            a number of resource types:
+            <ul>
+            <li>Font</li>
+            <li>GpuProgram</li>
+            <li>HighLevelGpuProgram</li>
+            <li>Material</li>
+            <li>Mesh</li>
+            <li>Skeleton</li>
+            <li>Texture</li>
+            </ul>
+            .. but more can be added by plugin ResourceManager classes.
+        @param groupName The name of the group to which it will belong.
+        @param loader Pointer to a ManualResourceLoader implementation which will
             be called when the Resource wishes to load. If supplied, the resource
             is manually loaded, otherwise it'll loading from file automatic.
             @note We don't support declare manually loaded resource without loader
                 here, since it's meaningless.
+        @param loadParameters A list of name / value pairs which supply custom
+            parameters to the resource which will be required before it can
+            be loaded. These are specific to the resource type.
         */
         void declareResource(const String& name, const String& resourceType,
             const String& groupName, ManualResourceLoader* loader,
@@ -636,41 +780,28 @@ namespace Ogre {
             pointing at the source of the data.
         @param resourceName The name of the resource to locate.
             Even if resource locations are added recursively, you
-            must provide a fully qualified name to this method. You
+            must provide a fully qualified name to this method. You 
             can find out the matching fully qualified names by using the
             find() method if you need to.
-        @param groupName The name of the resource group; this determines which
-            locations are searched.
-            If you're loading a @ref Resource using #RGN_AUTODETECT, you **must**
-            also provide the resourceBeingLoaded parameter to enable the
+        @param groupName The name of the resource group; this determines which 
+            locations are searched. 
+        @param searchGroupsIfNotFound If true, if the resource is not found in 
+            the group specified, other groups will be searched. If you're
+            loading a real Resource using this option, you <strong>must</strong>
+            also provide the resourceBeingLoaded parameter to enable the 
             group membership to be changed
-        @param resourceBeingLoaded Optional pointer to the resource being
+        @param resourceBeingLoaded Optional pointer to the resource being 
             loaded, which you should supply if you want
-        @param throwOnFailure throw an exception. Returns nullptr otherwise
         @return Shared pointer to data stream containing the data, will be
             destroyed automatically when no longer referenced
         */
-        DataStreamPtr openResource(const String& resourceName,
-                                   const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
-                                   Resource* resourceBeingLoaded = NULL,
-                                   bool throwOnFailure = true) const
-        {
-            return openResourceImpl(resourceName, groupName, false,
-                                    resourceBeingLoaded, throwOnFailure);
-        }
+        DataStreamPtr openResource(const String& resourceName, 
+            const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
+            bool searchGroupsIfNotFound = true, Resource* resourceBeingLoaded = 0);
 
-        /** 
-            @overload
-            if the resource is not found in the group specified, other groups will be searched.
-            @deprecated use AUTODETECT_RESOURCE_GROUP_NAME instead of searchGroupsIfNotFound
-        */
-        OGRE_DEPRECATED DataStreamPtr openResource(const String& resourceName,
-                                                   const String& groupName,
-                                                   bool searchGroupsIfNotFound,
-                                                   Resource* resourceBeingLoaded = 0) const
-        {
-            return openResourceImpl(resourceName, groupName, searchGroupsIfNotFound, resourceBeingLoaded);
-        }
+        Archive* _getArchiveToResource( const String& resourceName,
+                                        const String& groupName = DEFAULT_RESOURCE_GROUP_NAME,
+                                        bool searchGroupsIfNotFound = true );
 
         /** Open all resources matching a given pattern (which can contain
             the character '*' as a wildcard), and return a collection of 
@@ -683,8 +814,8 @@ namespace Ogre {
         @return Shared pointer to a data stream list , will be
             destroyed automatically when no longer referenced
         */
-        DataStreamList openResources(const String& pattern,
-            const String& groupName = DEFAULT_RESOURCE_GROUP_NAME) const;
+        DataStreamListPtr openResources(const String& pattern, 
+            const String& groupName = DEFAULT_RESOURCE_GROUP_NAME);
         
         /** List all file or directory names in a resource group.
         @note
@@ -694,7 +825,7 @@ namespace Ogre {
         @param dirs If true, directory names will be returned instead of file names
         @return A list of filenames matching the criteria, all are fully qualified
         */
-        StringVectorPtr listResourceNames(const String& groupName, bool dirs = false) const;
+        StringVectorPtr listResourceNames(const String& groupName, bool dirs = false);
 
         /** List all files in a resource group with accompanying information.
         @param groupName The name of the group
@@ -702,7 +833,7 @@ namespace Ogre {
         @return A list of structures detailing quite a lot of information about
         all the files in the archive.
         */
-        FileInfoListPtr listResourceFileInfo(const String& groupName, bool dirs = false) const;
+        FileInfoListPtr listResourceFileInfo(const String& groupName, bool dirs = false);
 
         /** Find all file or directory names matching a given pattern in a
             resource group.
@@ -716,18 +847,18 @@ namespace Ogre {
         @return A list of filenames matching the criteria, all are fully qualified
         */
         StringVectorPtr findResourceNames(const String& groupName, const String& pattern,
-            bool dirs = false) const;
+            bool dirs = false);
 
         /** Find out if the named file exists in a group. 
         @param group The name of the resource group
         @param filename Fully qualified name of the file to test for
         */
-        bool resourceExists(const String& group, const String& filename) const;
+        bool resourceExists(const String& group, const String& filename);
         
         /** Find out if the named file exists in any group. 
         @param filename Fully qualified name of the file to test for
         */
-        bool resourceExistsInAnyGroup(const String& filename) const;
+        bool resourceExistsInAnyGroup(const String& filename);
 
         /** Find the group in which a resource exists.
         @param filename Fully qualified name of the file the resource should be
@@ -735,7 +866,7 @@ namespace Ogre {
         @return Name of the resource group the resource was found in. An
             exception is thrown if the group could not be determined.
         */
-        const String& findGroupContainingResource(const String& filename) const;
+        const String& findGroupContainingResource(const String& filename);
 
         /** Find all files or directories matching a given pattern in a group
             and get some detailed information about them.
@@ -747,15 +878,15 @@ namespace Ogre {
         the criteria.
         */
         FileInfoListPtr findResourceFileInfo(const String& group, const String& pattern,
-            bool dirs = false) const;
+            bool dirs = false);
 
         /** Retrieve the modification time of a given file */
-        time_t resourceModifiedTime(const String& group, const String& filename) const;
+        time_t resourceModifiedTime(const String& group, const String& filename); 
         /** List all resource locations in a resource group.
         @param groupName The name of the group
         @return A list of resource locations matching the criteria
         */
-        StringVectorPtr listResourceLocations(const String& groupName) const;
+        StringVectorPtr listResourceLocations(const String& groupName);
 
         /** Find all resource location names matching a given pattern in a
             resource group.
@@ -763,7 +894,7 @@ namespace Ogre {
         @param pattern The pattern to search for; wildcards (*) are allowed
         @return A list of resource locations matching the criteria
         */
-        StringVectorPtr findResourceLocation(const String& groupName, const String& pattern) const;
+        StringVectorPtr findResourceLocation(const String& groupName, const String& pattern);
 
         /** Create a new resource file in a given group.
         @remarks
@@ -842,7 +973,7 @@ namespace Ogre {
 
         /** Clear any link to world geometry from a resource group.
         @remarks
-            Basically undoes a previous call to #linkWorldGeometryToResourceGroup.
+            Basically undoes a previous call to linkWorldGeometryToResourceGroup.
         */
         void unlinkWorldGeometryFromResourceGroup(const String& group);
 
@@ -853,7 +984,7 @@ namespace Ogre {
             group return true, otherwise return false.
         @param name The name to of the resource group to access.
         */
-        bool isResourceGroupInGlobalPool(const String& name) const;
+        bool isResourceGroupInGlobalPool(const String& name);
 
         /** Shutdown all ResourceManagers, performed as part of clean-up. */
         void shutdownAll(void);
@@ -878,12 +1009,9 @@ namespace Ogre {
         */
         void _unregisterResourceManager(const String& resourceType);
 
-        /** Get the registered resource managers.
+        /** Get an iterator over the registered resource managers.
         */
-        const ResourceManagerMap& getResourceManagers() const { return mResourceManagerMap; }
-
-        /// @deprecated use getResourceManagers()
-        OGRE_DEPRECATED ResourceManagerIterator getResourceManagerIterator()
+        ResourceManagerIterator getResourceManagerIterator()
         { return ResourceManagerIterator(
             mResourceManagerMap.begin(), mResourceManagerMap.end()); }
 
@@ -901,32 +1029,32 @@ namespace Ogre {
         /** Method used to directly query for registered script loaders.
         @param pattern The specific script pattern (e.g. *.material) the script loader handles
         */
-        ScriptLoader *_findScriptLoader(const String &pattern) const;
+        ScriptLoader *_findScriptLoader(const String &pattern);
 
         /** Internal method for getting a registered ResourceManager.
         @param resourceType String identifying the resource type.
         */
-        ResourceManager* _getResourceManager(const String& resourceType) const;
+        ResourceManager* _getResourceManager(const String& resourceType);
 
         /** Internal method called by ResourceManager when a resource is created.
         @param res Weak reference to resource
         */
-        void _notifyResourceCreated(ResourcePtr& res) const;
+        void _notifyResourceCreated(ResourcePtr& res);
 
         /** Internal method called by ResourceManager when a resource is removed.
         @param res Weak reference to resource
         */
-        void _notifyResourceRemoved(const ResourcePtr& res) const;
+        void _notifyResourceRemoved(const ResourcePtr& res);
 
         /** Internal method to notify the group manager that a resource has
             changed group (only applicable for autodetect group) */
-        void _notifyResourceGroupChanged(const String& oldGroup, Resource* res) const;
+        void _notifyResourceGroupChanged(const String& oldGroup, Resource* res);
 
         /** Internal method called by ResourceManager when all resources 
             for that manager are removed.
         @param manager Pointer to the manager for which all resources are being removed
         */
-        void _notifyAllResourcesRemoved(ResourceManager* manager) const;
+        void _notifyAllResourcesRemoved(ResourceManager* manager);
 
         /** Notify this manager that one stage of world geometry loading has been 
             started.
@@ -935,7 +1063,7 @@ namespace Ogre {
             method the number of times equal to the value they return from 
             SceneManager::estimateWorldGeometry while loading their geometry.
         */
-        void _notifyWorldGeometryStageStarted(const String& description) const;
+        void _notifyWorldGeometryStageStarted(const String& description);
         /** Notify this manager that one stage of world geometry loading has been 
             completed.
         @remarks
@@ -943,36 +1071,64 @@ namespace Ogre {
             method the number of times equal to the value they return from 
             SceneManager::estimateWorldGeometry while loading their geometry.
         */
-        void _notifyWorldGeometryStageEnded(void) const;
+        void _notifyWorldGeometryStageEnded(void);
 
         /** Get a list of the currently defined resource groups. 
         @note This method intentionally returns a copy rather than a reference in
             order to avoid any contention issues in multithreaded applications.
         @return A copy of list of currently defined groups.
         */
-        StringVector getResourceGroups(void) const;
+        StringVector getResourceGroups(void);
         /** Get the list of resource declarations for the specified group name. 
         @note This method intentionally returns a copy rather than a reference in
             order to avoid any contention issues in multithreaded applications.
         @param groupName The name of the group
         @return A copy of list of currently defined resources.
         */
-        ResourceDeclarationList getResourceDeclarationList(const String& groupName) const;
+        ResourceDeclarationList getResourceDeclarationList(const String& groupName);
 
         /** Get the list of resource locations for the specified group name.
         @param groupName The name of the group
         @return The list of resource locations associated with the given group.
         */      
-        const LocationList& getResourceLocationList(const String& groupName) const;
+        const LocationList& getResourceLocationList(const String& groupName);
 
         /// Sets a new loading listener
         void setLoadingListener(ResourceLoadingListener *listener);
         /// Returns the current loading listener
-        ResourceLoadingListener *getLoadingListener() const;
+        ResourceLoadingListener *getLoadingListener();
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ResourceGroupManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ResourceGroupManager* getSingletonPtr(void);
 
     };

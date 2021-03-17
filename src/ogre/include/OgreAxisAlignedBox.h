@@ -28,8 +28,6 @@ THE SOFTWARE.
 #ifndef __AxisAlignedBox_H_
 #define __AxisAlignedBox_H_
 
-#include <array>
-
 // Precompiler options
 #include "OgrePrerequisites.h"
 
@@ -66,6 +64,7 @@ namespace Ogre {
         Vector3 mMinimum;
         Vector3 mMaximum;
         Extent mExtent;
+        mutable Vector3* mCorners;
 
     public:
         /*
@@ -78,7 +77,7 @@ namespace Ogre {
         |/      |/
         6-------7
         */
-        enum CornerEnum {
+        typedef enum {
             FAR_LEFT_BOTTOM = 0,
             FAR_LEFT_TOP = 1,
             FAR_RIGHT_TOP = 2,
@@ -87,32 +86,63 @@ namespace Ogre {
             NEAR_LEFT_BOTTOM = 6,
             NEAR_LEFT_TOP = 5,
             NEAR_RIGHT_TOP = 4
-        };
-        typedef std::array<Vector3, 8> Corners;
-
-        AxisAlignedBox()
+        } CornerEnum;
+        inline AxisAlignedBox() : mMinimum(Vector3::ZERO), mMaximum(Vector3::UNIT_SCALE), mCorners(0)
         {
             // Default to a null box 
             setMinimum( -0.5, -0.5, -0.5 );
             setMaximum( 0.5, 0.5, 0.5 );
             mExtent = EXTENT_NULL;
         }
-        AxisAlignedBox(Extent e)
+        inline AxisAlignedBox(Extent e) : mMinimum(Vector3::ZERO), mMaximum(Vector3::UNIT_SCALE), mCorners(0)
         {
             setMinimum( -0.5, -0.5, -0.5 );
             setMaximum( 0.5, 0.5, 0.5 );
             mExtent = e;
         }
 
-        AxisAlignedBox( const Vector3& min, const Vector3& max )
+        inline AxisAlignedBox(const AxisAlignedBox & rkBox) : mMinimum(Vector3::ZERO), mMaximum(Vector3::UNIT_SCALE), mCorners(0)
+
+        {
+            if (rkBox.isNull())
+                setNull();
+            else if (rkBox.isInfinite())
+                setInfinite();
+            else
+                setExtents( rkBox.mMinimum, rkBox.mMaximum );
+        }
+
+        inline AxisAlignedBox( const Vector3& min, const Vector3& max ) : mMinimum(Vector3::ZERO), mMaximum(Vector3::UNIT_SCALE), mCorners(0)
         {
             setExtents( min, max );
         }
 
-        AxisAlignedBox(Real mx, Real my, Real mz, Real Mx, Real My, Real Mz)
+        inline AxisAlignedBox(
+            Real mx, Real my, Real mz,
+            Real Mx, Real My, Real Mz ) : mMinimum(Vector3::ZERO), mMaximum(Vector3::UNIT_SCALE), mCorners(0)
         {
             setExtents( mx, my, mz, Mx, My, Mz );
         }
+
+        AxisAlignedBox& operator=(const AxisAlignedBox& rhs)
+        {
+            // Specifically override to avoid copying mCorners
+            if (rhs.isNull())
+                setNull();
+            else if (rhs.isInfinite())
+                setInfinite();
+            else
+                setExtents(rhs.mMinimum, rhs.mMaximum);
+
+            return *this;
+        }
+
+        ~AxisAlignedBox()
+        {
+            if (mCorners)
+                OGRE_FREE(mCorners, MEMCATEGORY_SCENE_CONTROL);
+        }
+
 
         /** Gets the minimum corner of the box.
         */
@@ -267,7 +297,7 @@ namespace Ogre {
         6-------7
         </pre>
         */
-        inline Corners getAllCorners(void) const
+        inline const Vector3* getAllCorners(void) const
         {
             assert( (mExtent == EXTENT_FINITE) && "Can't get corners of a null or infinite AAB" );
 
@@ -277,19 +307,20 @@ namespace Ogre {
             // Maximum Z face, starting with Max(all), then anticlockwise
             //   around face (looking onto the face)
             // Only for optimization/compatibility.
-            Corners corners;
+            if (!mCorners)
+                mCorners = OGRE_ALLOC_T(Vector3, 8, MEMCATEGORY_SCENE_CONTROL);
 
-            corners[0] = getCorner(FAR_LEFT_BOTTOM);
-            corners[1] = getCorner(FAR_LEFT_TOP);
-            corners[2] = getCorner(FAR_RIGHT_TOP);
-            corners[3] = getCorner(FAR_RIGHT_BOTTOM);
+            mCorners[0] = mMinimum;
+            mCorners[1].x = mMinimum.x; mCorners[1].y = mMaximum.y; mCorners[1].z = mMinimum.z;
+            mCorners[2].x = mMaximum.x; mCorners[2].y = mMaximum.y; mCorners[2].z = mMinimum.z;
+            mCorners[3].x = mMaximum.x; mCorners[3].y = mMinimum.y; mCorners[3].z = mMinimum.z;            
 
-            corners[4] = getCorner(NEAR_RIGHT_TOP);
-            corners[5] = getCorner(NEAR_LEFT_TOP);
-            corners[6] = getCorner(NEAR_LEFT_BOTTOM);
-            corners[7] = getCorner(NEAR_RIGHT_BOTTOM);
+            mCorners[4] = mMaximum;
+            mCorners[5].x = mMinimum.x; mCorners[5].y = mMaximum.y; mCorners[5].z = mMaximum.z;
+            mCorners[6].x = mMinimum.x; mCorners[6].y = mMinimum.y; mCorners[6].z = mMaximum.z;
+            mCorners[7].x = mMaximum.x; mCorners[7].y = mMinimum.y; mCorners[7].z = mMaximum.z;
 
-            return corners;
+            return mCorners;
         }
 
         /** Gets the position of one of the corners
@@ -319,27 +350,7 @@ namespace Ogre {
             }
         }
 
-        friend std::ostream& operator<<( std::ostream& o, const AxisAlignedBox &aab )
-        {
-            switch (aab.mExtent)
-            {
-            case EXTENT_NULL:
-                o << "AxisAlignedBox(null)";
-                return o;
-
-            case EXTENT_FINITE:
-                o << "AxisAlignedBox(min=" << aab.mMinimum << ", max=" << aab.mMaximum << ")";
-                return o;
-
-            case EXTENT_INFINITE:
-                o << "AxisAlignedBox(infinite)";
-                return o;
-
-            default: // shut up compiler
-                assert( false && "Never reached" );
-                return o;
-            }
-        }
+        _OgreExport friend std::ostream &operator<<( std::ostream &o, const AxisAlignedBox &aab );
 
         /** Merges the passed in box into the current box. The result is the
         box which encompasses both.
@@ -469,9 +480,13 @@ namespace Ogre {
         extents are mapped back onto the axes to produce another
         AABB. Useful when you have a local AABB for an object which
         is then transformed.
+        @note
+        The matrix must be an affine matrix. @see Matrix4::isAffine.
         */
-        void transform(const Affine3& m)
+        void transformAffine(const Matrix4& m)
         {
+            assert(m.isAffine());
+
             // Do nothing if current null or infinite
             if ( mExtent != EXTENT_FINITE )
                 return;
@@ -479,7 +494,7 @@ namespace Ogre {
             Vector3 centre = getCenter();
             Vector3 halfSize = getHalfSize();
 
-            Vector3 newCentre = m * centre;
+            Vector3 newCentre = m.transformAffine(centre);
             Vector3 newHalfSize(
                 Math::Abs(m[0][0]) * halfSize.x + Math::Abs(m[0][1]) * halfSize.y + Math::Abs(m[0][2]) * halfSize.z, 
                 Math::Abs(m[1][0]) * halfSize.x + Math::Abs(m[1][1]) * halfSize.y + Math::Abs(m[1][2]) * halfSize.z,

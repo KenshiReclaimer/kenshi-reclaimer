@@ -31,7 +31,6 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreHighLevelGpuProgram.h"
 #include "OgreHighLevelGpuProgramManager.h"
-#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 
@@ -42,12 +41,12 @@ namespace Ogre {
     *  @{
     */
     /** Specialisation of HighLevelGpuProgram which just delegates its implementation
-        to one other GpuProgram, allowing a single program definition
+        to one other high level program, allowing a single program definition
         to represent one supported program from a number of options
     @remarks
         Whilst you can use Technique to implement several ways to render an object
         depending on hardware support, if the only reason to need multiple paths is
-        because of the shader language supported, this can be
+        because of the high-level shader language supported, this can be 
         cumbersome. For example you might want to implement the same shader 
         in HLSL and GLSL for portability but apart from the implementation detail,
         the shaders do the same thing and take the same parameters. If the materials
@@ -72,7 +71,7 @@ namespace Ogre {
             void doSet(void* target, const String& val);
         };
 
-        static void setPriority(String shaderLanguage,int priority);
+        static void setPrioriry(String shaderLanguage,int priority);
         static int  getPriority(String shaderLanguage);
 
     protected:
@@ -81,7 +80,7 @@ namespace Ogre {
         /// Ordered list of potential delegates
         StringVector mDelegateNames;
         /// The chosen delegate
-        mutable GpuProgramPtr mChosenDelegate;
+        mutable HighLevelGpuProgramPtr mChosenDelegate;
 
         /// Choose the delegate to use
         void chooseDelegate() const;
@@ -109,7 +108,7 @@ namespace Ogre {
         void clearDelegatePrograms();
 
         /// Get the chosen delegate
-        const GpuProgramPtr& _getDelegate() const;
+        const HighLevelGpuProgramPtr& _getDelegate() const;
 
         /** @copydoc GpuProgram::getLanguage */
         const String& getLanguage(void) const;
@@ -129,12 +128,7 @@ namespace Ogre {
 
         /** @copydoc GpuProgram::isSupported */
         bool isSupported(void) const;
-
-        const String& getSource(void) const override
-        {
-            return _getDelegate() ? _getDelegate()->getSource() : BLANKSTRING;
-        }
-
+        
         /** @copydoc GpuProgram::isSkeletalAnimationIncluded */
         bool isSkeletalAnimationIncluded(void) const;
 
@@ -144,7 +138,7 @@ namespace Ogre {
         ushort getNumberOfPosesIncluded(void) const;
 
         bool isVertexTextureFetchRequired(void) const;
-        const GpuProgramParametersPtr& getDefaultParameters(void) override;
+        GpuProgramParametersSharedPtr getDefaultParameters(void);
         bool hasDefaultParameters(void) const;
         bool getPassSurfaceAndLightStates(void) const;
         bool getPassFogStates(void) const;
@@ -170,23 +164,22 @@ namespace Ogre {
     };
 
     /** Factory class for Unified programs. */
-    class _OgreExport UnifiedHighLevelGpuProgramFactory : public HighLevelGpuProgramFactory
+    class UnifiedHighLevelGpuProgramFactory : public HighLevelGpuProgramFactory
     {
     public:
         UnifiedHighLevelGpuProgramFactory();
         ~UnifiedHighLevelGpuProgramFactory();
         /// Get the name of the language this factory creates programs for
         const String& getLanguage(void) const;
-        GpuProgram* create(ResourceManager* creator,
+        HighLevelGpuProgram* create(ResourceManager* creator, 
             const String& name, ResourceHandle handle,
             const String& group, bool isManual, ManualResourceLoader* loader);
+        void destroy(HighLevelGpuProgram* prog);
+
     };
 
     /** @} */
     /** @} */
 
 }
-
-#include "OgreHeaderSuffix.h"
-
 #endif

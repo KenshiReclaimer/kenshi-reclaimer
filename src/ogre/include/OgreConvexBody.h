@@ -52,14 +52,16 @@ namespace Ogre
     class _OgreExport ConvexBody
     {
     public:
-        typedef std::vector< Polygon* >    PolygonList;
+        typedef vector< Polygon* >::type    PolygonList;
 
     protected:
         PolygonList mPolygons;
 
         // Static 'free list' of polygons to save reallocation, shared between all bodies
         static PolygonList msFreePolygons;
+#if OGRE_THREAD_SUPPORT
         OGRE_STATIC_MUTEX(msFreePolygonsMutex);
+#endif
 
     public:
         ConvexBody();
@@ -73,6 +75,10 @@ namespace Ogre
         /** Build a new polygon representation from an AAB.
         */
         void define(const AxisAlignedBox& aab);
+
+        /** Build a new polygon representation from an axis-UNaligned box.
+        */
+        void define( const Vector3 corners[8] );
 
         /** Clips the body with a frustum. The resulting holes
             are filled with new polygons.

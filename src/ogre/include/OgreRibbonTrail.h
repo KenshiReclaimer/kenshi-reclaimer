@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -78,12 +79,13 @@ namespace Ogre {
         @param useVertexColours If true, use vertex colours from the chain elements (must
             be true if you intend to use fading)
         */
-        RibbonTrail(const String& name, size_t maxElements = 20, size_t numberOfChains = 1, 
-            bool useTextureCoords = true, bool useVertexColours = true);
+        RibbonTrail( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                     size_t maxElements = 20, size_t numberOfChains = 1, bool useTextureCoords = true,
+                     bool useVertexColours = true );
         /// destructor
         virtual ~RibbonTrail();
 
-        typedef std::vector<Node*> NodeList;
+        typedef vector<Node*>::type NodeList;
         typedef ConstVectorIterator<NodeList> NodeIterator;
 
         /** Add a node to be tracked.
@@ -91,7 +93,7 @@ namespace Ogre {
         */
         virtual void addNode(Node* n);
         /** Remove tracking on a given node. */
-        virtual void removeNode(const Node* n);
+        virtual void removeNode(Node* n);
         /** Get an iterator over the nodes which are being tracked. */
         virtual NodeIterator getNodeIterator(void) const;
         /** Get the chain index for a given Node being tracked. */
@@ -127,7 +129,7 @@ namespace Ogre {
         @note
             Only used if this instance is using vertex colours.
         */
-        virtual void setInitialColour(size_t chainIndex, float r, float g, float b, float a = 1.0);
+        virtual void setInitialColour(size_t chainIndex, Real r, Real g, Real b, Real a = 1.0);
         /** Get the starting ribbon colour. */
         virtual const ColourValue& getInitialColour(size_t chainIndex) const;
 
@@ -157,7 +159,7 @@ namespace Ogre {
         @param chainIndex The index of the chain
         @param r,g,b,a The amount to subtract from each colour channel per second
         */
-        virtual void setColourChange(size_t chainIndex, float r, float g, float b, float a);
+        virtual void setColourChange(size_t chainIndex, Real r, Real g, Real b, Real a);
 
         /** Get the per-second fading amount */
         virtual const ColourValue& getColourChange(size_t chainIndex) const;
@@ -170,13 +172,14 @@ namespace Ogre {
         /// Perform any fading / width delta required; internal method
         virtual void _timeUpdate(Real time);
 
-        const String& getMovableType(void) const override;
+        /** Overridden from MovableObject */
+        const String& getMovableType(void) const;
 
     protected:
         /// List of nodes being trailed
         NodeList mNodeList;
         /// Mapping of nodes to chain segments
-        typedef std::vector<size_t> IndexVector;
+        typedef vector<size_t>::type IndexVector;
         /// Ordered like mNodeList, contains chain index
         IndexVector mNodeToChainSegment;
         // chains not in use
@@ -184,7 +187,7 @@ namespace Ogre {
 
         // fast lookup node->chain index
         // we use positional map too because that can be useful
-        typedef std::map<const Node*, size_t> NodeToChainSegmentMap;
+        typedef map<const Node*, size_t>::type NodeToChainSegmentMap;
         NodeToChainSegmentMap mNodeToSegMap;
 
         /// Total length of trail in world units
@@ -193,8 +196,8 @@ namespace Ogre {
         Real mElemLength;
         /// Squared length of each element
         Real mSquaredElemLength;
-        typedef std::vector<ColourValue> ColourValueList;
-        typedef std::vector<Real> RealList;
+        typedef vector<ColourValue>::type ColourValueList;
+        typedef vector<Real>::type RealList;
         /// Initial colour of the ribbon
         ColourValueList mInitialColour;
         /// fade amount per second
@@ -213,7 +216,7 @@ namespace Ogre {
         /// Node has changed position, update
         virtual void updateTrail(size_t index, const Node* node);
         /// Reset the tracked chain to initial state
-        virtual void resetTrail(size_t index, const Node* node);
+        virtual void resetTrail(size_t index, Node* node);
         /// Reset all tracked chains to initial state
         virtual void resetAllTrails(void);
 
@@ -224,7 +227,9 @@ namespace Ogre {
     class _OgreExport RibbonTrailFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         RibbonTrailFactory() {}
         ~RibbonTrailFactory() {}
@@ -232,10 +237,13 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);  
+
     };
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

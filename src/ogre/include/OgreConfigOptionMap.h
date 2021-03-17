@@ -38,7 +38,7 @@ namespace Ogre {
     /** \addtogroup Core
     *  @{
     */
-    /** \addtogroup RenderSystem
+    /** \addtogroup General
     *  @{
     */
     /** Packages the details of a configuration option.
@@ -46,15 +46,15 @@ namespace Ogre {
             Used for RenderSystem::getConfigOptions. If immutable is true, this
             option must be disabled for modifying.
     */
-    struct ConfigOption
+    typedef struct _ConfigOption
     {
         String name;
         String currentValue;
         StringVector possibleValues;
         bool immutable;
-    };
+    } ConfigOption;
 
-    typedef std::map< String, ConfigOption > ConfigOptionMap;
+    typedef map< String, ConfigOption >::type ConfigOptionMap;
     /** @} */
     /** @} */
 }

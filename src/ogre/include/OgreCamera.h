@@ -42,6 +42,25 @@ namespace Ogre {
     class Matrix4;
     class Ray;
 
+    struct VrData
+    {
+        Matrix4 mHeadToEye[2];
+        Matrix4 mProjectionMatrix[2];
+        //Matrix4 mLeftToRight;
+        Vector3 mLeftToRight;
+
+        void set( const Matrix4 eyeToHead[2], const Matrix4 projectionMatrix[2] )
+        {
+            for( int i=0; i<2; ++i )
+            {
+                mHeadToEye[i] = eyeToHead[i];
+                mProjectionMatrix[i] = projectionMatrix[i];
+                mHeadToEye[i] = mHeadToEye[i].inverseAffine();
+            }
+            mLeftToRight = (mHeadToEye[0] * eyeToHead[1]).getTrans();
+        }
+    };
+
     /** \addtogroup Core
     *  @{
     */
@@ -50,7 +69,7 @@ namespace Ogre {
     */
 
     /** A viewpoint from which the scene will be rendered.
-
+    @remarks
         OGRE renders scenes from a camera viewpoint into a buffer of
         some sort, normally a window or a texture (a subclass of
         RenderTarget). OGRE cameras support both perspective projection (the default,
@@ -63,24 +82,21 @@ namespace Ogre {
         one camera can point at a single render target if required,
         each rendering to a subset of the target, allowing split screen
         and picture-in-picture views.
-
-        At render time, all Scene Objects will be transformed in the camera space,
-        which is defined as:
-        - \f$+x\f$ is right
-        - \f$+y\f$ is up
-        - \f$-z\f$ is away
-
+    @par
         Cameras maintain their own aspect ratios, field of view, and frustum,
-        and project co-ordinates into normalised device coordinates measured from -1 to 1 in x and y,
-        and 0 to 1 in z, where
-        - \f$+x\f$ is right
-        - \f$+y\f$ is up
-        - \f$+z\f$ is away
-
-        At render time, the camera will be rendering to a
+        and project co-ordinates into a space measured from -1 to 1 in x and y,
+        and 0 to 1 in z. At render time, the camera will be rendering to a
         Viewport which will translate these parametric co-ordinates into real screen
         co-ordinates. Obviously it is advisable that the viewport has the same
         aspect ratio as the camera to avoid distortion (unless you want it!).
+    @par
+        Starting Ogre 2.x, a Camera must be attached to a SceneNode, using the
+        method SceneNode::attachObject. By default the camera is attached to
+        the root scene node on creation.
+        When this is done the Camera will combine it's own
+        position/orientation settings with it's parent SceneNode. 
+        This is also useful for implementing more complex Camera / object
+        relationships i.e. having a camera attached to a world object.
     */
     class _OgreExport Camera : public Frustum
     {
@@ -91,7 +107,7 @@ namespace Ogre {
         {
         public:
             Listener() {}
-            virtual ~Listener() {}
+            virtual ~Listener();
 
             /// Called prior to the scene being rendered with this camera
             virtual void cameraPreRenderScene(Camera* cam)
@@ -106,38 +122,51 @@ namespace Ogre {
                         { (void)cam; }
 
         };
-    protected:
-        /// Is viewing window used.
-        bool mWindowSet;
-        /// Was viewing window changed.
-        mutable bool mRecalcWindow;
 
-        /** Whether aspect ratio will automatically be recalculated
-            when a viewport changes its size
-        */
-        bool mAutoAspectRatio;
-        /// Whether or not the rendering distance of objects should take effect for this camera
-        bool mUseRenderingDistance;
-        /// Whether or not the minimum display size of objects should take effect for this camera
-        bool mUseMinPixelSize;
+        /// Sets how the objects are sorted. This affects both opaque
+        /// (performance optimization, rendered front to back) and
+        /// transparents (visual correctness, rendered back to front)
+        ///
+        /// Object sorting is approximate, and some scenes are suited
+        /// to different modes depending on the objects' geometric properties
+        ///
+        /// See https://forums.ogre3d.org/viewtopic.php?f=2&t=94090 for examples
+        ///
+        /// Please note that RenderQueue::addRenderable quantizes the final depth value.
+        /// Therefore if two objects are numerically very close, the chosen mode may not
+        /// make too much of a difference.
+        enum CameraSortMode
+        {
+            /// Sort objects by distance to camera. i.e.
+            ///     cameraPos.distance( objPos ) - objRadius
+            ///
+            /// The bigger the object radius, the closer it is considered to be to the camera
+            SortModeDistance,
+            /// Sort objects by depth i.e.
+            ///     objViewSpacePos.z - objRadius
+            ///
+            /// The bigger the object radius, the closer it is considered to be to the camera
+            SortModeDepth,
+            /// Same as SortModeDistance, but skips object radius from calculations
+            SortModeDistanceRadiusIgnoring,
+            /// Same as SortModeDepth, but skips object radius from calculations
+            SortModeDepthRadiusIgnoring
+        };
+
+    protected:
+        /// Scene manager responsible for the scene
+        SceneManager *mSceneMgr;
+
+        /// Camera orientation, quaternion style
+        Quaternion mOrientation;
+
+        /// Camera position - default (0,0,0)
+        Vector3 mPosition;
 
         /// Derived orientation/position of the camera, including reflection
         mutable Quaternion mDerivedOrientation;
         mutable Vector3 mDerivedPosition;
 
-        /// Rendering type
-        PolygonMode mSceneDetail;
-
-        /// Stored number of visible faces in the last render
-        unsigned int mVisFacesLastRender;
-
-        /// Stored number of visible batches in the last render
-        unsigned int mVisBatchesLastRender;
-
-        /// Shared class-level name for Movable type
-        static String msMovableType;
-
-#ifdef OGRE_NODELESS_POSITIONING
         /// Real world orientation/position of the camera
         mutable Quaternion mRealOrientation;
         mutable Vector3 mRealPosition;
@@ -146,42 +175,76 @@ namespace Ogre {
         bool mYawFixed;
         /// Fixed axis to yaw around
         Vector3 mYawFixedAxis;
-        /// Camera orientation, quaternion style
-        Quaternion mOrientation;
-        /// Camera position - default (0,0,0)
-        Vector3 mPosition;
+
+        /// Stored number of visible faces, batches, etc. in the last render
+        RenderingMetrics mLastRenderingMetrics;
+
+        VrData *mVrData;
+
+        /// Shared class-level name for Movable type
+        static String msMovableType;
+
         /// SceneNode which this Camera will automatically track
         SceneNode* mAutoTrackTarget;
         /// Tracking offset for fine tuning
         Vector3 mAutoTrackOffset;
-#endif
+
         /// Scene LOD factor used to adjust overall LOD
         Real mSceneLodFactor;
         /// Inverted scene LOD factor, can be used by Renderables to adjust their LOD
         Real mSceneLodFactorInv;
-
 
         /** Viewing window. 
         @remarks
         Generalize camera class for the case, when viewing frustum doesn't cover all viewport.
         */
         Real mWLeft, mWTop, mWRight, mWBottom;
+        /// Is viewing window used.
+        bool mWindowSet;
         /// Windowed viewport clip planes 
-        mutable std::vector<Plane> mWindowClipPlanes;
+        mutable PlaneList mWindowClipPlanes;
+        /// Was viewing window changed.
+        mutable bool mRecalcWindow;
         /// The last viewport to be added using this camera
         Viewport* mLastViewport;
+        /** Whether aspect ratio will automatically be recalculated 
+            when a viewport changes its size
+        */
+        bool mAutoAspectRatio;
         /// Custom culling frustum
         Frustum *mCullFrustum;
+        /// Whether or not the rendering distance of objects should take effect for this camera
+        bool mUseRenderingDistance;
         /// Camera to use for LOD calculation
         const Camera* mLodCamera;
+        
+        bool mNeedsDepthClamp;
+
+        /// Whether or not the minimum display size of objects should take effect for this camera
+        bool mUseMinPixelSize;
         /// @see Camera::getPixelDisplayRatio
         Real mPixelDisplayRatio;
 
-        typedef std::vector<Listener*> ListenerList;
+        float mConstantBiasScale;
+
+        /// Each frame it is set to all false. After rendering each RQ, it is set to true
+        vector<bool>::type  mRenderedRqs;
+
+        typedef vector<Listener*>::type ListenerList;
         ListenerList mListeners;
 
-        SortMode mSortMode;
+        static CameraSortMode msDefaultSortMode;
 
+    public:
+        /// PUBLIC VARIABLE. This variable can be altered directly.
+        /// Changes are reflected immediately.
+        CameraSortMode mSortMode;
+
+        /** Sets the default sort mode for all future Camera instances. */
+        static void setDefaultSortMode( CameraSortMode sortMode ) { msDefaultSortMode = sortMode; }
+        static CameraSortMode getDefaultSortMode( void ) { return msDefaultSortMode; }
+
+    protected:
         // Internal functions for calcs
         bool isViewOutOfDate(void) const;
         /// Signal to update frustum information.
@@ -197,12 +260,12 @@ namespace Ogre {
         virtual void setWindowImpl(void) const;
 
         /** Helper function for forwardIntersect that intersects rays with canonical plane */
-        virtual std::vector<Vector4> getRayForwardIntersect(const Vector3& anchor, const Vector3 *dir, Real planeOffset) const;
+        virtual vector<Vector4>::type getRayForwardIntersect(const Vector3& anchor, const Vector3 *dir, Real planeOffset) const;
 
     public:
         /** Standard constructor.
         */
-        Camera( const String& name, SceneManager* sm);
+        Camera( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager* sm );
 
         /** Standard destructor.
         */
@@ -217,70 +280,48 @@ namespace Ogre {
         */
         SceneManager* getSceneManager(void) const;
 
-        /** Sets the level of rendering detail required from this camera.
-        @remarks
-            Each camera is set to render at full detail by default, that is
-            with full texturing, lighting etc. This method lets you change
-            that behaviour, allowing you to make the camera just render a
-            wireframe view, for example.
-        */
-        void setPolygonMode(PolygonMode sd);
-
-        /** Retrieves the level of detail that the camera will render.
-        */
-        PolygonMode getPolygonMode(void) const;
-
-#ifdef OGRE_NODELESS_POSITIONING
         /** Sets the camera's position.
-        @deprecated attach to SceneNode and use SceneNode::setPosition
         */
-        OGRE_DEPRECATED void setPosition(Real x, Real y, Real z);
+        void setPosition(Real x, Real y, Real z);
 
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::setPosition
-        OGRE_DEPRECATED void setPosition(const Vector3& vec);
+        /** Sets the camera's position.
+        */
+        void setPosition(const Vector3& vec);
 
         /** Retrieves the camera's position.
-        @deprecated attach to SceneNode and use SceneNode::getPosition
         */
-        OGRE_DEPRECATED const Vector3& getPosition(void) const;
+        const Vector3& getPosition(void) const;
 
         /** Moves the camera's position by the vector offset provided along world axes.
-        @deprecated attach to SceneNode and use SceneNode::translate
         */
-        OGRE_DEPRECATED void move(const Vector3& vec);
+        void move(const Vector3& vec);
 
         /** Moves the camera's position by the vector offset provided along it's own axes (relative to orientation).
-        @deprecated attach to SceneNode and use SceneNode::translate(vec, Node::TS_LOCAL)
         */
-        OGRE_DEPRECATED void moveRelative(const Vector3& vec);
+        void moveRelative(const Vector3& vec);
 
         /** Sets the camera's direction vector.
         @remarks
             Note that the 'up' vector for the camera will automatically be recalculated based on the
             current 'up' vector (i.e. the roll will remain the same).
-        @deprecated attach to SceneNode and use SceneNode::setDirection
         */
-        OGRE_DEPRECATED void setDirection(Real x, Real y, Real z);
+        void setDirection(Real x, Real y, Real z);
 
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::setDirection
-        OGRE_DEPRECATED void setDirection(const Vector3& vec);
+        /** Sets the camera's direction vector.
+        */
+        void setDirection(const Vector3& vec);
 
         /** Gets the camera's direction.
-        @deprecated attach to SceneNode and use SceneNode::getOrientation().zAxis() * -1
         */
-        OGRE_DEPRECATED Vector3 getDirection(void) const;
+        Vector3 getDirection(void) const;
 
         /** Gets the camera's up vector.
-        @deprecated attach to SceneNode and use SceneNode::getOrientation().yAxis()
         */
-        OGRE_DEPRECATED Vector3 getUp(void) const;
+        Vector3 getUp(void) const;
 
         /** Gets the camera's right vector.
-        @deprecated attach to SceneNode and use SceneNode::getOrientation().xAxis()
         */
-        OGRE_DEPRECATED Vector3 getRight(void) const;
+        Vector3 getRight(void) const;
 
         /** Points the camera at a location in worldspace.
         @remarks
@@ -289,36 +330,41 @@ namespace Ogre {
             and the supplied look-at point.
         @param
             targetPoint A vector specifying the look at point.
-        @deprecated attach to SceneNode and use SceneNode::lookAt
         */
-        OGRE_DEPRECATED void lookAt( const Vector3& targetPoint );
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::lookAt
-        OGRE_DEPRECATED void lookAt(Real x, Real y, Real z);
+        void lookAt( const Vector3& targetPoint );
+        /** Points the camera at a location in worldspace.
+        @remarks
+            This is a helper method to automatically generate the
+            direction vector for the camera, based on it's current position
+            and the supplied look-at point.
+        @param x
+            The @c x co-ordinates of the point to look at.
+        @param y
+            The @c y co-ordinates of the point to look at.
+        @param z
+            The @c z co-ordinates of the point to look at.
+        */
+        void lookAt(Real x, Real y, Real z);
 
         /** Rolls the camera anticlockwise, around its local z axis.
-        @deprecated attach to SceneNode and use SceneNode::roll
         */
-        OGRE_DEPRECATED void roll(const Radian& angle);
+        void roll(const Radian& angle);
 
         /** Rotates the camera anticlockwise around it's local y axis.
-        @deprecated attach to SceneNode and use SceneNode::yaw
         */
-        OGRE_DEPRECATED void yaw(const Radian& angle);
+        void yaw(const Radian& angle);
 
         /** Pitches the camera up/down anticlockwise around it's local z axis.
-        @deprecated attach to SceneNode and use SceneNode::pitch
         */
-        OGRE_DEPRECATED void pitch(const Radian& angle);
+        void pitch(const Radian& angle);
 
         /** Rotate the camera around an arbitrary axis.
-        @deprecated attach to SceneNode and use SceneNode::rotate
         */
-        OGRE_DEPRECATED void rotate(const Vector3& axis, const Radian& angle);
+        void rotate(const Vector3& axis, const Radian& angle);
 
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::rotate
-        OGRE_DEPRECATED void rotate(const Quaternion& q);
+        /** Rotate the camera around an arbitrary axis using a Quaternion.
+        */
+        void rotate(const Quaternion& q);
 
         /** Tells the camera whether to yaw around it's own local Y axis or a 
             fixed axis of choice.
@@ -338,62 +384,48 @@ namespace Ogre {
             If false, the camera yaws around the local Y.
         @param fixedAxis
             The axis to use if the first parameter is true.
-        @deprecated attach to SceneNode and use SceneNode::yaw(angle, Node::TS_PARENT)
         */
-        OGRE_DEPRECATED void setFixedYawAxis( bool useFixed, const Vector3& fixedAxis = Vector3::UNIT_Y );
+        void setFixedYawAxis( bool useFixed, const Vector3& fixedAxis = Vector3::UNIT_Y );
 
 
         /** Returns the camera's current orientation.
-        @deprecated attach to SceneNode and use SceneNode::getOrientation
         */
-        OGRE_DEPRECATED const Quaternion& getOrientation(void) const;
+        const Quaternion& getOrientation(void) const;
 
         /** Sets the camera's orientation.
-        @deprecated attach to SceneNode and use SceneNode::setOrientation
         */
-        OGRE_DEPRECATED void setOrientation(const Quaternion& q);
+        void setOrientation(const Quaternion& q);
 
-        /** Internal method used by OGRE to update auto-tracking cameras. */
-        OGRE_DEPRECATED void _autoTrack(void);
-
-        /** Get the auto tracking target for this camera, if any. */
-        OGRE_DEPRECATED SceneNode* getAutoTrackTarget(void) const { return mAutoTrackTarget; }
-        /** Get the auto tracking offset for this camera, if it is auto tracking. */
-        OGRE_DEPRECATED const Vector3& getAutoTrackOffset(void) const { return mAutoTrackOffset; }
-
-        /** Enables / disables automatic tracking of a SceneNode.
-        @remarks
-            If you enable auto-tracking, this Camera will automatically rotate to
-            look at the target SceneNode every frame, no matter how
-            it or SceneNode move. This is handy if you want a Camera to be focused on a
-            single object or group of objects. Note that by default the Camera looks at the
-            origin of the SceneNode, if you want to tweak this, e.g. if the object which is
-            attached to this target node is quite big and you want to point the camera at
-            a specific point on it, provide a vector in the 'offset' parameter and the
-            camera's target point will be adjusted.
-        @param enabled If true, the Camera will track the SceneNode supplied as the next
-            parameter (cannot be null). If false the camera will cease tracking and will
-            remain in it's current orientation.
-        @param target Pointer to the SceneNode which this Camera will track. Make sure you don't
-            delete this SceneNode before turning off tracking (e.g. SceneManager::clearScene will
-            delete it so be careful of this). Can be null if and only if the enabled param is false.
-        @param offset If supplied, the camera targets this point in local space of the target node
-            instead of the origin of the target node. Good for fine tuning the look at point.
-        @deprecated attach to SceneNode and use SceneNode::setAutoTracking
+        /** When a camera is created via SceneManager::createCamera, there are two
+            additional parameters.
+        @param collectLights
+            Tell Ogre to cull lights against this camera. This requires additional
+            CPU power. If a camera is not going to be used for a long time (or it
+            doesn't need lights, which is what happens with shadow mapping cameras)
+            you want this set to false. Otherwise if you need to render and need
+            lights, enable this setting.
+        @param isCubemap
+            Use an alternative algorithm to collect lights in 360° around the camera.
+            This is required if the camera is going to be used in passes where
+            CompositorPassSceneDef::mCameraCubemapReorient = true;
+            Does nothing if collectLights = false
         */
-        OGRE_DEPRECATED void setAutoTracking(bool enabled, SceneNode* const target = 0,
-            const Vector3& offset = Vector3::ZERO);
+        void setLightCullingVisibility( bool collectLights, bool isCubemap );
 
-        /** Get the derived position of this frustum. */
-        const Vector3& getPositionForViewUpdate(void) const;
-        /** Get the derived orientation of this frustum. */
-        const Quaternion& getOrientationForViewUpdate(void) const;
-#endif
         /** Tells the Camera to contact the SceneManager to render from it's viewpoint.
         @param vp The viewport to render to
         @param includeOverlays Whether or not any overlay objects should be included
+        @param firstRq
+            First RenderQueue ID to render (inclusive)
+        @param lastRq
+            Last RenderQueue ID to render (exclusive)
         */
-        void _renderScene(Viewport *vp, bool includeOverlays);
+        void _cullScenePhase01( Camera *renderCamera, const Camera *lodCamera,
+                                Viewport *vp, uint8 firstRq, uint8 lastRq,
+                                bool reuseCullData );
+
+        void _renderScenePhase02( const Camera *lodCamera
+                                  , uint8 firstRq, uint8 lastRq, bool includeOverlays );
 
         /** Function for outputting to a stream.
         */
@@ -401,19 +433,21 @@ namespace Ogre {
 
         /** Internal method to notify camera of the visible faces in the last render.
         */
-        void _notifyRenderedFaces(unsigned int numfaces);
+        void _notifyRenderingMetrics( const RenderingMetrics& metrics );
 
-        /** Internal method to notify camera of the visible batches in the last render.
+        /** Internal method to retrieve the number of visible faces, batches, etc in the last render.
         */
-        void _notifyRenderedBatches(unsigned int numbatches);
+        const RenderingMetrics& _getRenderingMetrics( void ) const;
 
         /** Internal method to retrieve the number of visible faces in the last render.
+        * @deprecated use Camera::_getRenderingMetrics() instead.
         */
-        unsigned int _getNumRenderedFaces(void) const;
+        size_t _getNumRenderedFaces( void ) const;
 
         /** Internal method to retrieve the number of visible batches in the last render.
-        */
-        unsigned int _getNumRenderedBatches(void) const;
+        * @deprecated use Camera::_getRenderingMetrics() instead.
+         */
+        size_t _getNumRenderedBatches( void ) const;
 
         /** Gets the derived orientation of the camera, including any
             rotation inherited from a node attachment and reflection matrix. */
@@ -431,6 +465,10 @@ namespace Ogre {
             rotation inherited from a node attachment and reflection matrix. */
         Vector3 getDerivedRight(void) const;
 
+        /// Same as getDerivedPosition, but doesn't check if dirty.
+        const Vector3& _getCachedDerivedPosition(void) const            { return mDerivedPosition; }
+        const Quaternion& _getCachedDerivedOrientation(void) const      { return mDerivedOrientation; }
+
         /** Gets the real world orientation of the camera, including any
             rotation inherited from a node attachment */
         const Quaternion& getRealOrientation(void) const;
@@ -447,8 +485,37 @@ namespace Ogre {
             rotation inherited from a node attachment. */
         Vector3 getRealRight(void) const;
 
-        void getWorldTransforms(Matrix4* mat) const override;
-        const String& getMovableType(void) const override;
+        const Vector3& _getCachedRealPosition(void) const               { return mRealPosition; }
+        const Quaternion& _getCachedRealOrientation(void) const         { return mRealOrientation; }
+
+        /** Overridden from Frustum/Renderable */
+        void getWorldTransforms(Matrix4* mat) const;
+
+        /** Overridden from MovableObject */
+        const String& getMovableType(void) const;
+
+        /** Enables / disables automatic tracking of a SceneNode.
+        @remarks
+            If you enable auto-tracking, this Camera will automatically rotate to
+            look at the target SceneNode every frame, no matter how 
+            it or SceneNode move. This is handy if you want a Camera to be focused on a
+            single object or group of objects. Note that by default the Camera looks at the 
+            origin of the SceneNode, if you want to tweak this, e.g. if the object which is
+            attached to this target node is quite big and you want to point the camera at
+            a specific point on it, provide a vector in the 'offset' parameter and the 
+            camera's target point will be adjusted.
+        @param enabled If true, the Camera will track the SceneNode supplied as the next 
+            parameter (cannot be null). If false the camera will cease tracking and will
+            remain in it's current orientation.
+        @param target Pointer to the SceneNode which this Camera will track. Make sure you don't
+            delete this SceneNode before turning off tracking (e.g. SceneManager::clearScene will
+            delete it so be careful of this). Can be null if and only if the enabled param is false.
+        @param offset If supplied, the camera targets this point in local space of the target node
+            instead of the origin of the target node. Good for fine tuning the look at point.
+        */
+        void setAutoTracking(bool enabled, SceneNode* const target = 0, 
+            const Vector3& offset = Vector3::ZERO);
+
 
         /** Sets the level-of-detail factor for this Camera.
         @remarks
@@ -521,13 +588,28 @@ namespace Ogre {
         PlaneBoundedVolume getCameraToViewportBoxVolume(Real screenLeft, 
             Real screenTop, Real screenRight, Real screenBottom, bool includeFarPlane = false);
 
-        /// @overload
+        /** Gets a world-space list of planes enclosing a volume based on a viewport
+            rectangle. 
+        @remarks
+            Can be useful for populating a PlaneBoundedVolumeListSceneQuery, e.g. 
+            for a rubber-band selection. 
+        @param screenLeft, screenTop, screenRight, screenBottom The bounds of the
+            on-screen rectangle, expressed in normalised screen coordinates [0,1]
+        @param outVolume The plane list to populate with the result
+        @param includeFarPlane If true, the volume is truncated by the camera far plane, 
+            by default it is left open-ended
+        */
         void getCameraToViewportBoxVolume(Real screenLeft, 
             Real screenTop, Real screenRight, Real screenBottom, 
             PlaneBoundedVolume* outVolume, bool includeFarPlane = false);
 
         /** Internal method for OGRE to use for LOD calculations. */
         Real _getLodBiasInverse(void) const;
+
+
+        /** Internal method used by OGRE to update auto-tracking cameras. */
+        void _autoTrack(void);
+
 
         /** Sets the viewing window inside of viewport.
         @remarks
@@ -544,16 +626,19 @@ namespace Ogre {
         /// Returns if a viewport window is being used
         virtual bool isWindowSet(void) const { return mWindowSet; }
         /// Gets the window clip planes, only applicable if isWindowSet == true
-        const std::vector<Plane>& getWindowPlanes(void) const;
+        const PlaneList &getWindowPlanes( void ) const;
 
-        Real getBoundingRadius(void) const override;
+        /** Get the auto tracking target for this camera, if any. */
+        SceneNode* getAutoTrackTarget(void) const { return mAutoTrackTarget; }
+        /** Get the auto tracking offset for this camera, if it is auto tracking. */
+        const Vector3& getAutoTrackOffset(void) const { return mAutoTrackOffset; }
         
         /** Get the last viewport which was attached to this camera. 
         @note This is not guaranteed to be the only viewport which is
             using this camera, just the last once which was created referring
             to it.
         */
-        Viewport* getViewport(void) const {return mLastViewport;}
+        Viewport* getLastViewport(void) const {return mLastViewport;}
         /** Notifies this camera that a viewport is using it.*/
         void _notifyViewport(Viewport* viewport) {mLastViewport = viewport;}
 
@@ -585,11 +670,27 @@ namespace Ogre {
         /** Returns the custom culling frustum in use. */
         Frustum* getCullingFrustum(void) const { return mCullFrustum; }
 
+        /** Sets VR data for calculating left & right eyes
+            See OpenVR sample for more info
+        @param vrData
+            Pointer to valid VrData
+            This pointer must remain valid while the Camera is using it.
+            We won't free this pointer. It is the developer's responsability to free it
+            once no longer in use.
+            Multiple cameras can share the same VrData pointer.
+            The internal data hold by VrData can be changed withohut having to call setVrData again
+        */
+        void setVrData( VrData *vrData );
+        const VrData* getVrData(void) const     { return mVrData; }
+
+        Matrix4 getVrViewMatrix( size_t eyeIdx ) const;
+        Matrix4 getVrProjectionMatrix( size_t eyeIdx ) const;
+
         /** Forward projects frustum rays to find forward intersection with plane.
         @remarks
             Forward projection may lead to intersections at infinity.
         */
-        virtual void forwardIntersect(const Plane& worldPlane, std::vector<Vector4>* intersect3d) const;
+        virtual void forwardIntersect(const Plane& worldPlane, vector<Vector4>::type* intersect3d) const;
 
         /// @copydoc Frustum::isVisible(const AxisAlignedBox&, FrustumPlane*) const
         bool isVisible(const AxisAlignedBox& bound, FrustumPlane* culledBy = 0) const;
@@ -598,7 +699,7 @@ namespace Ogre {
         /// @copydoc Frustum::isVisible(const Vector3&, FrustumPlane*) const
         bool isVisible(const Vector3& vert, FrustumPlane* culledBy = 0) const;
         /// @copydoc Frustum::getWorldSpaceCorners
-        const Corners& getWorldSpaceCorners(void) const;
+        const Vector3* getWorldSpaceCorners(void) const;
         /// @copydoc Frustum::getFrustumPlane
         const Plane& getFrustumPlane( unsigned short plane ) const;
         /// @copydoc Frustum::projectSphere
@@ -609,7 +710,7 @@ namespace Ogre {
         /// @copydoc Frustum::getFarClipDistance
         Real getFarClipDistance(void) const;
         /// @copydoc Frustum::getViewMatrix
-        const Affine3& getViewMatrix(void) const;
+        const Matrix4& getViewMatrix(void) const;
         /** Specialised version of getViewMatrix allowing caller to differentiate
             whether the custom culling frustum should be allowed or not. 
         @remarks
@@ -618,7 +719,7 @@ namespace Ogre {
             performing CPU calculations, but the final rendering must be performed
             using the real view matrix in order to display the correct debug view.
         */
-        const Affine3& getViewMatrix(bool ownFrustumOnly) const;
+        const Matrix4& getViewMatrix(bool ownFrustumOnly) const;
         /** Set whether this camera should use the 'rendering distance' on
             objects to exclude distant objects from the final image. The
             default behaviour is to use it.
@@ -638,6 +739,11 @@ namespace Ogre {
         */
         virtual void synchroniseBaseSettingsWith(const Camera* cam);
 
+        /** Get the derived position of this frustum. */
+        const Vector3& getPositionForViewUpdate(void) const;
+        /** Get the derived orientation of this frustum. */
+        const Quaternion& getOrientationForViewUpdate(void) const;
+
         /** @brief Sets whether to use min display size calculations.
             When active, objects that derive from MovableObject whose size on the screen is less then a MovableObject::mMinPixelSize will not
             be rendered.
@@ -647,6 +753,9 @@ namespace Ogre {
         @see Camera::setUseMinDisplaySize
         */
         bool getUseMinPixelSize() const { return mUseMinPixelSize; }
+
+        void _setNeedsDepthClamp( bool bNeedsDepthClamp );
+        bool getNeedsDepthClamp( void ) const { return mNeedsDepthClamp; }
 
         /** Returns an estimated ratio between a pixel and the display area it represents.
             For orthographic cameras this function returns the amount of meters covered by
@@ -660,10 +769,30 @@ namespace Ogre {
         */
         Real getPixelDisplayRatio() const { return mPixelDisplayRatio; }
 
-        /// Set the function used to compute the camera-distance for sorting Renderables
-        void setSortMode(SortMode sm) { mSortMode = sm; }
-        /// get the currently used @ref SortMode
-        SortMode getSortMode() const { return mSortMode; }
+        void _setConstantBiasScale( const float bias ) { mConstantBiasScale = bias; }
+        float _getConstantBiasScale( void ) const { return mConstantBiasScale; }
+
+        /** Called at the beginning of each frame to know which RenderQueue IDs have been rendered
+        @param numRqs
+            Max number of total possible render queues in this frame
+        */
+        void _resetRenderedRqs( size_t numRqs );
+
+        /** Tells the camera that render queues in the range [rqStart; rqEnd) were rendered
+        @remarks
+            This function may be called before having been actually rendered
+            (i.e. during the culling phase 01)
+        @param rqStart
+            The first render queue in the range to be rendered. Inclusive.
+        @param rqEnd
+            Next to last render queue id to be rendered. Must be below or equal than
+            the value passed to @see _resetRenderedRqs
+        */
+        void _setRenderedRqs( size_t rqStart, size_t rqEnd );
+
+        /// Returns true if the asked render queue has been rendered. False otherwise
+        bool isRenderedRq( size_t rqId ) const          { return mRenderedRqs[rqId]; }
+        
     };
     /** @} */
     /** @} */

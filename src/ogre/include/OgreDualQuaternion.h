@@ -61,7 +61,7 @@ namespace Ogre {
         }
         
         /// Construct a dual quaternion from a transformation matrix
-        inline DualQuaternion(const Affine3& rot)
+        inline DualQuaternion(const Matrix4& rot)
         {
             this->fromTransformationMatrix(rot);
         }
@@ -158,10 +158,10 @@ namespace Ogre {
         void toRotationTranslation (Quaternion& q, Vector3& translation) const;
 
         /// Construct a dual quaternion from a 4x4 transformation matrix
-        void fromTransformationMatrix (const Affine3& kTrans);
+        void fromTransformationMatrix (const Matrix4& kTrans);
         
         /// Convert a dual quaternion to a 4x4 transformation matrix
-        void toTransformationMatrix (Affine3& kTrans) const;
+        void toTransformationMatrix (Matrix4& kTrans) const;
 
         Real w, x, y, z, dw, dx, dy, dz;
 
@@ -169,12 +169,7 @@ namespace Ogre {
         Function for writing to a stream. Outputs "DualQuaternion(w, x, y, z, dw, dx, dy, dz)" with w, x, y, z, dw, dx, dy, dz
         being the member values of the dual quaternion.
         */
-        inline _OgreExport friend std::ostream& operator <<
-        ( std::ostream& o, const DualQuaternion& q )
-        {
-            o << "DualQuaternion(" << q.w << ", " << q.x << ", " << q.y << ", " << q.z << ", " << q.dw << ", " << q.dx << ", " << q.dy << ", " << q.dz << ")";
-            return o;
-        }
+        _OgreExport friend std::ostream &operator<<( std::ostream &o, const DualQuaternion &q );
     };
     /** @} */
     /** @} */

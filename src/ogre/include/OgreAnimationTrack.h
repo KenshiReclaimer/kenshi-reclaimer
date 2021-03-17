@@ -37,6 +37,8 @@ THE SOFTWARE.
 
 namespace Ogre 
 {
+namespace v1
+{
     class VertexPoseKeyFrame;
     class KeyFrame;
 
@@ -112,8 +114,8 @@ namespace Ogre
         maximum number of keyframes for all animable objects just to cope with the most
         animated one.
     @remarks
-        Since the most common animable object is a Node, there are options in this class for associating
-        the track with a Node which will receive keyframe updates automatically when the 'apply' method
+        Since the most common animable object is a OldNode, there are options in this class for associating
+        the track with a OldNode which will receive keyframe updates automatically when the 'apply' method
         is called.
     @remarks
         By default rotation is done using shortest-path algorithm.
@@ -130,7 +132,7 @@ namespace Ogre
         class _OgreExport Listener
         {
         public:
-            virtual ~Listener() {}
+            virtual ~Listener();
 
             /** Get an interpolated keyframe for this track at the given time.
             @return true if the KeyFrame was populated, false if not.
@@ -226,11 +228,11 @@ namespace Ogre
         virtual void optimise(void) {}
 
         /** Internal method to collect keyframe times, in unique, ordered format. */
-        virtual void _collectKeyFrameTimes(std::vector<Real>& keyFrameTimes);
+        virtual void _collectKeyFrameTimes(vector<Real>::type& keyFrameTimes);
 
         /** Internal method to build keyframe time index map to translate global lower
             bound index to local lower bound index. */
-        virtual void _buildKeyFrameIndexMap(const std::vector<Real>& keyFrameTimes);
+        virtual void _buildKeyFrameIndexMap(const vector<Real>::type& keyFrameTimes);
         
         /** Internal method to re-base the keyframes relative to a given keyframe. */
         virtual void _applyBaseKeyFrame(const KeyFrame* base);
@@ -241,14 +243,14 @@ namespace Ogre
         /** Returns the parent Animation object for this track. */
         Animation *getParent() const { return mParent; }
     protected:
-        typedef std::vector<KeyFrame*> KeyFrameList;
+        typedef vector<KeyFrame*>::type KeyFrameList;
         KeyFrameList mKeyFrames;
-        Animation* mParent;
-        unsigned short mHandle;
+		Animation* mParent;
+		unsigned short mHandle;
         Listener* mListener;
 
         /// Map used to translate global keyframe time lower bound index to local lower bound index
-        typedef std::vector<ushort> KeyFrameIndexMap;
+        typedef vector<ushort>::type KeyFrameIndexMap;
         KeyFrameIndexMap mKeyFrameIndexMap;
 
         /// Create a keyframe implementation - must be overridden
@@ -322,18 +324,137 @@ namespace Ogre
 
     };
 
+	/** Specialised AnimationTrack for dealing with node transforms.
+	*/
+	class _OgreExport NodeAnimationTrack : public AnimationTrack
+	{
+	public:
+		/// Constructor
+		NodeAnimationTrack(Animation* parent, unsigned short handle);
+		/// Constructor, associates with a OldNode
+		NodeAnimationTrack(Animation* parent, unsigned short handle, Node* targetNode);
+		/// Destructor
+		virtual ~NodeAnimationTrack();
+		/** Creates a new KeyFrame and adds it to this animation at the given time index.
+		@remarks
+			It is better to create KeyFrames in time order. Creating them out of order can result
+			in expensive reordering processing. Note that a KeyFrame at time index 0.0 is always created
+			for you, so you don't need to create this one, just access it using getKeyFrame(0);
+		@param timePos The time from which this KeyFrame will apply.
+		*/
+		virtual TransformKeyFrame* createNodeKeyFrame(Real timePos);
+
+        /** Get the initial state of the node for this track
+        @remarks
+            Node tracks are based from an initial state, which the node is set to every frame before the node animation is applied
+            See NodeAnimationTrack::getInitialState for more information
+        */
+        void getInitialState(Vector3* outPosition, Quaternion* outOrientation, Vector3* outScale);
+
+        /** Set the initial state of the node for this animation track
+        @remarks
+            Node tracks are based from an initial state, which the node is set to every frame before the node animation is applied
+            Most 3D model exporters base each animation frame from a 0 transform, which is the defaults. 
+            However in some situations you may want to change this.
+        @param position     The initial position to set
+        @param orientation  The initial orientation to set
+        @param scale        The initial scale to set
+        */
+        void setInitialState(const Vector3& position, const Quaternion& orientation, const Vector3& scale);
+
+		/** Resets the the target node to the initial state
+		@remarks 
+			This is called everyframe before the animation is applied. @See setInitialState
+		*/
+		void resetNodeToInitialState(void);
+
+		/** Returns a pointer to the associated OldNode object (if any). */
+		Node* getAssociatedNode(void) const;
+
+		/** Sets the associated OldNode object which will be automatically affected by calls to 'apply'. */
+		void setAssociatedNode(Node* node);
+
+		/** As the 'apply' method but applies to a specified OldNode instead of associated node. */
+		void applyToNode(Node* node, const TimeIndex& timeIndex, Real weight = 1.0, Real scale = 1.0f);
+
+		/** Sets the method of rotation calculation */
+		virtual void setUseShortestRotationPath(bool useShortestPath);
+
+		/** Gets the method of rotation calculation */
+		virtual bool getUseShortestRotationPath() const;
+
+		/// @copydoc AnimationTrack::getInterpolatedKeyFrame
+		virtual void getInterpolatedKeyFrame(const TimeIndex& timeIndex, KeyFrame* kf) const;
+
+		/// @copydoc AnimationTrack::apply
+		virtual void apply(const TimeIndex& timeIndex, Real weight = 1.0, Real scale = 1.0f);
+
+		/// @copydoc AnimationTrack::_keyFrameDataChanged
+		void _keyFrameDataChanged(void) const;
+
+		/** Returns the KeyFrame at the specified index. */
+		virtual TransformKeyFrame* getNodeKeyFrame(unsigned short index) const;
+
+
+		/** Method to determine if this track has any KeyFrames which are
+			doing anything useful - can be used to determine if this track
+			can be optimised out.
+		*/
+		virtual bool hasNonZeroKeyFrames(void) const;
+
+		/** Optimise the current track by removing any duplicate keyframes. */
+		virtual void optimise(void);
+
+		/** Clone this track (internal use only) */
+		NodeAnimationTrack* _clone(Animation* newParent) const;
+
+		void _applyBaseKeyFrame(const KeyFrame* base);
+
+	protected:
+		/// Specialised keyframe creation
+		KeyFrame* createKeyFrameImpl(Real time);
+		// Flag indicating we need to rebuild the splines next time
+		virtual void buildInterpolationSplines(void) const;
+
+		// Struct for store splines, allocate on demand for better memory footprint
+		struct Splines
+		{
+			SimpleSpline positionSpline;
+			SimpleSpline scaleSpline;
+			RotationalSpline rotationSpline;
+		};
+
+		Node* mTargetNode;
+
+		///OldNodeAnimationTrack delegated intial transform information to the OldNode.
+		///That was the wrong place. The right place is in the root of the animation system.
+		///In the case of skeletal animation that would've been the Skeleton. Since this
+		///new NodeAnimationTrack is only used as a tool to animate individual nodes (i.e.
+		///cameras, a few lights) and rarely more than one track is applied to the same Node,
+		///we are now the ones holding this information.
+		Vector3		mInitialPosition;
+		Quaternion	mInitialOrientation;
+		Vector3		mInitialScale;
+
+		// Prebuilt splines, must be mutable since lazy-update in const method
+		mutable Splines* mSplines;
+		mutable bool mSplineBuildNeeded;
+		/// Defines if rotation is done using shortest path
+		mutable bool mUseShortestRotationPath;
+	};
+
     /** Specialised AnimationTrack for dealing with node transforms.
     */
-    class _OgreExport NodeAnimationTrack : public AnimationTrack
+	class _OgreExport OldNodeAnimationTrack : public AnimationTrack
     {
     public:
         /// Constructor
-        NodeAnimationTrack(Animation* parent, unsigned short handle);
-        /// Constructor, associates with a Node
-        NodeAnimationTrack(Animation* parent, unsigned short handle, 
-            Node* targetNode);
+		OldNodeAnimationTrack(Animation* parent, unsigned short handle);
+        /// Constructor, associates with a OldNode
+		OldNodeAnimationTrack(Animation* parent, unsigned short handle,
+            OldNode* targetNode);
         /// Destructor
-        virtual ~NodeAnimationTrack();
+		virtual ~OldNodeAnimationTrack();
         /** Creates a new KeyFrame and adds it to this animation at the given time index.
         @remarks
             It is better to create KeyFrames in time order. Creating them out of order can result 
@@ -342,14 +463,14 @@ namespace Ogre
         @param timePos The time from which this KeyFrame will apply.
         */
         virtual TransformKeyFrame* createNodeKeyFrame(Real timePos);
-        /** Returns a pointer to the associated Node object (if any). */
-        virtual Node* getAssociatedNode(void) const;
+        /** Returns a pointer to the associated OldNode object (if any). */
+		OldNode* getAssociatedNode(void) const;
 
-        /** Sets the associated Node object which will be automatically affected by calls to 'apply'. */
-        virtual void setAssociatedNode(Node* node);
+        /** Sets the associated OldNode object which will be automatically affected by calls to 'apply'. */
+		void setAssociatedNode(OldNode* node);
 
-        /** As the 'apply' method but applies to a specified Node instead of associated node. */
-        virtual void applyToNode(Node* node, const TimeIndex& timeIndex, Real weight = 1.0, 
+        /** As the 'apply' method but applies to a specified OldNode instead of associated node. */
+		void applyToNode(OldNode* node, const TimeIndex& timeIndex, Real weight = 1.0,
             Real scale = 1.0f);
 
         /** Sets the method of rotation calculation */
@@ -381,7 +502,7 @@ namespace Ogre
         virtual void optimise(void);
 
         /** Clone this track (internal use only) */
-        NodeAnimationTrack* _clone(Animation* newParent) const;
+		OldNodeAnimationTrack* _clone(Animation* newParent) const;
         
         void _applyBaseKeyFrame(const KeyFrame* base);
         
@@ -399,7 +520,7 @@ namespace Ogre
             RotationalSpline rotationSpline;
         };
 
-        Node* mTargetNode;
+        OldNode* mTargetNode;
         // Prebuilt splines, must be mutable since lazy-update in const method
         mutable Splines* mSplines;
         mutable bool mSplineBuildNeeded;
@@ -578,7 +699,7 @@ namespace Ogre
     /** @} */
     /** @} */
 }
-
+}
 #include "OgreHeaderSuffix.h"
 
 #endif

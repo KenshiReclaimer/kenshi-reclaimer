@@ -30,6 +30,9 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreSingleton.h"
+
+#include "ogrestd/map.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -48,7 +51,7 @@ namespace Ogre {
     class _OgreExport DynLibManager: public Singleton<DynLibManager>, public DynLibAlloc
     {
     protected:
-        typedef std::map<String, DynLib*> DynLibList;
+        typedef map<String, DynLib*>::type DynLibList;
         DynLibList mLibList;
     public:
         /** Default constructor.
@@ -64,7 +67,7 @@ namespace Ogre {
         @see
             Root::~Root
         */
-        ~DynLibManager();
+        virtual ~DynLibManager();
 
         /** Loads the passed library.
         @param filename
@@ -78,9 +81,37 @@ namespace Ogre {
         */
         void unload(DynLib* lib);
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DynLibManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DynLibManager* getSingletonPtr(void);
     };
     /** @} */

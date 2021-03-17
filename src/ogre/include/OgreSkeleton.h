@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -57,7 +58,7 @@ namespace Ogre {
     
     struct LinkedSkeletonAnimationSource;
 
-    /** A collection of Bone objects used to animate a skinned mesh.
+    /** A collection of OldBone objects used to animate a skinned mesh.
     @remarks
         Skeletal animation works by having a collection of 'bones' which are 
         actually just joints with a position and orientation, arranged in a tree structure.
@@ -84,9 +85,9 @@ namespace Ogre {
     */
     class _OgreExport Skeleton : public Resource, public AnimationContainer
     {
-        friend class SkeletonInstance;
+        friend class OldSkeletonInstance;
     protected:
-        /// Internal constructor for use by SkeletonInstance only
+        /// Internal constructor for use by OldSkeletonInstance only
         Skeleton();
 
     public:
@@ -100,98 +101,93 @@ namespace Ogre {
         virtual ~Skeleton();
 
 
-        /** Creates a brand new Bone owned by this Skeleton. 
+        /** Creates a brand new OldBone owned by this Skeleton. 
         @remarks
-            This method creates an unattached new Bone for this skeleton.
+            This method creates an unattached new OldBone for this skeleton.
             Unless this is to be a root bone (there may be more than one of 
-            these), you must attach it to another Bone in the skeleton using addChild for it to be any use.
+            these), you must attach it to another OldBone in the skeleton using addChild for it to be any use.
             For this reason you will likely be better off creating child bones using the
-            Bone::createChild method instead, once you have created the root bone. 
+            OldBone::createChild method instead, once you have created the root bone. 
         @par
             Note that this method automatically generates a handle for the bone, which you
-            can retrieve using Bone::getHandle. If you wish the new Bone to have a specific
+            can retrieve using OldBone::getHandle. If you wish the new OldBone to have a specific
             handle, use the alternate form of this method which takes a handle as a parameter,
             although you should note the restrictions.
         */
-        virtual Bone* createBone(void);
+        virtual OldBone* createBone(void);
 
-        /** Creates a brand new Bone owned by this Skeleton. 
+        /** Creates a brand new OldBone owned by this Skeleton. 
         @remarks
-            This method creates an unattached new Bone for this skeleton and assigns it a 
+            This method creates an unattached new OldBone for this skeleton and assigns it a 
             specific handle. Unless this is to be a root bone (there may be more than one of 
-            these), you must attach it to another Bone in the skeleton using addChild for it to be any use. 
+            these), you must attach it to another OldBone in the skeleton using addChild for it to be any use. 
             For this reason you will likely be better off creating child bones using the
-            Bone::createChild method instead, once you have created a root bone. 
+            OldBone::createChild method instead, once you have created a root bone. 
         @param handle The handle to give to this new bone - must be unique within this skeleton. 
             You should also ensure that all bone handles are eventually contiguous (this is to simplify
             their compilation into an indexed array of transformation matrices). For this reason
             it is advised that you use the simpler createBone method which automatically assigns a
             sequential handle starting from 0.
         */
-        virtual Bone* createBone(unsigned short handle);
+        virtual OldBone* createBone(unsigned short handle);
 
-        /** Creates a brand new Bone owned by this Skeleton. 
+        /** Creates a brand new OldBone owned by this Skeleton. 
         @remarks
-            This method creates an unattached new Bone for this skeleton and assigns it a 
+            This method creates an unattached new OldBone for this skeleton and assigns it a 
             specific name.Unless this is to be a root bone (there may be more than one of 
-            these), you must attach it to another Bone in the skeleton using addChild for it to be any use.
+            these), you must attach it to another OldBone in the skeleton using addChild for it to be any use.
             For this reason you will likely be better off creating child bones using the
-            Bone::createChild method instead, once you have created the root bone. 
+            OldBone::createChild method instead, once you have created the root bone. 
         @param name The name to give to this new bone - must be unique within this skeleton. 
             Note that the way OGRE looks up bones is via a numeric handle, so if you name a
-            Bone this way it will be given an automatic sequential handle. The name is just
+            OldBone this way it will be given an automatic sequential handle. The name is just
             for your convenience, although it is recommended that you only use the handle to 
             retrieve the bone in performance-critical code.
         */
-        virtual Bone* createBone(const String& name);
+        virtual OldBone* createBone(const String& name);
 
-        /** Creates a brand new Bone owned by this Skeleton. 
+        /** Creates a brand new OldBone owned by this Skeleton. 
         @remarks
-            This method creates an unattached new Bone for this skeleton and assigns it a 
+            This method creates an unattached new OldBone for this skeleton and assigns it a 
             specific name and handle. Unless this is to be a root bone (there may be more than one of 
-            these), you must attach it to another Bone in the skeleton using addChild for it to be any use.
+            these), you must attach it to another OldBone in the skeleton using addChild for it to be any use.
             For this reason you will likely be better off creating child bones using the
-            Bone::createChild method instead, once you have created the root bone. 
+            OldBone::createChild method instead, once you have created the root bone. 
         @param name The name to give to this new bone - must be unique within this skeleton. 
         @param handle The handle to give to this new bone - must be unique within this skeleton. 
         */
-        virtual Bone* createBone(const String& name, unsigned short handle);
+        virtual OldBone* createBone(const String& name, unsigned short handle);
 
         /** Returns the number of bones in this skeleton. */
         virtual unsigned short getNumBones(void) const;
 
-        typedef std::vector<Bone*> BoneList;
-        typedef VectorIterator<BoneList> BoneIterator;
-        /// Get an iterator over the root bones in the skeleton, ie those with no parents
-        /// @deprecated use Skeleton::getRootBones
-        OGRE_DEPRECATED virtual BoneIterator getRootBoneIterator(void);
-
-        /** Get the root bones in the skeleton, ie those with no parents
-
+        /** Gets the root bone of the skeleton: deprecated in favour of getRootBoneIterator. 
+        @remarks
             The system derives the root bone the first time you ask for it. The root bone is the
             only bone in the skeleton which has no parent. The system locates it by taking the
             first bone in the list and going up the bone tree until there are no more parents,
             and saves this top bone as the root. If you are building the skeleton manually using
-            createBone then you must ensure there is only one bone which is not a child of
+            createBone then you must ensure there is only one bone which is not a child of 
             another bone, otherwise your skeleton will not work properly. If you use createBone
-            only once, and then use Bone::createChild from then on, then inherently the first
+            only once, and then use OldBone::createChild from then on, then inherently the first
             bone you create will by default be the root.
         */
-        const BoneList& getRootBones() const;
+        virtual OldBone* getRootBone(void) const;
 
+        typedef vector<OldBone*>::type BoneList;
+        typedef VectorIterator<BoneList> BoneIterator;
+        typedef ConstVectorIterator<BoneList> ConstBoneIterator;
+        /// Get an iterator over the root bones in the skeleton, ie those with no parents
+        virtual BoneIterator getRootBoneIterator(void);
         /// Get an iterator over all the bones in the skeleton
-        /// @deprecated use getBones()
-        OGRE_DEPRECATED virtual BoneIterator getBoneIterator(void);
-        /// Get all the bones in the skeleton
-        const BoneList& getBones() const {
-            return mBoneList;
-        }
+        virtual BoneIterator getBoneIterator(void);
+        ConstBoneIterator getBoneIteratorConst(void) const;
 
         /** Gets a bone by it's handle. */
-        virtual Bone* getBone(unsigned short handle) const;
+        virtual OldBone* getBone(unsigned short handle) const;
 
         /** Gets a bone by it's name. */
-        virtual Bone* getBone(const String& name) const;
+        virtual OldBone* getBone(const String& name) const;
 
         /** Returns whether this skeleton contains the named bone. */
         virtual bool hasBone(const String& name) const;
@@ -203,7 +199,7 @@ namespace Ogre {
 
         /** Resets the position and orientation of all bones in this skeleton to their original binding position.
         @remarks
-            A skeleton is bound to a mesh in a binding pose. Bone positions are then modified from this
+            A skeleton is bound to a mesh in a binding pose. OldBone positions are then modified from this
             position during animation. This method returns all the bones to their original position and
             orientation.
         @param resetManualBones If set to true, causes the state of manual bones to be reset
@@ -279,7 +275,7 @@ namespace Ogre {
             be at least as large as the number of bones.
             Assumes animation has already been updated.
         */
-        virtual void _getBoneMatrices(Affine3* pMatrices);
+        virtual void _getBoneMatrices(Matrix4* pMatrices);
 
         /** Gets the number of animations on this skeleton. */
         virtual unsigned short getNumAnimations(void) const;
@@ -345,24 +341,18 @@ namespace Ogre {
         /// Remove all links to other skeletons for the purposes of sharing animation
         virtual void removeAllLinkedSkeletonAnimationSources(void);
         
-        typedef std::vector<LinkedSkeletonAnimationSource> 
+        typedef vector<LinkedSkeletonAnimationSource>::type 
             LinkedSkeletonAnimSourceList;
         typedef ConstVectorIterator<LinkedSkeletonAnimSourceList> 
             LinkedSkeletonAnimSourceIterator;
-        /// Get the linked skeletons used as animation sources
-        virtual const LinkedSkeletonAnimSourceList& getLinkedSkeletonAnimationSources() const
-        {
-            return mLinkedSkeletonAnimSourceList;
-        }
-
-        /// @deprecated use getLinkedSkeletonAnimationSources
-        OGRE_DEPRECATED virtual LinkedSkeletonAnimSourceIterator
+        /// Get an iterator over the linked skeletons used as animation sources
+        virtual LinkedSkeletonAnimSourceIterator 
             getLinkedSkeletonAnimationSourceIterator(void) const;
 
         /// Internal method for marking the manual bones as dirty
         virtual void _notifyManualBonesDirty(void);
         /// Internal method for notifying that a bone is manual
-        virtual void _notifyManualBoneStateChange(Bone* bone);
+        virtual void _notifyManualBoneStateChange(OldBone* bone);
 
         /// Have manual bones been modified since the skeleton was last updated?
         virtual bool getManualBonesDirty(void) const { return mManualBonesDirty; }
@@ -370,7 +360,7 @@ namespace Ogre {
         virtual bool hasManualBones(void) const { return !mManualBones.empty(); }
 
         /// Map to translate bone handle from one skeleton to another skeleton.
-        typedef std::vector<ushort> BoneHandleMap;
+        typedef vector<ushort>::type BoneHandleMap;
 
         /** Merge animations from another Skeleton object into this skeleton.
         @remarks
@@ -428,15 +418,15 @@ namespace Ogre {
         /// Storage of bones, indexed by bone handle
         BoneList mBoneList;
         /// Lookup by bone name
-        typedef std::map<String, Bone*> BoneListByName;
+        typedef map<String, OldBone*>::type BoneListByName;
         BoneListByName mBoneListByName;
 
 
         /// Pointer to root bones (can now have multiple roots)
         mutable BoneList mRootBones;
-        /// Bone automatic handles
+        /// OldBone automatic handles
         unsigned short mNextAutoHandle;
-        typedef std::set<Bone*> BoneSet;
+        typedef set<OldBone*>::type BoneSet;
         /// Manual bones
         BoneSet mManualBones;
         /// Manual bones dirty?
@@ -444,7 +434,7 @@ namespace Ogre {
 
 
         /// Storage of animations, lookup by name
-        typedef std::map<String, Animation*> AnimationList;
+        typedef map<String, Animation*>::type AnimationList;
         AnimationList mAnimationsList;
 
         /// List of references to other skeletons to use animations from 
@@ -460,11 +450,13 @@ namespace Ogre {
         /// Debugging method
         void _dumpContents(const String& filename);
 
-        void loadImpl() {}
-        void unloadImpl() { unprepareImpl(); }
+        /** @copydoc Resource::loadImpl
+        */
+        void loadImpl(void);
 
-        void prepareImpl(void);
-        void unprepareImpl(void);
+        /** @copydoc Resource::unloadImpl
+        */
+        void unloadImpl(void);
         /// @copydoc Resource::calculateSize
         size_t calculateSize(void) const;
 
@@ -484,7 +476,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
-
+}
 }
 
 #include "OgreHeaderSuffix.h"

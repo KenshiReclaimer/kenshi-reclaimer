@@ -32,6 +32,10 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreSingleton.h"
 #include "OgreScriptLoader.h"
+#include "OgreId.h"
+#include "OgreIteratorWrappers.h"
+#include "OgreMovableObject.h"
+#include "Math/Array/OgreObjectMemoryManager.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -75,10 +79,10 @@ namespace Ogre {
     {
         friend class ParticleSystemFactory;
     public:
-        typedef std::map<String, ParticleSystem*> ParticleTemplateMap;
-        typedef std::map<String, ParticleAffectorFactory*> ParticleAffectorFactoryMap;
-        typedef std::map<String, ParticleEmitterFactory*> ParticleEmitterFactoryMap;
-        typedef std::map<String, ParticleSystemRendererFactory*> ParticleSystemRendererFactoryMap;
+        typedef map<String, ParticleSystem*>::type ParticleTemplateMap;
+        typedef map<String, ParticleAffectorFactory*>::type ParticleAffectorFactoryMap;
+        typedef map<String, ParticleEmitterFactory*>::type ParticleEmitterFactoryMap;
+        typedef map<String, ParticleSystemRendererFactory*>::type ParticleSystemRendererFactoryMap;
     protected:
         OGRE_AUTO_MUTEX;
             
@@ -99,11 +103,30 @@ namespace Ogre {
         // Factory instance
         ParticleSystemFactory* mFactory;
 
+        ObjectMemoryManager mTemplatesObjectMemMgr;
+
+        /** Internal script parsing method. */
+        void parseNewEmitter(const String& type, DataStreamPtr& chunk, ParticleSystem* sys);
+        /** Internal script parsing method. */
+        void parseNewAffector(const String& type, DataStreamPtr& chunk, ParticleSystem* sys);
+        /** Internal script parsing method. */
+        void parseAttrib(const String& line, ParticleSystem* sys);
+        /** Internal script parsing method. */
+        void parseEmitterAttrib(const String& line, ParticleEmitter* sys);
+        /** Internal script parsing method. */
+        void parseAffectorAttrib(const String& line, ParticleAffector* sys);
+        /** Internal script parsing method. */
+        void skipToNextCloseBrace(DataStreamPtr& chunk);
+        /** Internal script parsing method. */
+        void skipToNextOpenBrace(DataStreamPtr& chunk);
+
         /// Internal implementation of createSystem
-        ParticleSystem* createSystemImpl(const String& name, size_t quota, 
-            const String& resourceGroup);
+        ParticleSystem* createSystemImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                          SceneManager *manager, size_t quota,
+                                          const String& resourceGroup );
         /// Internal implementation of createSystem
-        ParticleSystem* createSystemImpl(const String& name, const String& templateName);
+        ParticleSystem* createSystemImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                          SceneManager *manager, const String& templateName );
         /// Internal implementation of destroySystem
         void destroySystemImpl(ParticleSystem* sys);
         
@@ -281,7 +304,7 @@ namespace Ogre {
         @param rendererType
             String name of the renderer type to be created. A factory of this type must have been registered.
         */
-        ParticleSystemRenderer* _createRenderer(const String& rendererType);
+        ParticleSystemRenderer* _createRenderer(const String& rendererType, SceneManager *sceneManager);
 
         /** Internal method for destroying a renderer.
         @remarks
@@ -329,9 +352,37 @@ namespace Ogre {
         /** Get an instance of ParticleSystemFactory (internal use). */
         ParticleSystemFactory* _getFactory(void) { return mFactory; }
         
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ParticleSystemManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ParticleSystemManager* getSingletonPtr(void);
 
     };
@@ -340,7 +391,9 @@ namespace Ogre {
     class _OgreExport ParticleSystemFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl(const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         ParticleSystemFactory() {}
         ~ParticleSystemFactory() {}

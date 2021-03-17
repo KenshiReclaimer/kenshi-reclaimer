@@ -30,11 +30,11 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#include "OgreBone.h"
+#include "OgreOldBone.h"
 #include "OgreMatrix4.h"
 
 namespace Ogre  {
-
+namespace v1 {
 
     
     /** \addtogroup Core
@@ -57,11 +57,12 @@ namespace Ogre  {
         skeleton which has this tag point. Use the Entity::attachMovableObjectToBone method to attach
         the objects, which creates a new TagPoint on demand.
     */
-    class _OgreExport TagPoint : public Bone
+    class _OgreExport TagPoint : public OldBone
     {
 
     public:
         TagPoint(unsigned short handle, Skeleton* creator);
+        virtual ~TagPoint();
 
         Entity *getParentEntity(void) const;
         MovableObject* getChildObject(void) const;
@@ -90,31 +91,32 @@ namespace Ogre  {
         bool getInheritParentEntityScale(void) const;
 
         /** Gets the transform of parent entity. */
-        const Affine3& getParentEntityTransform(void) const;
+        const Matrix4& getParentEntityTransform(void) const;
 
         /** Gets the transform of this node just for the skeleton (not entity) */
-        const Affine3& _getFullLocalTransform(void) const;
+        const Matrix4& _getFullLocalTransform(void) const;
 
+        /** @copydoc Node::needUpdate */
+        void needUpdate(bool forceParentUpdate = false);
 
-        void needUpdate(bool forceParentUpdate = false) override;
         /** Overridden from Node in order to include parent Entity transform. */
-        void updateFromParentImpl(void) const override;
-        /// @deprecated do not use
-        OGRE_DEPRECATED const LightList& getLights(void) const;
+        void updateFromParentImpl(void) const;
+        /** @copydoc Renderable::getLights */
+        const LightList& getLights(void) const;
 
 
 
     private:
         Entity *mParentEntity;
         MovableObject *mChildObject;
-        mutable Affine3 mFullLocalTransform;
+        mutable Matrix4 mFullLocalTransform;
         bool mInheritParentEntityOrientation;
         bool mInheritParentEntityScale;
     };
 
     /** @} */
     /** @} */
-
+}
 } //namespace
 
 

@@ -29,9 +29,10 @@ THE SOFTWARE.
 #define __ParticleEmitter_H__
 
 #include "OgrePrerequisites.h"
-#include "OgreVector.h"
+#include "OgreVector3.h"
 #include "OgreColourValue.h"
 #include "OgreStringInterface.h"
+#include "OgreParticleEmitterCommands.h"
 #include "OgreParticle.h"
 #include "OgreHeaderPrefix.h"
 
@@ -70,14 +71,37 @@ namespace Ogre {
     class _OgreExport ParticleEmitter : public StringInterface, public Particle
     {
     protected:
+
+        // Command object for setting / getting parameters
+        static EmitterCommands::CmdAngle msAngleCmd;
+        static EmitterCommands::CmdColour msColourCmd;
+        static EmitterCommands::CmdColourRangeStart msColourRangeStartCmd;
+        static EmitterCommands::CmdColourRangeEnd msColourRangeEndCmd;
+        static EmitterCommands::CmdDirection msDirectionCmd;
+        static EmitterCommands::CmdUp msUpCmd;
+        static EmitterCommands::CmdDirPositionRef msDirPositionRefCmd;
+        static EmitterCommands::CmdEmissionRate msEmissionRateCmd;
+        static EmitterCommands::CmdMaxTTL msMaxTTLCmd;
+        static EmitterCommands::CmdMaxVelocity msMaxVelocityCmd;
+        static EmitterCommands::CmdMinTTL msMinTTLCmd;
+        static EmitterCommands::CmdMinVelocity msMinVelocityCmd;
+        static EmitterCommands::CmdPosition msPositionCmd;
+        static EmitterCommands::CmdTTL msTTLCmd;
+        static EmitterCommands::CmdVelocity msVelocityCmd;
+        static EmitterCommands::CmdDuration msDurationCmd;
+        static EmitterCommands::CmdMinDuration msMinDurationCmd;
+        static EmitterCommands::CmdMaxDuration msMaxDurationCmd;
+        static EmitterCommands::CmdRepeatDelay msRepeatDelayCmd;
+        static EmitterCommands::CmdMinRepeatDelay msMinRepeatDelayCmd;
+        static EmitterCommands::CmdMaxRepeatDelay msMaxRepeatDelayCmd;
+        static EmitterCommands::CmdName msNameCmd;
+        static EmitterCommands::CmdEmittedEmitter msEmittedEmitterCmd;
+
+
         /// Parent particle system
         ParticleSystem* mParent;
-
         /// Position relative to the center of the ParticleSystem
-        // inherited: Vector3 mPosition;
-        // Note, that position of the emitter becomes a position in worldspace if mLocalSpace is set
-        // to false (will this become a problem?)
-
+        Vector3 mPosition;
         /// Rate in particles per second at which this emitter wishes to emit particles
         Real mEmissionRate;
         /// Name of the type of emitter, MUST be initialised by subclasses

@@ -36,10 +36,12 @@ THE SOFTWARE.
 
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
+#include "OgreAxisAlignedBox.h"
 #include "OgreResourceGroupManager.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -76,7 +78,7 @@ namespace Ogre {
     */
     class _OgreExport BillboardChain : public MovableObject, public Renderable
     {
-        bool getCastsShadows(void) const override { return getCastShadows(); }
+
     public:
 
         /** Contains the data of an element of the BillboardChain.
@@ -103,7 +105,7 @@ namespace Ogre {
             /// Only used when mFaceCamera == false
             Quaternion orientation;
         };
-        typedef std::vector<Element> ElementList;
+        typedef vector<Element>::type ElementList;
 
         /** Constructor (don't use directly, use factory) 
         @param name The name to give this object
@@ -113,10 +115,12 @@ namespace Ogre {
         @param useColours If true, use vertex colours from the chain elements
         @param dynamic If true, buffers are created with the intention of being updated
         */
-        BillboardChain(const String& name, size_t maxElements = 20, size_t numberOfChains = 1, 
-            bool useTextureCoords = true, bool useColours = true, bool dynamic = true);
-
-        ~BillboardChain();
+        BillboardChain( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                        size_t maxElements = 20, size_t numberOfChains = 1,
+                        bool useTextureCoords = true, bool useColours = true,
+                        bool dynamic = true );
+        /// Destructor
+        virtual ~BillboardChain();
 
         /** Set the maximum number of chain elements per chain 
         */
@@ -253,28 +257,16 @@ namespace Ogre {
         */
         void setFaceCamera( bool faceCamera, const Vector3 &normalVector=Vector3::UNIT_X );
 
-        /// Get the material name in use
-        virtual const String& getMaterialName(void) const { return mMaterial->getName(); }
-        /// Set the material name to use for rendering
-        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
-
 
         // Overridden members follow
         Real getSquaredViewDepth(const Camera* cam) const;
-        Real getBoundingRadius(void) const;
         const AxisAlignedBox& getBoundingBox(void) const;
-        const MaterialPtr& getMaterial(void) const;
         const String& getMovableType(void) const;
-        void _updateRenderQueue(RenderQueue *);
-        void getRenderOperation(RenderOperation &);
+        void _updateRenderQueue(RenderQueue *, Camera *camera, const Camera *lodCamera);
+        void getRenderOperation(RenderOperation &, bool casterPass);
         virtual bool preRender(SceneManager* sm, RenderSystem* rsys);
         void getWorldTransforms(Matrix4 *) const;
         const LightList& getLights(void) const;
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
-
-
 
     protected:
 
@@ -289,9 +281,9 @@ namespace Ogre {
         /// Dynamic use?
         bool mDynamic;
         /// Vertex data
-        std::unique_ptr<VertexData> mVertexData;
+        VertexData* mVertexData;
         /// Index data (to allow multiple unconnected chains)
-        std::unique_ptr<IndexData> mIndexData;
+        IndexData* mIndexData;
         /// Is the vertex declaration dirty?
         bool mVertexDeclDirty;
         /// Do the buffers need recreating?
@@ -306,8 +298,6 @@ namespace Ogre {
         mutable AxisAlignedBox mAABB;
         /// Bounding radius
         mutable Real mRadius;
-        /// Material 
-        MaterialPtr mMaterial;
         /// Texture coord direction
         TexCoordDirection mTexCoordDir;
         /// Other texture coord range
@@ -341,7 +331,7 @@ namespace Ogre {
             /// The 'tail' of the chain, relative to start
             size_t tail;
         };
-        typedef std::vector<ChainSegment> ChainSegmentList;
+        typedef vector<ChainSegment>::type ChainSegmentList;
         ChainSegmentList mChainSegmentList;
 
         /// Setup the STL collections
@@ -365,7 +355,9 @@ namespace Ogre {
     class _OgreExport BillboardChainFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         BillboardChainFactory() {}
         ~BillboardChainFactory() {}
@@ -373,11 +365,14 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);  
+
     };
 
     /** @} */
     /** @} */
 
+}
 } // namespace
 
 #include "OgreHeaderSuffix.h"

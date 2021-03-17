@@ -31,6 +31,9 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreCommon.h"
 #include "OgreDataStream.h"
+
+#include "ogrestd/deque.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre 
@@ -141,9 +144,9 @@ namespace Ogre
         @remarks
             You can use this to generate id's for your chunks based on friendlier
             4-character codes rather than assigning numerical IDs, if you like.
-        @param code String to pack - must be 4 characters and '\0'
+        @param code String to pack - must be 4 characters.
         */
-        static uint32 makeIdentifier(const char (&code)[5]);
+        static uint32 makeIdentifier(const String& code);
 
         /** Report the current depth of the chunk nesting, whether reading or writing. 
         @remarks
@@ -333,7 +336,7 @@ namespace Ogre
         bool mFlipEndian;
         bool mReadWriteHeader;
         RealStorageFormat mRealFormat;
-        typedef std::deque<Chunk*> ChunkStack;
+        typedef deque<Chunk*>::type ChunkStack;
         /// Current list of open chunks
         ChunkStack mChunkStack;
 

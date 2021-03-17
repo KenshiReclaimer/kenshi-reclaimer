@@ -35,11 +35,17 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 
 #include "OgreRenderSystemCapabilities.h"
+#include "OgreResourceTransition.h"
 #include "OgreConfigOptionMap.h"
 #include "OgreGpuProgram.h"
 #include "OgrePlane.h"
 #include "OgreHardwareVertexBuffer.h"
+#include "OgreResourceTransition.h"
+#include "OgrePixelFormatGpu.h"
+#include "OgreViewport.h"
 #include "OgreHeaderPrefix.h"
+
+struct RENDERDOC_API_1_4_1;
 
 namespace Ogre
 {
@@ -50,12 +56,11 @@ namespace Ogre
     *  @{
     */
 
-    typedef std::vector<DepthBuffer*> DepthBufferVec;
-    typedef std::map< uint16, DepthBufferVec > DepthBufferMap;
-    typedef std::map< String, RenderTarget * > RenderTargetMap;
-    typedef std::multimap<uchar, RenderTarget * > RenderTargetPriorityMap;
+    typedef vector<TextureGpu*>::type TextureGpuVec;
+    typedef map< uint16, TextureGpuVec >::type DepthBufferMap2;
+    typedef map<TextureGpu *, uint16>::type DepthBufferRefMap;
+    typedef set<TextureGpu *>::type TextureGpuSet;
 
-    class TextureManager;
     /// Enum describing the ways to generate texture coordinates
     enum TexCoordCalcMethod
     {
@@ -70,76 +75,25 @@ namespace Ogre
         /// Projective texture
         TEXCALC_PROJECTIVE_TEXTURE
     };
-    /// Enum describing the various actions which can be taken on the stencil buffer
-    enum StencilOperation
+
+    /// Render window creation parameters.
+    struct RenderWindowDescription
     {
-        /// Leave the stencil buffer unchanged
-        SOP_KEEP,
-        /// Set the stencil value to zero
-        SOP_ZERO,
-        /// Set the stencil value to the reference value
-        SOP_REPLACE,
-        /// Increase the stencil value by 1, clamping at the maximum value
-        SOP_INCREMENT,
-        /// Decrease the stencil value by 1, clamping at 0
-        SOP_DECREMENT,
-        /// Increase the stencil value by 1, wrapping back to 0 when incrementing the maximum value
-        SOP_INCREMENT_WRAP,
-        /// Decrease the stencil value by 1, wrapping when decrementing 0
-        SOP_DECREMENT_WRAP,
-        /// Invert the bits of the stencil buffer
-        SOP_INVERT
+        String              name;
+        unsigned int        width;
+        unsigned int        height;
+        bool                useFullScreen;
+        NameValuePairList   miscParams;
     };
 
-    /** Describes the stencil buffer operation
-
-    The stencil buffer is used to mask out pixels in the render target, allowing
-    you to do effects like mirrors, cut-outs, stencil shadows and more. Each of
-    your batches of rendering is likely to ignore the stencil buffer,
-    update it with new values, or apply it to mask the output of the render.
-
-    The stencil test is:
-    $$(referenceValue\\,\\&\\,compareMask)\\;compareOp\\;(stencilBuffer\\,\\&\\,compareMask)$$
-
-    The result of this will cause one of 3 actions depending on whether
-    1. the stencil test fails
-    2. the stencil test succeeds but the depth buffer check fails
-    3. both depth buffer check and stencil test pass
-    */
-    struct _OgreExport StencilState
+    struct BoundUav
     {
-        /// Comparison operator for the stencil test
-        CompareFunction compareOp;
-        /// The action to perform when the stencil check fails
-        StencilOperation stencilFailOp;
-        /// The action to perform when the stencil check passes, but the depth buffer check fails
-        StencilOperation depthFailOp;
-        /// The action to take when both the stencil and depth check pass
-        StencilOperation depthStencilPassOp;
-
-        /// The reference value used in the stencil comparison
-        uint32 referenceValue;
-        ///  The bitmask applied to both the stencil value and the reference value before comparison
-        uint32 compareMask;
-        /** The bitmask the controls which bits from stencilRefValue will be written to stencil buffer
-        (valid for operations such as SOP_REPLACE) */
-        uint32 writeMask;
-
-        /// Turns stencil buffer checking on or off
-        bool enabled : 1;
-        /** If set to true, then if you render both back and front faces
-        (you'll have to turn off culling) then these parameters will apply for front faces,
-        and the inverse of them will happen for back faces (keep remains the same)
-         */
-        bool twoSidedOperation : 1;
-
-        StencilState()
-            : compareOp(CMPF_LESS_EQUAL), stencilFailOp(SOP_KEEP), depthFailOp(SOP_KEEP),
-              depthStencilPassOp(SOP_KEEP), referenceValue(0), compareMask(0xFFFFFFFF),
-              writeMask(0xFFFFFFFF), enabled(false), twoSidedOperation(false)
-        {
-        }
+        GpuTrackedResource *rttOrBuffer;
+        ResourceAccess::ResourceAccess boundAccess;
     };
+
+    /// Render window creation parameters container.
+    typedef vector<RenderWindowDescription>::type RenderWindowDescriptionList;
 
     /** Defines the functionality of a 3D API
     @remarks
@@ -178,7 +132,11 @@ namespace Ogre
         /** Returns the name of the rendering system.
         */
         virtual const String& getName(void) const = 0;
-
+		
+		/** Returns the friendly name of the render system
+		*/
+		virtual const String& getFriendlyName(void) const = 0;
+		
         /** Returns the details of this API's configuration options
         @remarks
         Each render system must be able to inform the world
@@ -186,7 +144,7 @@ namespace Ogre
         operation.
         @par
         These are passed as strings for portability, but
-        grouped into a structure (ConfigOption) which includes
+        grouped into a structure (_ConfigOption) which includes
         both options and current value.
         @par
         Note that the settings returned from this call are
@@ -200,35 +158,22 @@ namespace Ogre
         A 'map' of options, i.e. a list of options which is also
         indexed by option name.
         */
-        const ConfigOptionMap& getConfigOptions() const { return mOptions; }
+        virtual ConfigOptionMap& getConfigOptions(void) = 0;
 
         /** Sets an option for this API
-
+        @remarks
         Used to confirm the settings (normally chosen by the user) in
         order to make the renderer able to initialise with the settings as required.
-        This may initialise the @ref RenderWindowDescription or set some RenderSystem
-        specific paramters.
+        This may be video mode, D3D driver, full screen / windowed etc.
         Called automatically by the default configuration
         dialog, and by the restoration of saved settings.
         These settings are stored and only activated when
-        @ref RenderSystem::_initialise or @ref RenderSystem::reinitialise
+        RenderSystem::initialise or RenderSystem::reinitialise
         are called.
-
+        @par
         If using a custom configuration dialog, it is advised that the
         caller calls RenderSystem::getConfigOptions
         again, since some options can alter resulting from a selection.
-
-        Common options:
-
-        | Key |  Default | Description |
-        |-----|---------------|---------|
-        | Full Screen | false | Window full-screen flag |
-        | VSync | true | "vsync" in  @ref _createRenderWindow |
-        | VSync Interval | 1 | "vsyncInterval" in  @ref _createRenderWindow |
-        | sRGB Gamma Conversion | false | "gamma" in  @ref _createRenderWindow  |
-        | FSAA | 0 | concatenation of "FSAA" and "FSAAHint" as in  @ref _createRenderWindow  |
-        | Video Mode | - | Window resolution |
-        | Display Frequency | - | "displayFrequency" in  @ref _createRenderWindow |
         @param
         name The name of the option to alter.
         @param
@@ -236,9 +181,37 @@ namespace Ogre
         */
         virtual void setConfigOption(const String &name, const String &value) = 0;
 
-        /** get a RenderWindowDescription from the current ConfigOptionMap
-         */
-        RenderWindowDescription getRenderWindowDescription() const;
+        /** Some options depend on other options. Therefore it's best to call
+        RenderSystem::setConfigOption in order
+        @param idx
+            Value must be in range [0; getNumPriorityConfigOptions)
+
+            Options must be set in ascending order,
+            i.e. idx = 0 must be called before idx = 1
+        @return
+            The name to use in setConfigOption( name, value )
+        */
+        virtual const char* getPriorityConfigOption( size_t idx ) const;
+
+        /** Number of priority config options in RenderSystem::getPriorityConfigOption
+        @remarks
+            IMPORTANT: The return value can change after calls to setConfigOption,
+            it can even return higher or lower values than before.
+
+            Therefore a proper loop would call getNumPriorityConfigOptions on every iteration:
+
+            @code
+                // GOOD:
+                for( size_t i=0; i < rs->getNumPriorityConfigOptions(); ++i )
+                    rs->setConfigOption( rs->getPriorityConfigOption( i ), value );
+
+                // BAD:
+                const size_t cachedNumOptions = rs->getNumPriorityConfigOptions();
+                for( size_t i=0; i < cachedNumOptions; ++i )
+                    rs->setConfigOption( rs->getPriorityConfigOption( i ), value );
+            @endcode
+        */
+        virtual size_t getNumPriorityConfigOptions( void ) const;
 
         /** Create an object for performing hardware occlusion queries. 
         */
@@ -252,17 +225,31 @@ namespace Ogre
         @note
         If the returned string is empty, there are no problems.
         */
-        virtual String validateConfigOptions(void) { return BLANKSTRING; }
+        virtual String validateConfigOptions(void) = 0;
 
         /** Start up the renderer using the settings selected (Or the defaults if none have been selected).
-
+        @remarks
         Called by Root::setRenderSystem. Shouldn't really be called
         directly, although  this can be done if the app wants to.
+        @param
+        autoCreateWindow If true, creates a render window
+        automatically, based on settings chosen so far. This saves
+        an extra call to _createRenderWindow
+        for the main render window.
+        @param
+        windowTitle Sets the app window title
+        @return
+        A pointer to the automatically created window, if requested, otherwise null.
         */
-        virtual void _initialise();
+        virtual Window* _initialise( bool autoCreateWindow,
+                                     const String& windowTitle = "OGRE Render Window" );
 
-        /// @deprecated assume true
-        OGRE_DEPRECATED virtual bool isStaticBufferLockable() const { return true; }
+        /*
+        Returns whether under the current render system buffers marked as TU_STATIC can be locked for update
+        @remarks
+        Needed in the implementation of DirectX9 with DirectX9Ex driver
+        */
+        virtual bool isStaticBufferLockable() const { return true; }
 
         /** Query the real capabilities of the GPU and driver in the RenderSystem*/
         virtual RenderSystemCapabilities* createRenderSystemCapabilities() const = 0;
@@ -282,75 +269,37 @@ namespace Ogre
         *        capabilities has to be a subset of the real capabilities and the caller is 
         *        responsible for deallocating capabilities.
         */
-        void useCustomRenderSystemCapabilities(RenderSystemCapabilities* capabilities);
+        virtual void useCustomRenderSystemCapabilities(RenderSystemCapabilities* capabilities);
 
         /** Restart the renderer (normally following a change in settings).
         */
-        void reinitialise(void);
+        virtual void reinitialise(void) = 0;
 
         /** Shutdown the renderer and cleanup resources.
         */
         virtual void shutdown(void);
 
-        virtual const GpuProgramParametersPtr& getFixedFunctionParams(TrackVertexColourType tracking,
-                                                                      FogMode fog)
-        {
-            return mFixedFunctionParams;
-        }
+        /** Some render systems have moments when GPU device is temporarily unavailable,
+            for example when D3D11 device is lost, or when iOS app is in background, etc.
+         */
+        virtual bool validateDevice( bool forceDeviceElection = false ) { return true; }
 
-        /// @deprecated migrate to getFixedFunctionParams ASAP. this is very slow now.
-        OGRE_DEPRECATED void _setProjectionMatrix(Matrix4 m);
-
-        /// @deprecated migrate to getFixedFunctionParams ASAP. this is very slow now.
-        OGRE_DEPRECATED void _setViewMatrix(const Matrix4& m)
-        {
-            if (!mFixedFunctionParams) return;
-            mFixedFunctionParams->setConstant(4, m);
-            applyFixedFunctionParams(mFixedFunctionParams, GPV_GLOBAL);
-        }
-
-        /// @deprecated migrate to getFixedFunctionParams ASAP. this is very slow now.
-        OGRE_DEPRECATED void _setWorldMatrix(const Matrix4& m)
-        {
-            if (!mFixedFunctionParams) return;
-            mFixedFunctionParams->setConstant(0, m);
-            applyFixedFunctionParams(mFixedFunctionParams, GPV_PER_OBJECT);
-        }
-
-        /// @deprecated migrate to getFixedFunctionParams ASAP. this is very slow now.
-        OGRE_DEPRECATED void _setFog(FogMode f)
-        {
-            if (mFixedFunctionParams)
-                getFixedFunctionParams(TVC_NONE, f);
-        }
-
-        /// @deprecated use setColourBlendState
-        OGRE_DEPRECATED void _setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
-                                               SceneBlendOperation op = SBO_ADD)
-        {
-            mCurrentBlend.sourceFactor = sourceFactor;
-            mCurrentBlend.destFactor = destFactor;
-            mCurrentBlend.sourceFactorAlpha = sourceFactor;
-            mCurrentBlend.destFactorAlpha = destFactor;
-            mCurrentBlend.operation = op;
-            mCurrentBlend.alphaOperation = op;
-            setColourBlendState(mCurrentBlend);
-        }
-
-        virtual void applyFixedFunctionParams(const GpuProgramParametersPtr& params, uint16 variabilityMask) {}
-
-        /** Sets the type of light shading required (default = Gouraud).
-        @deprecated only needed for fixed function APIs
-        */
-        virtual void setShadingType(ShadeOptions so) {}
-
-        /** Sets whether or not dynamic lighting is enabled.
+        /** Sets whether or not W-buffers are enabled if they are available for this renderer.
         @param
-        enabled If true, dynamic lighting is performed on geometry with normals supplied, geometry without
-        normals will not be displayed. If false, no lighting is applied and all geometry will be full brightness.
-        @deprecated only needed for fixed function APIs
+        enabled If true and the renderer supports them W-buffers will be used.  If false 
+        W-buffers will not be used even if available.  W-buffers are enabled by default 
+        for 16bit depth buffers and disabled for all other depths.
         */
-        virtual void setLightingEnabled(bool enabled) {}
+        void setWBufferEnabled(bool enabled);
+
+        /** Returns true if the renderer will try to use W-buffers when available.
+        */
+        bool getWBufferEnabled(void) const;
+
+        /** Returns supported sample description for requested FSAA mode, with graceful downgrading.
+        */
+        virtual SampleDescription validateSampleDescription( const SampleDescription &sampleDesc,
+                                                             PixelFormatGpu format );
 
         /** Creates a new rendering window.
         @remarks
@@ -379,97 +328,290 @@ namespace Ogre
         Options are case sensitive. Unrecognised parameters will be ignored silently.
         These values might be platform dependent, but these are present for all platforms unless
         indicated otherwise:
-        | Key | Type / Values | Default | Description | Notes |
-        |-----|---------------|---------|-------------|-------|
-        | title | Any string | RenderTarget name | The title of the window that will appear in the title bar |  |
-        | left | Positive integers | Centred | Screen x coordinate from left |  |
-        | top | Positive integers | Centred | Screen y coordinate from left |  |
-        | border | none, fixed, resize | resize | The type of window border (in windowed mode) |  |
-        | hidden | true, false | false | hide the created window | |
-        | FSAA | Positive integer (usually 0, 2, 4, 8, 16) | 0 | Full screen antialiasing factor |  |
-        | gamma | true, false | false | Enable hardware conversion from linear colour space to gamma colour space on rendering to the window. |  |
-        | vsync | true, false | false | Synchronize buffer swaps to monitor vsync, eliminating tearing at the expense of a fixed frame rate |  |
-        | vsyncInterval | 1, 2, 3, 4 | 1 | If vsync is enabled, the minimum number of vertical blanks that should occur between renders. For example if vsync is enabled, the refresh rate is 60 and this is set to 2, then the frame rate will be locked at 30. |  |
-        | Full Screen | true, false | false | Specify whether to create the window in full screen mode | |
-        | displayFrequency | Refresh rate in Hertz (e.g. 60, 75, 100) | Desktop vsync rate | Display frequency rate, for fullscreen mode |  |
-        | parentWindowHandle | <ul><li>Win32: HWND as integer<li>GLX: poslong:posint:poslong (display*:screen:windowHandle) or poslong:posint:poslong:poslong (display*:screen:windowHandle:XVisualInfo*) | 0 (none) | Parent window handle, for embedding the OGRE in a child of an external window |  |
-        | externalWindowHandle | <ul><li>Win32: HWND as integer<li>GLX: poslong:posint:poslong (display*:screen:windowHandle) or poslong:posint:poslong:poslong (display*:screen:windowHandle:XVisualInfo*)<li>OS X Cocoa: OgreGLView address as an integer. You can pass NSView or NSWindow too, but should perform OgreGLView callbacks into the Ogre manually.<li>OS X Carbon: WindowRef as an integer<li>iOS: UIWindow address as an integer</ul> | 0 (none) | External window handle, for embedding the OGRE render in an existing window |  |
-        | externalGLControl | true, false | false | Let the external window control OpenGL i.e. don't select a pixel format for the window, do not change v-sync and do not swap buffer. When set to true, the calling application is responsible of OpenGL initialization and buffer swapping. It should also create an OpenGL context for its own rendering, Ogre will create one for its use. Then the calling application must also enable Ogre OpenGL context before calling any Ogre function and restore its OpenGL context after these calls. | OpenGL Specific |
-        | currentGLContext | true, false | false | Use an externally created GL context. (Must be current) | OpenGL Specific |
-        | minColourBufferSize | Positive integer (usually 16, 32) | 16 | Min total colour buffer size. See EGL_BUFFER_SIZE | OpenGL Specific |
-        | windowProc | WNDPROC | DefWindowProc | function that processes window messages | Win 32 Specific |
-        | colourDepth | 16, 32 | Desktop depth | Colour depth of the resulting rendering window; only applies if fullScreen | Win32 Specific |
-        | FSAAHint | %RenderSystem specific. Currently enables EQAA/ CSAA mode on D3D: if you want 4f8x (8x CSAA), set FSAA=4 and this to "f8" | Blank | FSAA mode hint | D3D Specific |
-        | outerDimensions | true, false | false | Whether the width/height is expressed as the size of the outer window, rather than the content area | Win32 Specific  |
-        | monitorIndex | | -1 | | Win 32 Specific |
-        | monitorHandle | | 0 (none) | | Win 32 Specific (OpenGL) |
-        | enableDoubleClick | true, false | false | Enable the window to keep track and transmit double click messages. | Win32 Specific |
-        | useNVPerfHUD | true, false | false | Enable the use of nVidia NVPerfHUD | DirectX Specific |
-        | depthBuffer | true, false | true | Use depth buffer | DirectX9 Specific |
-        | NSOpenGLCPSurfaceOrder | -1 or 1 | 1 | [NSOpenGLCPSurfaceOrder](https://developer.apple.com/documentation/appkit/nsopenglcpsurfaceorder) | Mac OS X Specific |
-        | contentScalingFactor | Positive Float greater than 1.0 | The default content scaling factor of the screen | On IOS specifies the CAEAGLLayer content scaling factor. Only supported on iOS 4 or greater. This can be useful to limit the resolution of the OpenGL ES backing store. For example, the iPhone 4's native resolution is 960 x 640\. Windows are always 320 x 480, if you would like to limit the display to 720 x 480, specify 1.5 as the scaling factor. | iOS / Android Specific |
-        | externalViewHandle | UIView pointer as an integer | 0 | External view handle, for rendering OGRE render in an existing view | iOS Specific |
-        | externalViewControllerHandle | UIViewController pointer as an integer | 0 | External view controller handle, for embedding OGRE in an existing view controller | iOS Specific |
-        | externalSharegroup | EAGLSharegroup pointer as an integer | 0 | External sharegroup, used to shared GL resources between contexts | iOS Specific |
-        | CSAA | Positive integer (usually 0, 2, 4, 8, 16) | 0 | [Coverage sampling factor](https://www.khronos.org/registry/egl/extensions/NV/EGL_NV_coverage_sample.txt) | Android Specific |
-        | maxColourBufferSize | Positive integer (usually 16, 32) | 32 | Max EGL_BUFFER_SIZE | Android Specific |
-        | maxStencilBufferSize | Positive integer (usually 0, 8) | 0 | EGL_STENCIL_SIZE | Android Specific |
-        | maxDepthBufferSize | Positive integer (usually 0, 16, 24) | 16 | EGL_DEPTH_SIZE | Android Specific |
+        <table>
+        <tr>
+            <td><b>Key</b></td>
+            <td><b>Type/Values</b></td>
+            <td><b>Default</b></td>
+            <td><b>Description</b></td>
+            <td><b>Notes</b></td>
+        </tr>
+        <tr>
+            <td>title</td>
+            <td>Any string</td>
+            <td>RenderTarget name</td>
+            <td>The title of the window that will appear in the title bar</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>colourDepth</td>
+            <td>16, 32</td>
+            <td>Desktop depth</td>
+            <td>Colour depth of the resulting rendering window; only applies if fullScreen</td>
+            <td>Win32 Specific</td>
+        </tr>
+        <tr>
+            <td>left</td>
+            <td>Positive integers</td>
+            <td>Centred</td>
+            <td>Screen x coordinate from left</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>top</td>
+            <td>Positive integers</td>
+            <td>Centred</td>
+            <td>Screen y coordinate from left</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>depthBuffer</td>
+            <td>true, false</td>
+            <td>true</td>
+            <td>Use depth buffer</td>
+            <td>DirectX9 specific</td>
+        </tr>
+        <tr>
+            <td>externalWindowHandle</td>
+            <td>Win32: HWND as integer<br/>
+                GLX: poslong:posint:poslong (display*:screen:windowHandle) or poslong:posint:poslong:poslong (display*:screen:windowHandle:XVisualInfo*)<br/>
+                OS X Cocoa: OgreGLView address as an integer. You can pass NSView or NSWindow too, but should perform OgreGLView callbacks into the Ogre manually.
+                iOS: UIWindow address as an integer
+            </td>
+            <td>0 (none)</td>
+            <td>External window handle, for embedding the OGRE render in an existing window</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>externalGLControl</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Let the external window control OpenGL i.e. don't select a pixel format for the window,
+            do not change v-sync and do not swap buffer. When set to true, the calling application
+            is responsible of OpenGL initialization and buffer swapping. It should also create an
+            OpenGL context for its own rendering, Ogre will create one for its use. Then the calling
+            application must also enable Ogre OpenGL context before calling any Ogre function and
+            restore its OpenGL context after these calls.</td>
+            <td>OpenGL specific</td>
+        </tr>
+        <tr>
+            <td>externalGLContext</td>
+            <td>Context as Unsigned Long</td>
+            <td>0 (create own context)</td>
+            <td>Use an externally created GL context</td>
+            <td>OpenGL Specific</td>
+        </tr>
+        <tr>
+            <td>parentWindowHandle</td>
+            <td>Win32: HWND as integer<br/>
+                GLX: poslong:posint:poslong (display*:screen:windowHandle) or poslong:posint:poslong:poslong (display*:screen:windowHandle:XVisualInfo*)</td>
+            <td>0 (none)</td>
+            <td>Parent window handle, for embedding the OGRE in a child of an external window</td>
+            <td>&nbsp;</td>
+        </tr>
+         <tr>
+             <td>contentScalingFactor</td>
+             <td>Positive Float greater than 1.0</td>
+             <td>The default content scaling factor of the screen</td>
+             <td>Specifies the CAEAGLLayer content scaling factor.  Only supported on iOS 4 or greater.
+                 This can be useful to limit the resolution of the OpenGL ES backing store.  For example, the iPhone 4's
+                 native resolution is 960 x 640.  Windows are always 320 x 480, if you would like to limit the display
+                 to 720 x 480, specify 1.5 as the scaling factor.
+             </td>
+             <td>iOS Specific</td>
+             <td>&nbsp;</td>
+         </tr>
+         <tr>
+             <td>externalViewHandle</td>
+             <td>UIView pointer as an integer</td>
+             <td>0</td>
+             <td>External view handle, for rendering OGRE render in an existing view</td>
+             <td>iOS Specific</td>
+             <td>&nbsp;</td>
+         </tr>
+         <tr>
+             <td>externalViewControllerHandle</td>
+             <td>UIViewController pointer as an integer</td>
+             <td>0</td>
+             <td>External view controller handle, for embedding OGRE in an existing view controller</td>
+             <td>iOS Specific</td>
+             <td>&nbsp;</td>
+         </tr>
+         <tr>
+             <td>externalSharegroup</td>
+             <td>EAGLSharegroup pointer as an integer</td>
+             <td>0</td>
+             <td>External sharegroup, used to shared GL resources between contexts</td>
+             <td>iOS Specific</td>
+             <td>&nbsp;</td>
+         </tr>
+         <tr>
+             <td>Full Screen</td>
+             <td>true, false</td>
+             <td>false</td>
+             <td>Specify whether to create the window in full screen mode</td>
+             <td>OS X Specific</td>
+             <td>&nbsp;</td>
+         </tr>
+         <tr>
+            <td>MSAA</td>
+            <td>Positive integer (usually 1, 2, 4, 8, 16)</td>
+            <td>1</td>
+            <td>Multisample antialiasing factor</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>MSAA_Quality</td>
+            <td>Depends on RenderSystem and hardware. Currently supports:<br/>
+            0 ... infinite number (depends on HW)</td>
+            <td>Blank</td>
+            <td>Full screen antialiasing hint</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>displayFrequency</td>
+            <td>Refresh rate in Hertz (e.g. 60, 75, 100)</td>
+            <td>Desktop vsync rate</td>
+            <td>Display frequency rate, for fullscreen mode</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>vsync</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Synchronize buffer swaps to monitor vsync, eliminating tearing at the expense of a fixed frame rate</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>vsyncInterval</td>
+            <td>1, 2, 3, 4</td>
+            <td>1</td>
+            <td>If vsync is enabled, the minimum number of vertical blanks that should occur between renders. 
+            For example if vsync is enabled, the refresh rate is 60 and this is set to 2, then the
+            frame rate will be locked at 30.</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>border</td>
+            <td>none, fixed, resize</td>
+            <td>resize</td>
+            <td>The type of window border (in windowed mode)</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>outerDimensions</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Whether the width/height is expressed as the size of the 
+            outer window, rather than the content area</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>useNVPerfHUD</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Enable the use of nVidia NVPerfHUD</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>gamma</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Enable hardware conversion from linear colour space to gamma
+            colour space on rendering to the window.</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr>
+            <td>enableDoubleClick</td>
+            <td>true, false</td>
+            <td>false</td>
+            <td>Enable the window to keep track and transmit double click messages.</td>
+            <td>Win32 Specific</td>
+        </tr>
+        <tr>
+            <td>MSAA</td>
+            <td>Positive integer (usually 0, 2, 4, 8, 16)</td>
+            <td>0</td>
+            <td>Full screen antialiasing factor</td>	  
+            <td>Android Specific</td>
+        </tr>  
+        <tr>
+            <td>CSAA</td>
+            <td>Positive integer (usually 0, 2, 4, 8, 16)</td>
+            <td>0</td>
+            <td>Coverage sampling factor (https://www.khronos.org/registry/egl/extensions/NV/EGL_NV_coverage_sample.txt)</td>	  
+            <td>Android Specific</td>
+        </tr>	
+        <tr>
+            <td>maxColourBufferSize</td>
+            <td>Positive integer (usually 16, 32)</td>
+            <td>32</td>
+            <td>Max EGL_BUFFER_SIZE</td>	  
+            <td>Android Specific</td>
+        </tr>	 
+        <tr>
+            <td>minColourBufferSize</td>
+            <td>Positive integer (usually 16, 32)</td>
+            <td>16</td>
+            <td>Min EGL_BUFFER_SIZE</td>	  
+            <td>Android Specific</td>
+        </tr>  
+        <tr>
+            <td>maxStencilBufferSize</td>
+            <td>Positive integer (usually 0, 8)</td>
+            <td>0</td>
+            <td>EGL_STENCIL_SIZE</td>	  
+            <td>Android Specific</td>
+        </tr>	
+        <tr>
+            <td>maxDepthBufferSize</td>
+            <td>Positive integer (usually 0, 16, 24)</td>
+            <td>16</td>
+            <td>EGL_DEPTH_SIZE</td>	  
+            <td>Android Specific</td>
+        </tr>
         */
-        virtual RenderWindow* _createRenderWindow(const String &name, unsigned int width, unsigned int height, 
-            bool fullScreen, const NameValuePairList *miscParams = 0);
+        virtual Window* _createRenderWindow( const String &name, uint32 width, uint32 height,
+                                             bool fullScreen,
+                                             const NameValuePairList *miscParams = 0 ) = 0;
 
-        /// @deprecated call _createRenderWindow multiple times
-        OGRE_DEPRECATED bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
-            RenderWindowList& createdWindows);
-
-        
-        /** Create a MultiRenderTarget, which is a render target that renders to multiple RenderTextures
-        at once. Surfaces can be bound and unbound at will.
-        This fails if mCapabilities->getNumMultiRenderTargets() is smaller than 2.
+        /** Creates multiple rendering windows.     
+        @param
+        renderWindowDescriptions Array of structures containing the descriptions of each render window.
+        The structure's members are the same as the parameters of _createRenderWindow:
+        * name
+        * width
+        * height
+        * fullScreen
+        * miscParams
+        See _createRenderWindow for details about each member.      
+        @param
+        createdWindows This array will hold the created render windows.
+        @return
+        true on success.        
         */
-        virtual MultiRenderTarget * createMultiRenderTarget(const String & name) = 0; 
+        virtual bool _createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions, 
+            WindowList &createdWindows);
 
         /** Destroys a render window */
-        virtual void destroyRenderWindow(const String& name);
-        /** Destroys a render texture */
-        virtual void destroyRenderTexture(const String& name);
-        /** Destroys a render target of any sort */
-        virtual void destroyRenderTarget(const String& name);
+        virtual void destroyRenderWindow( Window *window );
 
-        /** Attaches the passed render target to the render system.
+        /** Returns a description of an error code.
         */
-        void attachRenderTarget( RenderTarget &target );
-        /** Returns a pointer to the render target with the passed name, or NULL if that
-        render target cannot be found.
-        */
-        RenderTarget * getRenderTarget( const String &name );
-        /** Detaches the render target with the passed name from the render system and
-        returns a pointer to it.
-        @note
-        If the render target cannot be found, NULL is returned.
-        */
-        virtual RenderTarget * detachRenderTarget( const String &name );
+        virtual String getErrorDescription(long errorNumber) const = 0;
 
-        /// Iterator over RenderTargets
-        typedef MapIterator<Ogre::RenderTargetMap> RenderTargetIterator;
-
-        /** Returns a specialised MapIterator over all render targets attached to the RenderSystem. */
-        RenderTargetIterator getRenderTargetIterator(void) {
-            return RenderTargetIterator( mRenderTargets.begin(), mRenderTargets.end() );
-        }
         /** Returns the global instance vertex buffer.
         */
-        HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
+        v1::HardwareVertexBufferSharedPtr getGlobalInstanceVertexBuffer() const;
         /** Sets the global instance vertex buffer.
         */
-        void setGlobalInstanceVertexBuffer(const HardwareVertexBufferSharedPtr &val);
+        void setGlobalInstanceVertexBuffer(const v1::HardwareVertexBufferSharedPtr &val);
         /** Gets vertex declaration for the global vertex buffer for the global instancing
         */
-        VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
+        v1::VertexDeclaration* getGlobalInstanceVertexBufferVertexDeclaration() const;
         /** Sets vertex declaration for the global vertex buffer for the global instancing
         */
-        void setGlobalInstanceVertexBufferVertexDeclaration( VertexDeclaration* val);
+        void setGlobalInstanceVertexBufferVertexDeclaration( v1::VertexDeclaration* val);
         /** Gets the global number of instances.
         */
         size_t getGlobalNumberOfInstances() const;
@@ -477,27 +619,6 @@ namespace Ogre
         */
         void setGlobalNumberOfInstances(const size_t val);
 
-        /** Retrieves an existing DepthBuffer or creates a new one suited for the given RenderTarget
-            and sets it.
-            @remarks
-                RenderTarget's pool ID is respected. @see RenderTarget::setDepthBufferPool()
-        */
-        void setDepthBufferFor( RenderTarget *renderTarget );
-
-        /**
-         Returns if reverse Z-buffer is enabled.
-
-         If you have large scenes and need big far clip distance but still want
-         to draw objects closer (for example cockpit of a plane) you can enable
-         reverse depth buffer so that the depth buffer precision is greater further away.
-         This enables the OGRE_REVERSED_Z preprocessor define for shaders.
-
-         @retval true If reverse Z-buffer is enabled.
-         @retval false If reverse Z-buffer is disabled (default).
-
-         @see setReverseDepthBuffer
-         */
-        bool isReverseDepthBufferEnabled() const;
 
         // ------------------------------------------------------------------------
         //                     Internal Rendering Access
@@ -505,43 +626,88 @@ namespace Ogre
         // They can be called by library user if required
         // ------------------------------------------------------------------------
 
+
         /** Tells the rendersystem to use the attached set of lights (and no others) 
         up to the number specified (this allows the same list to be used with different
-        count limits)
-        @deprecated only needed for fixed function APIs
+        count limits) */
+        virtual void _useLights(const LightList& lights, unsigned short limit) = 0;
+        /** Are fixed-function lights provided in view space? Affects optimisation. 
         */
-        virtual void _useLights(unsigned short limit) {}
+        virtual bool areFixedFunctionLightsInViewSpace() const { return false; }
+        /** Sets the world transform matrix. */
+        virtual void _setWorldMatrix(const Matrix4 &m) = 0;
+        /** Sets multiple world matrices (vertex blending). */
+        virtual void _setWorldMatrices(const Matrix4* m, unsigned short count);
+        /** Sets the view transform matrix */
+        virtual void _setViewMatrix(const Matrix4 &m) = 0;
+        /** Sets the projection transform matrix */
+        virtual void _setProjectionMatrix(const Matrix4 &m) = 0;
         /** Utility function for setting all the properties of a texture unit at once.
         This method is also worth using over the individual texture unit settings because it
         only sets those settings which are different from the current settings for this
         unit, thus minimising render state changes.
         */
         virtual void _setTextureUnitSettings(size_t texUnit, TextureUnitState& tl);
-        /// set the sampler settings for the given texture unit
-        virtual void _setSampler(size_t texUnit, Sampler& s) = 0;
-        /** Turns off a texture unit. */
-        virtual void _disableTextureUnit(size_t texUnit);
-        /** Disables all texture units from the given unit upwards */
-        virtual void _disableTextureUnitsFrom(size_t texUnit);
+        /** Set texture unit binding type */
+        virtual void _setBindingType(TextureUnitState::BindingType bindigType);
+        /** Sets the surface properties to be used for future rendering.
+
+        This method sets the the properties of the surfaces of objects
+        to be rendered after it. In this context these surface properties
+        are the amount of each type of light the object reflects (determining
+        it's colour under different types of light), whether it emits light
+        itself, and how shiny it is. Textures are not dealt with here,
+        see the _setTetxure method for details.
+        This method is used by _setMaterial so does not need to be called
+        direct if that method is being used.
+
+        @param ambient The amount of ambient (sourceless and directionless)
+        light an object reflects. Affected by the colour/amount of ambient light in the scene.
+        @param diffuse The amount of light from directed sources that is
+        reflected (affected by colour/amount of point, directed and spot light sources)
+        @param specular The amount of specular light reflected. This is also
+        affected by directed light sources but represents the colour at the
+        highlights of the object.
+        @param emissive The colour of light emitted from the object. Note that
+        this will make an object seem brighter and not dependent on lights in
+        the scene, but it will not act as a light, so will not illuminate other
+        objects. Use a light attached to the same SceneNode as the object for this purpose.
+        @param shininess A value which only has an effect on specular highlights (so
+        specular must be non-black). The higher this value, the smaller and crisper the
+        specular highlights will be, imitating a more highly polished surface.
+        This value is not constrained to 0.0-1.0, in fact it is likely to
+        be more (10.0 gives a modest sheen to an object).
+        @param tracking A bit field that describes which of the ambient, diffuse, specular
+        and emissive colours follow the vertex colour of the primitive. When a bit in this field is set
+        its ColourValue is ignored. This is a combination of TVC_AMBIENT, TVC_DIFFUSE, TVC_SPECULAR(note that the shininess value is still
+        taken from shininess) and TVC_EMISSIVE. TVC_NONE means that there will be no material property
+        tracking the vertex colours.
+        */
+        virtual void _setSurfaceParams(const ColourValue &ambient,
+            const ColourValue &diffuse, const ColourValue &specular,
+            const ColourValue &emissive, Real shininess,
+            TrackVertexColourType tracking = TVC_NONE) = 0;
 
         /** Sets whether or not rendering points using OT_POINT_LIST will 
         render point sprites (textured quads) or plain points.
         @param enabled True enables point sprites, false returns to normal
         point rendering.
-        @deprecated only needed for fixed function APIs
         */  
-        virtual void _setPointSpritesEnabled(bool enabled) {};
+        virtual void _setPointSpritesEnabled(bool enabled) = 0;
 
-        /**
-        @deprecated only needed for fixed function APIs
+        /** Sets the size of points and how they are attenuated with distance.
+        @remarks
+        When performing point rendering or point sprite rendering,
+        point size can be attenuated with distance. The equation for
+        doing this is attenuation = 1 / (constant + linear * dist + quadratic * d^2) .
+        @par
+        For example, to disable distance attenuation (constant screensize) 
+        you would set constant to 1, and linear and quadratic to 0. A
+        standard perspective attenuation would be 0, 1, 0 respectively.
         */
-        virtual void _setPointParameters(bool attenuationEnabled, Real minSize, Real maxSize) {}
+        virtual void _setPointParameters(Real size, bool attenuationEnabled, 
+            Real constant, Real linear, Real quadratic, Real minSize, Real maxSize) = 0;
 
-        /**
-         * Set the line width when drawing as RenderOperation::OT_LINE_LIST/ RenderOperation::OT_LINE_STRIP
-         * @param width only value of 1.0 might be supported. Check for RSC_WIDE_LINES.
-         */
-        virtual void _setLineWidth(float width) {};
 
         /**
         Sets the texture to bind to a given texture unit.
@@ -554,11 +720,178 @@ namespace Ogre
         RenderSystemCapabilites::getNumTextureUnits)
         @param enabled Boolean to turn the unit on/off
         @param texPtr Pointer to the texture to use.
+        @param bDepthReadOnly
+            true if the texture is also attached as a depth buffer but is read only
         */
-        virtual void _setTexture(size_t unit, bool enabled, 
-            const TexturePtr &texPtr) = 0;
+        virtual void _setTexture( size_t unit, TextureGpu *texPtr, bool bDepthReadOnly ) = 0;
 
-        /** Binds a texture to a vertex, geometry, compute, tesselation hull
+        /** Because Ogre doesn't (yet) have the notion of a 'device' or 'GL context',
+            this function lets Ogre know which device should be used by providing
+            a texture.
+        @param texture
+            Cannot be null.
+        */
+        virtual void _setCurrentDeviceFromTexture( TextureGpu *texture ) = 0;
+
+        virtual RenderPassDescriptor* createRenderPassDescriptor(void) = 0;
+        void destroyRenderPassDescriptor( RenderPassDescriptor *renderPassDesc );
+
+        RenderPassDescriptor* getCurrentPassDescriptor(void)    { return mCurrentRenderPassDescriptor; }
+        Viewport& _getCurrentRenderViewport(void)               { return mCurrentRenderViewport[0]; }
+        Viewport* getCurrentRenderViewports(void)				{ return mCurrentRenderViewport; }
+        uint32 getMaxBoundViewports(void)						{ return mMaxBoundViewports; }
+
+        /** When the descriptor is set to Load clear, two possible things may happen:
+                1. The region is cleared.
+                2. The whole texture is cleared.
+            What actually happens is undefined (depends on the API). But calling
+            "beginRenderPassDescriptor( desc, viewportSettings );" with the same
+            descriptor but different viewports (without changing the desc)
+            guarantees that each region is cleared:
+                1. Each time the subregion is switched
+                2. Only once (the whole texture), when the first viewport was set.
+        @par
+            When switching between render targets, two beginRenderPassDescriptor
+            in a row automatically implies calls endRenderPassDescriptor.
+            In fact this is faster to perfom than calling beginRenderPassDescriptor -
+            endRenderPassDescriptor in pairs, because we can smartly flush only what
+            needs to be flushed.
+            endRenderPassDescriptor only needs to be called when no other
+            beginRenderPassDescriptor will follow (i.e. at the end of the frame or
+            when starting compute jobs)
+        @param desc
+        @param anyTarget
+            Contains the first valid texture in mRenderPassDesc, to be used for reference
+            (e.g. width, height, etc). Could be colour, depth, stencil, or nullptr.
+        @param mipLevel
+            Mip at which anyTarget is bound
+        @param viewportSize
+        @param warnIfRtvWasFlushed
+            See CompositorPassDef::mWarnIfRtvWasFlushed
+        */
+        virtual void beginRenderPassDescriptor( RenderPassDescriptor *desc,
+                                                TextureGpu *anyTarget, uint8 mipLevel,
+                                                const Vector4 *viewportSizes,
+                                                const Vector4 *scissors,
+                                                uint32 numViewports,
+                                                bool overlaysEnabled,
+                                                bool warnIfRtvWasFlushed );
+        /// Metal needs to delay RenderCommand creation to the last minute, because
+        /// we can't issue blit operations (e.g. buffer copies) which a lot of v1
+        /// code relies on otherwise the RenderCommand gets canceled.
+        /// Even if we were to get rid of v1 operations, the user may want to hook
+        /// listeners for _renderPhase02 and perform forbidden operations.
+        /// Therefore it's easier to split the process done in beginRenderPassDescriptor
+        /// in two steps (beginRenderPassDescriptor and executeRenderPassDescriptorDelayedActions)
+        /// for Metal.
+        virtual void executeRenderPassDescriptorDelayedActions(void);
+        virtual void endRenderPassDescriptor(void);
+
+    protected:
+        virtual TextureGpu* createDepthBufferFor( TextureGpu *colourTexture, bool preferDepthTexture,
+                                                  PixelFormatGpu depthBufferFormat, uint16 poolId );
+
+        /// Detroys a depth buffer associated in the pool. If no texture is found the it skips.
+        void destroySharedDepthBuffer( TextureGpu *depthTexture );
+        void referenceSharedDepthBuffer( TextureGpu *depthBuffer );
+    public:
+        void _cleanupDepthBuffers( void );
+        /// Releases the reference count on a shared depth buffer.
+        /// Does nothing if input is not a shared depth buffer.
+        void _dereferenceSharedDepthBuffer( TextureGpu *depthBuffer );
+
+        virtual TextureGpu* getDepthBufferFor( TextureGpu *colourTexture, uint16 poolId,
+                                               bool preferDepthTexture,
+                                               PixelFormatGpu depthBufferFormat );
+
+        /** In Direct3D11, UAV & RenderTargets share the same slots. Because of this,
+            we enforce the same behavior on all RenderSystems.
+            An unfortunate consequence is that if you attach an MRT consisting of 3 RTs;
+            the UAV needs to set at slot 3; not slot 0.
+            This setting lets you tell Ogre the starting slot; so queueBindUAVs( descSet )
+            goes from slot 3 onwards if you call setUavStartingSlot( 3 )
+        @par
+            Ogre will raise an exception in D3D11 if the starting slot is lower than
+            the number of attached RTs, but will let it pass if you're using GL3+
+            [TODO: Make this behavior consistent?]
+        @remarks
+            Will not take effect until the next call to flushUAVs or setting a new RTT.
+        @param startingSlot
+            Default value: 1.
+        */
+        void setUavStartingSlot( uint32 startingSlot );
+
+        /** Queues the binding of an UAV to the binding point/slot.
+            It won't actually take effect until you flush the UAVs or set another RTT.
+        @remarks
+            Internal Developer Notes:
+            D3D11 keeps UAVs that affect rendering separate from UAVs that affect Compute Shaders.
+            Hence queueBindUAVs & _setTextureCS are independent.
+
+            OpenGL however, does not make this distinction. Hence once we switch back to
+            3D rendering, we need to restore UAVs set via queueBindUAV.
+        */
+        void queueBindUAVs( const DescriptorSetUav *descSetUav );
+
+        BoundUav getBoundUav( size_t slot ) const;
+
+        /// Call this function if you need to call texture->copyTo or create an AsyncTextureTicket
+        /// on a Texture which is currently in either ResourceLayout::CopySrc or CopyDst layout.
+        ///
+        /// For performance reasons though it is recommended that you wait until
+        /// CompositorManager::_update() is returns
+        void flushTextureCopyOperations( void );
+
+        /**
+        @param slotStart
+        @param set
+        @param hazardousTexIdx
+            When hazardousTexIdx < set->mTextures.size(); it means that we need to check
+            if set->mTextures[hazardousTexIdx] is not the same as the currently bound RTT.
+        */
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture *set,
+                                   uint32 hazardousTexIdx ) = 0;
+        virtual void _setTextures( uint32 slotStart, const DescriptorSetTexture2 *set ) = 0;
+        virtual void _setSamplers( uint32 slotStart, const DescriptorSetSampler *set ) = 0;
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture *set ) = 0;
+        virtual void _setTexturesCS( uint32 slotStart, const DescriptorSetTexture2 *set ) = 0;
+        virtual void _setSamplersCS( uint32 slotStart, const DescriptorSetSampler *set ) = 0;
+        virtual void _setUavCS( uint32 slotStart, const DescriptorSetUav *set ) = 0;
+
+        /// Required when caller will soon start analyzing barriers (e.g. use BarrierSolver)
+        /// Ogre will flush any pending resource transitions.
+        ///
+        /// Otherwise BarrierSolver will see that a Resource is in a particular state or layout,
+        /// then when calling executeResourceTransition, the pending resource layout
+        /// will be flushed, and now the resource transition resolved by BarrierSolver
+        /// will have the wrong 'old' layout
+        virtual void flushPendingAutoResourceLayouts() {}
+
+        virtual void executeResourceTransition( const ResourceTransitionArray &rstCollection ) {}
+
+        virtual void _hlmsPipelineStateObjectCreated( HlmsPso *newPso ) {}
+        virtual void _hlmsPipelineStateObjectDestroyed( HlmsPso *pso ) {}
+        virtual void _hlmsMacroblockCreated( HlmsMacroblock *newBlock ) {}
+        virtual void _hlmsMacroblockDestroyed( HlmsMacroblock *block ) {}
+        virtual void _hlmsBlendblockCreated( HlmsBlendblock *newBlock ) {}
+        virtual void _hlmsBlendblockDestroyed( HlmsBlendblock *block ) {}
+        virtual void _hlmsSamplerblockCreated( HlmsSamplerblock *newBlock ) {}
+        virtual void _hlmsSamplerblockDestroyed( HlmsSamplerblock *block ) {}
+        virtual void _descriptorSetTextureCreated( DescriptorSetTexture *newSet ) {}
+        virtual void _descriptorSetTextureDestroyed( DescriptorSetTexture *set ) {}
+        virtual void _descriptorSetTexture2Created( DescriptorSetTexture2 *newSet ) {}
+        virtual void _descriptorSetTexture2Destroyed( DescriptorSetTexture2 *set ) {}
+        virtual void _descriptorSetSamplerCreated( DescriptorSetSampler *newSet ) {}
+        virtual void _descriptorSetSamplerDestroyed( DescriptorSetSampler *set ) {}
+        virtual void _descriptorSetUavCreated( DescriptorSetUav *newSet ) {}
+        virtual void _descriptorSetUavDestroyed( DescriptorSetUav *set ) {}
+
+        virtual void _setIndirectBuffer( IndirectBufferPacked *indirectBuffer ) = 0;
+
+        virtual void _hlmsComputePipelineStateObjectCreated( HlmsComputePso *newPso ) {}
+        virtual void _hlmsComputePipelineStateObjectDestroyed( HlmsComputePso *newPso ) {}
+
+        /** Binds a texture to a vertex, geometry, compute, tessellation hull
         or tessellation domain sampler.
         @remarks
         Not all rendersystems support separate vertex samplers. For those that
@@ -566,21 +899,12 @@ namespace Ogre
         samplers, using this method. For those that don't, you should use the
         regular texture samplers which are shared between the vertex and
         fragment units; calling this method will throw an exception.
-        @deprecated only needed for D3D9
+        @see RenderSystemCapabilites::getVertexTextureUnitsShared
         */
-        virtual void _setVertexTexture(size_t unit, const TexturePtr& tex);
-
-        /**
-        Sets the texture coordinate set to use for a texture unit.
-
-        Meant for use internally - not generally used directly by apps - the Material and TextureUnitState
-        classes let you manage textures far more easily.
-
-        @param unit Texture unit as above
-        @param index The index of the texture coordinate set to use.
-        @deprecated only needed for fixed function APIs
-        */
-        virtual void _setTextureCoordSet(size_t unit, size_t index) {}
+        virtual void _setVertexTexture(size_t unit, TextureGpu *tex);
+        virtual void _setGeometryTexture(size_t unit, TextureGpu *tex);
+        virtual void _setTessellationHullTexture(size_t unit, TextureGpu *tex);
+        virtual void _setTessellationDomainTexture(size_t unit, TextureGpu *tex);
 
         /**
         Sets a method for automatically calculating texture coordinates for a stage.
@@ -588,94 +912,44 @@ namespace Ogre
         @param unit Texture unit as above
         @param m Calculation method to use
         @param frustum Optional Frustum param, only used for projective effects
-        @deprecated only needed for fixed function APIs
         */
         virtual void _setTextureCoordCalculation(size_t unit, TexCoordCalcMethod m, 
-            const Frustum* frustum = 0) {}
+            const Frustum* frustum = 0) = 0;
 
         /** Sets the texture blend modes from a TextureUnitState record.
         Meant for use internally only - apps should use the Material
         and TextureUnitState classes.
         @param unit Texture unit as above
         @param bm Details of the blending mode
-        @deprecated only needed for fixed function APIs
         */
-        virtual void _setTextureBlendMode(size_t unit, const LayerBlendModeEx& bm) {}
-
-        /// @deprecated use _setSampler
-        OGRE_DEPRECATED virtual void _setTextureUnitFiltering(size_t unit, FilterType ftype, FilterOptions filter) {}
-
-        /// @deprecated use _setSampler
-        OGRE_DEPRECATED virtual void _setTextureUnitFiltering(size_t unit, FilterOptions minFilter,
-            FilterOptions magFilter, FilterOptions mipFilter);
-
-        /// @deprecated use _setSampler
-        OGRE_DEPRECATED virtual void _setTextureAddressingMode(size_t unit, const Sampler::UVWAddressingMode& uvw) {}
+        virtual void _setTextureBlendMode(size_t unit, const LayerBlendModeEx& bm) = 0;
 
         /** Sets the texture coordinate transformation matrix for a texture unit.
         @param unit Texture unit to affect
         @param xform The 4x4 matrix
-        @deprecated only needed for fixed function APIs
         */
-        virtual void _setTextureMatrix(size_t unit, const Matrix4& xform) {}
-
-        /// Sets the global blending factors for combining subsequent renders with the existing frame contents.
-        virtual void setColourBlendState(const ColourBlendState& state) = 0;
-
-        /// @deprecated use setColourBlendState
-        OGRE_DEPRECATED void
-        _setSeparateSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
-                                  SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha,
-                                  SceneBlendOperation op = SBO_ADD, SceneBlendOperation alphaOp = SBO_ADD)
-        {
-            mCurrentBlend.sourceFactor = sourceFactor;
-            mCurrentBlend.destFactor = destFactor;
-            mCurrentBlend.sourceFactorAlpha = sourceFactorAlpha;
-            mCurrentBlend.destFactorAlpha = destFactorAlpha;
-            mCurrentBlend.operation = op;
-            mCurrentBlend.alphaOperation = alphaOp;
-            setColourBlendState(mCurrentBlend);
-        }
-
-        /** Sets the global alpha rejection approach for future renders.
-        By default images are rendered regardless of texture alpha. This method lets you change that.
-        @param func The comparison function which must pass for a pixel to be written.
-        @param value The value to compare each pixels alpha value to (0-255)
-        @param alphaToCoverage Whether to enable alpha to coverage, if supported
-        */
-        virtual void _setAlphaRejectSettings(CompareFunction func, unsigned char value, bool alphaToCoverage) = 0;
+        virtual void _setTextureMatrix(size_t unit, const Matrix4& xform) = 0;
 
         /** Notify the rendersystem that it should adjust texture projection to be 
             relative to a different origin.
         */
         virtual void _setTextureProjectionRelativeTo(bool enabled, const Vector3& pos);
 
-        /** Creates a DepthBuffer that can be attached to the specified RenderTarget
-            @remarks
-                It doesn't attach anything, it just returns a pointer to a new DepthBuffer
-                Caller is responsible for putting this buffer into the right pool, for
-                attaching, and deleting it. Here's where API-specific magic happens.
-                Don't call this directly unless you know what you're doing.
-        */
-        virtual DepthBuffer* _createDepthBufferFor( RenderTarget *renderTarget ) = 0;
-
-        /** Removes all depth buffers. Should be called on device lost and shutdown
-            @remarks
-                Advanced users can call this directly with bCleanManualBuffers=false to
-                remove all depth buffers created for RTTs; when they think the pool has
-                grown too big or they've used lots of depth buffers they don't need anymore,
-                freeing GPU RAM.
-        */
-        void _cleanupDepthBuffers( bool bCleanManualBuffers=true );
+        /// Signifies the beginning of the main frame. i.e. will only be called once per frame,
+        /// not per viewport
+        virtual void _beginFrameOnce(void);
+        /// Called once per frame, regardless of how many active workspaces there are.
+        /// Gets called AFTER all RenderWindows have been swapped.
+        virtual void _endFrameOnce(void);
 
         /**
         * Signifies the beginning of a frame, i.e. the start of rendering on a single viewport. Will occur
         * several times per complete frame if multiple viewports exist.
         */
-        virtual void _beginFrame();
+        virtual void _beginFrame(void) = 0;
         
-        /// Dummy structure for render system contexts - implementing RenderSystems can extend
-        /// as needed
+        //Dummy structure for render system contexts - implementing RenderSystems can extend
+        //as needed
         struct RenderSystemContext { };
         /**
         * Pause rendering for a frame. This has to be called after _beginFrame and before _endFrame.
@@ -695,109 +969,69 @@ namespace Ogre
         * Ends rendering of a frame to the current viewport.
         */
         virtual void _endFrame(void) = 0;
-        /**
-        Sets the provided viewport as the active one for future
-        rendering operations. This viewport is aware of it's own
-        camera and render target. Must be implemented by subclass.
 
-        @param vp Pointer to the appropriate viewport.
-        */
-        virtual void _setViewport(Viewport *vp) = 0;
-        /** Get the current active viewport for rendering. */
-        virtual Viewport* _getViewport(void);
+        /// Called once per frame, regardless of how many active workspaces there are
+        void _update(void);
 
-        /** Sets the culling mode for the render system based on the 'vertex winding'.
-        A typical way for the rendering engine to cull triangles is based on the
-        'vertex winding' of triangles. Vertex winding refers to the direction in
-        which the vertices are passed or indexed to in the rendering operation as viewed
-        from the camera, and will wither be clockwise or anticlockwise (that's 'counterclockwise' for
-        you Americans out there ;) The default is CULL_CLOCKWISE i.e. that only triangles whose vertices
-        are passed/indexed in anticlockwise order are rendered - this is a common approach and is used in 3D studio models
-        for example. You can alter this culling mode if you wish but it is not advised unless you know what you are doing.
-        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
-        winding is uncertain.
-        */
-        virtual void _setCullingMode(CullingMode mode) = 0;
+        /// This gives the renderer a chance to perform the compositor update in a special way.
+        /// When the render system is ready to perform the actual update it should just
+        /// compositorManager->_updateImplementation.
+        virtual void updateCompositorManager( CompositorManager2 *compositorManager );
 
-        virtual CullingMode _getCullingMode(void) const;
+        /// @See HlmsSamplerblock. This function MUST be called after _setTexture, not before.
+        /// Otherwise not all APIs may see the change.
+        virtual void _setHlmsSamplerblock( uint8 texUnit, const HlmsSamplerblock *Samplerblock ) = 0;
 
-        /** Sets the mode of operation for depth buffer tests from this point onwards.
-        Sometimes you may wish to alter the behaviour of the depth buffer to achieve
-        special effects. Because it's unlikely that you'll set these options for an entire frame,
-        but rather use them to tweak settings between rendering objects, this is an internal
-        method (indicated by the '_' prefix) which will be used by a SceneManager implementation
-        rather than directly from the client application.
-        If this method is never called the settings are automatically the same as the default parameters.
-        @param depthTest If true, the depth buffer is tested for each pixel and the frame buffer is only updated
-        if the depth function test succeeds. If false, no test is performed and pixels are always written.
-        @param depthWrite If true, the depth buffer is updated with the depth of the new pixel if the depth test succeeds.
-        If false, the depth buffer is left unchanged even if a new pixel is written.
-        @param depthFunction Sets the function required for the depth test.
-        */
-        virtual void _setDepthBufferParams(bool depthTest = true, bool depthWrite = true, CompareFunction depthFunction = CMPF_LESS_EQUAL) = 0;
+        /// @See HlmsPso
+        virtual void _setPipelineStateObject( const HlmsPso *pso );
 
-        /// @deprecated use _setDepthBufferParams
-        OGRE_DEPRECATED virtual void _setDepthBufferCheckEnabled(bool enabled = true) {}
-        /// @deprecated use _setDepthBufferParams
-        OGRE_DEPRECATED virtual void _setDepthBufferWriteEnabled(bool enabled = true) {}
-        /// @deprecated use _setDepthBufferParams
-        OGRE_DEPRECATED virtual void _setDepthBufferFunction(CompareFunction func = CMPF_LESS_EQUAL) {}
-        /// @deprecated use setColourBlendState
-        OGRE_DEPRECATED void _setColourBufferWriteEnabled(bool red, bool green, bool blue, bool alpha)
-        {
-            mCurrentBlend.writeR = red;
-            mCurrentBlend.writeG = green;
-            mCurrentBlend.writeB = blue;
-            mCurrentBlend.writeA = alpha;
-            setColourBlendState(mCurrentBlend);
-        }
-        /** Sets the depth bias, NB you should use the Material version of this. 
+        /// Unlike _setPipelineStateObject, the RenderSystem will check if the PSO
+        /// has changed to avoid redundant state changes (since it's hard to do it
+        /// at Hlms level)
+        virtual void _setComputePso( const HlmsComputePso *pso ) = 0;
+
+        void _resetMetrics();
+        void _addMetrics( const RenderingMetrics &newMetrics );
+
+        void setMetricsRecordingEnabled( bool bEnable );
+
+        const RenderingMetrics& getMetrics() const;
+
+        /** Generates a packed data version of the passed in ColourValue suitable for
+        use as with this RenderSystem.
         @remarks
-        When polygons are coplanar, you can get problems with 'depth fighting' where
-        the pixels from the two polys compete for the same screen pixel. This is particularly
-        a problem for decals (polys attached to another surface to represent details such as
-        bulletholes etc.).
-        @par
-        A way to combat this problem is to use a depth bias to adjust the depth buffer value
-        used for the decal such that it is slightly higher than the true value, ensuring that
-        the decal appears on top.
-        @note
-        The final bias value is a combination of a constant bias and a bias proportional
-        to the maximum depth slope of the polygon being rendered. The final bias
-        is constantBias + slopeScaleBias * maxslope. Slope scale biasing is
-        generally preferable but is not available on older hardware.
-        @param constantBias The constant bias value, expressed as a value in 
-        homogeneous depth coordinates.
-        @param slopeScaleBias The bias value which is factored by the maximum slope
-        of the polygon, see the description above. This is not supported by all
-        cards.
-
+        Since different render systems have different colour data formats (eg
+        RGBA for GL, ARGB for D3D) this method allows you to use 1 method for all.
+        @param colour The colour to convert
+        @param pDest Pointer to location to put the result.
         */
-        virtual void _setDepthBias(float constantBias, float slopeScaleBias = 0.0f) = 0;
+        virtual void convertColourValue(const ColourValue& colour, uint32* pDest);
+        /** Get the native VertexElementType for a compact 32-bit colour value
+        for this rendersystem.
+        */
+        virtual VertexElementType getColourVertexElementType(void) const = 0;
 
-        /**
-         * Clamp depth values to near and far plane rather than discarding
-         *
-         * Useful for "shadow caster pancaking" or with shadow volumes
-         */
-        virtual void _setDepthClamp(bool enable) {}
+        /** Reverts the compare order e.g. greater_equal becomes less_equal
+            Used by reverse depth
+        @param depthFunc
+        @return
+        */
+        static CompareFunction reverseCompareFunction( CompareFunction depthFunc );
 
-        /** The RenderSystem will keep a count of tris rendered, this resets the count. */
-        virtual void _beginGeometryCount(void);
-        /** Reports the number of tris rendered since the last _beginGeometryCount call. */
-        virtual unsigned int _getFaceCount(void) const;
-        /** Reports the number of batches rendered since the last _beginGeometryCount call. */
-        virtual unsigned int _getBatchCount(void) const;
-        /** Reports the number of vertices passed to the renderer since the last _beginGeometryCount call. */
-        virtual unsigned int _getVertexCount(void) const;
+        /** Takes a regular source projection matrix in range [-1; 1] and converts it to a projection
+            matrix in 'dest' with reverse Z range [1; 0]
 
-        /// @deprecated use ColourValue::getAsBYTE()
-        OGRE_DEPRECATED void convertColourValue(const ColourValue& colour, uint32* pDest);
-        /// @deprecated assume VET_UBYTE4_NORM
-        OGRE_DEPRECATED virtual VertexElementType getColourVertexElementType(void) const
-        {
-            return VET_COLOUR_ABGR;
-        }
+            _convertProjectionMatrix does the same thing but is more generic. This version
+            assumes a standard projection matrix (i.e. not oblique) to maximize precision
+        @param matrix
+        @param dest
+        @param nearPlane
+        @param farPlane
+        @param projectionType
+        */
+        virtual void _makeRsProjectionMatrix( const Matrix4& matrix,
+                                              Matrix4& dest, Real nearPlane,
+                                              Real farPlane, ProjectionType projectionType );
 
         /** Converts a uniform projection matrix to suitable for this render system.
         @remarks
@@ -805,63 +1039,49 @@ namespace Ogre
         projection matrix, this method allows each to implement their own correctly and pass
         back a generic OGRE matrix for storage in the engine.
         */
-        virtual void _convertProjectionMatrix(const Matrix4& matrix,
-            Matrix4& dest, bool forGpuProgram = false) = 0;
+        virtual void _convertProjectionMatrix( const Matrix4& matrix, Matrix4& dest );
 
-        /** Sets how to rasterise triangles, as points, wireframe or solid polys. */
-        virtual void _setPolygonMode(PolygonMode level) = 0;
-
-        /** Turns stencil buffer checking on or off. 
-        @remarks
-        Stencilling (masking off areas of the rendering target based on the stencil 
-        buffer) can be turned on or off using this method. By default, stencilling is
-        disabled.
+        /** Converts an OpenVR projection matrix to have the proper depth range and
+            reverse Z settings
+        @param matrix
+        @param dest
         */
-        virtual void setStencilCheckEnabled(bool enabled) = 0;
+        virtual void _convertOpenVrProjectionMatrix( const Matrix4& matrix, Matrix4& dest );
+
+        /// OpenGL depth is in range [-1;1] so it returns 2.0f;
+        /// D3D11 & Metal are in range [0;1] so it returns 1.0f;
+        ///
+        /// Note OpenGL may behave like D3D11, and thus we'll return 1.0f too.
+        /// This is decided at runtime, not at compile time.
+        virtual Real getRSDepthRange(void) const { return 1.0f; }
 
         /** This method allows you to set all the stencil buffer parameters in one call.
-
+        @remarks
+        The stencil buffer is used to mask out pixels in the render target, allowing
+        you to do effects like mirrors, cut-outs, stencil shadows and more. Each of
+        your batches of rendering is likely to ignore the stencil buffer, 
+        update it with new values, or apply it to mask the output of the render.
+        The stencil test is:<PRE>
+        (Reference Value & Mask) CompareFunction (Stencil Buffer Value & Mask)</PRE>
+        The result of this will cause one of 3 actions depending on whether the test fails,
+        succeeds but with the depth buffer check still failing, or succeeds with the
+        depth buffer check passing too.
+        @par
         Unlike other render states, stencilling is left for the application to turn
         on and off when it requires. This is because you are likely to want to change
         parameters between batches of arbitrary objects and control the ordering yourself.
-        In order to batch things this way, you'll want to use OGRE's Compositor stencil pass
-        or separate render queue groups and register a RenderQueueListener to get notifications
+        In order to batch things this way, you'll want to use OGRE's separate render queue
+        groups (see RenderQueue) and register a RenderQueueListener to get notifications
         between batches.
-
-        @see StencilState
-        @see RenderQueue
+        @param refValue
+            The reference value used in the comparison (dynamic)
+        @param stencilParams
+            The static parameters that involve more expensive state changes.
+            Ogre dev implementors note: Should check if the stencilParams are different from before
         */
-        virtual void setStencilBufferParams(CompareFunction func = CMPF_ALWAYS_PASS, 
-            uint32 refValue = 0, uint32 compareMask = 0xFFFFFFFF, uint32 writeMask = 0xFFFFFFFF, 
-            StencilOperation stencilFailOp = SOP_KEEP, 
-            StencilOperation depthFailOp = SOP_KEEP,
-            StencilOperation passOp = SOP_KEEP, 
-            bool twoSidedOperation = false,
-            bool readBackAsTexture = false) = 0;
+        virtual void setStencilBufferParams( uint32 refValue, const StencilParams &stencilParams );
 
-        /// @overload
-        void setStencilState(const StencilState& state)
-        {
-            setStencilCheckEnabled(state.enabled);
-            if (!state.enabled)
-                return;
-            setStencilBufferParams(state.compareOp, state.referenceValue, state.compareMask,
-                                   state.writeMask, state.stencilFailOp, state.depthFailOp,
-                                   state.depthStencilPassOp, state.twoSidedOperation);
-        }
-
-        /** Sets whether or not normals are to be automatically normalised.
-        @remarks
-        This is useful when, for example, you are scaling SceneNodes such that
-        normals may not be unit-length anymore. Note though that this has an
-        overhead so should not be turn on unless you really need it.
-        @par
-        You should not normally call this direct unless you are rendering
-        world geometry; set it on the Renderable because otherwise it will be
-        overridden by material settings.
-        @deprecated only needed for fixed function APIs
-        */
-        virtual void setNormaliseNormals(bool normalise) {}
+        const StencilParams& getStencilBufferParams(void) const         { return mStencilParams; }
 
         /**
         Render something to the active viewport.
@@ -875,9 +1095,34 @@ namespace Ogre
         @param op A rendering operation instance, which contains
         details of the operation to be performed.
         */
-        virtual void _render(const RenderOperation& op);
+        virtual void _render(const v1::RenderOperation& op);
 
-        virtual void _dispatchCompute(const Vector3i& workgroupDim) {}
+        virtual void _dispatch( const HlmsComputePso &pso ) = 0;
+
+        /** Part of the low level rendering interface. Tells the RS which VAO will be bound now.
+            (i.e. Vertex Formats, buffers being bound, etc.)
+            You don't need to rebind if the VAO's mRenderQueueId is the same as previous call.
+        @remarks
+            Assumes _setPipelineStateObject has already been called.
+        */
+        virtual void _setVertexArrayObject( const VertexArrayObject *vao ) = 0;
+
+        /// Renders the VAO. Assumes _setVertexArrayObject has already been called.
+        virtual void _render( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const CbDrawCallStrip *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallIndexed *cmd ) = 0;
+        virtual void _renderEmulated( const CbDrawCallStrip *cmd ) = 0;
+        virtual void _renderEmulatedNoBaseInstance( const CbDrawCallIndexed *cmd ) {}
+        virtual void _renderEmulatedNoBaseInstance( const CbDrawCallStrip *cmd ) {}
+
+        /// May override the current VertexArrayObject!
+        virtual void _startLegacyV1Rendering(void) {}
+        virtual void _setRenderOperation( const v1::CbRenderOp *cmd ) = 0;
+        /// Renders a V1 RenderOperation. Assumes _setRenderOperation has already been called.
+        virtual void _render( const v1::CbDrawCallIndexed *cmd ) = 0;
+        virtual void _render( const v1::CbDrawCallStrip *cmd ) = 0;
+        virtual void _renderNoBaseInstance( const v1::CbDrawCallIndexed *cmd ) {}
+        virtual void _renderNoBaseInstance( const v1::CbDrawCallStrip *cmd ) {}
 
         /** Gets the capabilities of the render system. */
         const RenderSystemCapabilities* getCapabilities(void) const { return mCurrentCapabilities; }
@@ -885,24 +1130,18 @@ namespace Ogre
 
         /** Returns the driver version.
         */
-        const DriverVersion& getDriverVersion(void) const { return mDriverVersion; }
+        virtual const DriverVersion& getDriverVersion(void) const { return mDriverVersion; }
 
         /** Returns the default material scheme used by the render system.
             Systems that use the RTSS to emulate a fixed function pipeline 
-            (e.g. OpenGL ES 2, GL3+, DX11) need to return
+            (e.g. OpenGL ES 2, GL3+, DX11) need to override this function to return
             the default material scheme of the RTSS ShaderGenerator.
          
             This is currently only used to set the default material scheme for
             viewports.  It is a necessary step on these render systems for
             render textures to be rendered into properly.
         */
-        const String& _getDefaultViewportMaterialScheme(void) const;
-
-        /** Binds a given GpuProgram (but not the parameters). 
-        @remarks Only one GpuProgram of each type can be bound at once, binding another
-        one will simply replace the existing one.
-        */
-        virtual void bindGpuProgram(GpuProgram* prg);
+        virtual const String& _getDefaultViewportMaterialScheme(void) const;
 
         /** Bind Gpu program parameters.
         @param gptype The type of program to bind the parameters to
@@ -910,18 +1149,18 @@ namespace Ogre
         @param variabilityMask A mask of GpuParamVariability identifying which params need binding
         */
         virtual void bindGpuProgramParameters(GpuProgramType gptype, 
-            const GpuProgramParametersPtr& params, uint16 variabilityMask) = 0;
+            GpuProgramParametersSharedPtr params, uint16 variabilityMask) = 0;
 
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual void bindGpuProgramPassIterationParameters(GpuProgramType gptype) {}
-        /** Unbinds GpuPrograms of a given GpuProgramType.
-        @remarks
-        This returns the pipeline to fixed-function processing for this type.
+        /** Only binds Gpu program parameters used for passes that have more than one iteration rendering
         */
-        virtual void unbindGpuProgram(GpuProgramType gptype);
+        virtual void bindGpuProgramPassIterationParameters(GpuProgramType gptype) = 0;
 
         /** Returns whether or not a Gpu program of the given type is currently bound. */
-        bool isGpuProgramBound(GpuProgramType gptype);
+        virtual bool isGpuProgramBound(GpuProgramType gptype);
+
+        VaoManager* getVaoManager(void) const           { return mVaoManager; }
+
+        TextureGpuManager* getTextureGpuManager(void) const { return mTextureGpuManager; }
 
         /**
          * Gets the native shading language version for this render system.
@@ -931,23 +1170,17 @@ namespace Ogre
         uint16 getNativeShadingLanguageVersion() const { return mNativeShadingLanguageVersion; }
 
         /** Sets the user clipping region.
-        @deprecated only needed for fixed function APIs
         */
         virtual void setClipPlanes(const PlaneList& clipPlanes);
 
-        /** Utility method for initialising all render targets attached to this rendering system. */
-        void _initRenderTargets(void);
+        /** Add a user clipping plane. */
+        virtual void addClipPlane (const Plane &p);
+        /** Add a user clipping plane. */
+        virtual void addClipPlane (Real A, Real B, Real C, Real D);
 
-        /** Utility method to notify all render targets that a camera has been removed, 
-        in case they were referring to it as their viewer. 
+        /** Clears the user clipping region.
         */
-        void _notifyCameraRemoved(const Camera* cam);
-
-        /** Internal method for updating all render targets attached to this rendering system. */
-        virtual void _updateAllRenderTargets(bool swapBuffers = true);
-        /** Internal method for swapping all the buffers on all render targets,
-        if _updateAllRenderTargets was called with a 'false' parameter. */
-        virtual void _swapAllRenderTargetBuffers();
+        virtual void resetClipPlanes();
 
         /** Sets whether or not vertex windings set should be inverted; this can be important
         for rendering reflections. */
@@ -956,34 +1189,22 @@ namespace Ogre
         /** Indicates whether or not the vertex windings set will be inverted for the current render (e.g. reflections)
         @see RenderSystem::setInvertVertexWinding
         */
-        bool getInvertVertexWinding(void) const;
+        virtual bool getInvertVertexWinding(void) const;
 
-        /** Sets the 'scissor region' i.e. the region of the target in which rendering can take place.
+        /** Immediately clears the whole frame buffer on the selected RenderPassDescriptor.
+            Prefer clearing using the LoadAction semantics in the RenderPassDescriptor.
+            This function is provided for two reasons:
+                1. Backwards compatibility (i.e. easier porting from 2.1)
+                2. Non-tilers desktop GPUs may be faster to clear the whole framebuffer at once.
         @remarks
-        This method allows you to 'mask off' rendering in all but a given rectangular area
-        as identified by the parameters to this method.
-        @param enabled True to enable the scissor test, false to disable it.
-        @param rect The location of the corners of the rectangle, expressed in
-        <i>pixels</i>.
+            Will break an existing RenderPassDescriptor set via beginRenderPassDescriptor.
+        @param renderPassDesc
+            RenderPassDescriptor filled with LoadActions set to clear and StoreActions
+            set to Store.
         */
-        virtual void setScissorTest(bool enabled, const Rect& rect = Rect()) = 0;
-        /// @deprecated
-        OGRE_DEPRECATED void setScissorTest(bool enabled, size_t left, size_t top = 0,
-                                            size_t right = 800, size_t bottom = 600)
-        {
-            setScissorTest(enabled, Rect(left, top, right, bottom));
-        }
+        virtual void clearFrameBuffer( RenderPassDescriptor *renderPassDesc,
+                                       TextureGpu *anyTarget, uint8 mipLevel ) = 0;
 
-        /** Clears one or more frame buffers on the active render target. 
-        @param buffers Combination of one or more elements of FrameBufferType
-        denoting which buffers are to be cleared
-        @param colour The colour to clear the colour buffer with, if enabled
-        @param depth The value to initialise the depth buffer with, if enabled
-        @param stencil The value to initialise the stencil buffer with, if enabled.
-        */
-        virtual void clearFrameBuffer(unsigned int buffers, 
-            const ColourValue& colour = ColourValue::Black, 
-            Real depth = 1.0f, unsigned short stencil = 0) = 0;
         /** Returns the horizontal texel offset value required for mapping 
         texel origins to pixel origins in this rendersystem.
         @remarks
@@ -992,9 +1213,8 @@ namespace Ogre
         implement generically. This method allows you to retrieve the offset
         required to map the origin of a texel to the origin of a pixel in
         the horizontal direction.
-        @note only non-zero with D3D9
         */
-        virtual Real getHorizontalTexelOffset(void) { return 0.0f; }
+        virtual Real getHorizontalTexelOffset(void) = 0;
         /** Returns the vertical texel offset value required for mapping 
         texel origins to pixel origins in this rendersystem.
         @remarks
@@ -1003,9 +1223,8 @@ namespace Ogre
         implement generically. This method allows you to retrieve the offset
         required to map the origin of a texel to the origin of a pixel in
         the vertical direction.
-        @note only non-zero with D3D9
         */
-        virtual Real getVerticalTexelOffset(void) { return 0.0f; }
+        virtual Real getVerticalTexelOffset(void) = 0;
 
         /** Gets the minimum (closest) depth value to be used when rendering
         using identity transforms.
@@ -1041,7 +1260,7 @@ namespace Ogre
         @param multiplier The amount of depth bias to apply per iteration
         @param slopeScale The constant slope scale bias for completeness
         */
-        void setDeriveDepthBias(bool derive, float baseValue = 0.0f,
+        virtual void setDeriveDepthBias(bool derive, float baseValue = 0.0f,
             float multiplier = 0.0f, float slopeScale = 0.0f)
         {
             mDerivedDepthBias = derive;
@@ -1049,11 +1268,6 @@ namespace Ogre
             mDerivedDepthBiasMultiplier = multiplier;
             mDerivedDepthBiasSlopeScale = slopeScale;
         }
-
-        /**
-         * Set current render target to target, enabling its device context if needed
-         */
-        virtual void _setRenderTarget(RenderTarget *target) = 0;
 
         /** Defines a listener on the custom events that this render system 
         can raise.
@@ -1063,7 +1277,7 @@ namespace Ogre
         {
         public:
             Listener() {}
-            virtual ~Listener() {}
+            virtual ~Listener();
 
             /** A rendersystem-specific event occurred.
             @param eventName The name of the event which has occurred
@@ -1079,9 +1293,12 @@ namespace Ogre
         Shared listener could be set even if no render system is selected yet.
         This listener will receive "RenderSystemChanged" event on each Root::setRenderSystem call.
         */
-        static void setSharedListener(Listener* listener);
-        /** Retrieve a pointer to the current shared render system listener. */
-        static Listener* getSharedListener(void);
+        static void addSharedListener(Listener* listener);
+        /** Remove shared listener to the custom events that this render system can raise.
+        */
+        static void removeSharedListener(Listener* listener);
+
+        static void fireSharedEvent(const String& name, const NameValuePairList* params = 0);
 
         /** Adds a listener to the custom events that this render system can raise.
         @remarks
@@ -1096,42 +1313,40 @@ namespace Ogre
         may wish to know when it happens. 
         @see RenderSystem::getRenderSystemEvents
         */
-        void addListener(Listener* l);
+        virtual void addListener(Listener* l);
         /** Remove a listener to the custom events that this render system can raise.
         */
-        void removeListener(Listener* l);
+        virtual void removeListener(Listener* l);
 
         /** Gets a list of the rendersystem specific events that this rendersystem
         can raise.
         @see RenderSystem::addListener
         */
-        const StringVector& getRenderSystemEvents(void) const { return mEventNames; }
+        virtual const StringVector& getRenderSystemEvents(void) const { return mEventNames; }
 
         /** Tell the rendersystem to perform any prep tasks it needs to directly
         before other threads which might access the rendering API are registered.
         @remarks
-        Call this from your main thread before starting your other threads.
-        @note
-        If you start your own threads, there is a specific startup sequence which
+        Call this from your main thread before starting your other threads
+        (which themselves should call registerThread()). Note that if you
+        start your own threads, there is a specific startup sequence which 
         must be respected and requires synchronisation between the threads:
-
-        @note
-        1. [Main thread] Call preExtraThreadsStarted()
-        2. [Main thread] Start other thread, wait
-        3. [Other thread] Call registerThread(), notify main thread & continue
-        4. [Main thread] Wake up & call postExtraThreadsStarted()
-
-        @note
+        <ol>
+        <li>[Main thread]Call preExtraThreadsStarted</li>
+        <li>[Main thread]Start other thread, wait</li>
+        <li>[Other thread]Call registerThread, notify main thread & continue</li>
+        <li>[Main thread]Wake up & call postExtraThreadsStarted</li>
+        </ol>
         Once this init sequence is completed the threads are independent but
         this startup sequence must be respected.
         */
-        virtual void preExtraThreadsStarted() {}
+        virtual void preExtraThreadsStarted() = 0;
 
-        /** Tell the rendersystem to perform any tasks it needs to directly
+        /* Tell the rendersystem to perform any tasks it needs to directly
         after other threads which might access the rendering API are registered.
         @see RenderSystem::preExtraThreadsStarted
         */
-        virtual void postExtraThreadsStarted() {}
+        virtual void postExtraThreadsStarted() = 0;
 
         /** Register the an additional thread which may make calls to rendersystem-related 
         objects.
@@ -1145,15 +1360,18 @@ namespace Ogre
         This method takes no parameters - it must be called from the thread being
         registered and that context is enough.
         */
-        virtual void registerThread() {}
+        virtual void registerThread() = 0;
 
         /** Unregister an additional thread which may make calls to rendersystem-related objects.
         @see RenderSystem::registerThread
         */
-        virtual void unregisterThread() {}
+        virtual void unregisterThread() = 0;
 
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual unsigned int getDisplayMonitorCount() const { return 1; }
+        /**
+        * Gets the number of display monitors.
+        @see Root::getDisplayMonitorCount
+        */
+        virtual unsigned int getDisplayMonitorCount() const = 0;
 
         /**
         * This marks the beginning of an event for GPU profiling.
@@ -1170,6 +1388,55 @@ namespace Ogre
         * This is equivalent to calling @see beginProfileEvent and @see endProfileEvent back to back.
         */
         virtual void markProfileEvent( const String &event ) = 0;
+
+        virtual void initGPUProfiling(void) = 0;
+        virtual void deinitGPUProfiling(void) = 0;
+        virtual void beginGPUSampleProfile( const String &name, uint32 *hashCache ) = 0;
+        virtual void endGPUSampleProfile( const String &name ) = 0;
+
+        /** Programmatically performs a GPU capture when attached to a GPU debugger like
+            RenderDoc or Metal Graphics Debugger
+
+            You must call RenderSystem::endGpuDebuggerFrameCapture
+
+        @remarks
+            Very big captures (e.g. lots of API calls between start/endGpuDebuggerFrameCapture)
+            may result in the system running out of memory.
+
+        @param window
+            Can be NULL for automatic capture.
+
+            See pRENDERDOC_StartFrameCapture's documentation
+        @return
+            False if we know for certain we failed to capture (e.g. RenderDoc is not running,
+            we were build without integration support, etc)
+
+            True if we believe the frame capture started. Note a capture may still
+            fail regardless due to other more technical reasons, as rendering APIs are complex.
+        */
+        virtual bool startGpuDebuggerFrameCapture( Window *window );
+
+        /// See RenderSystem::startGpuDebuggerFrameCapture
+        /// Call this function when you're done capturing a frame.
+        virtual void endGpuDebuggerFrameCapture( Window *window );
+
+        /// Explicitly loads RenderDoc. It is not necessary to call this function
+        /// unless you want to use RenderSystem::getRenderDocApi before we
+        /// are required to load RenderDoc.
+        bool loadRenderDocApi( void );
+
+        /// Returns the RenderDoc API handle in case you want to do more advanced functionality
+        /// than what we expose.
+        ///
+        /// Note we may return nullptr if RenderDoc was not yet loaded.
+        ///
+        /// Call RenderSystem::loadRenderDocApi first if you wish the returned ptr
+        /// to not be null (it may still be null if we fail to load RenderDoc)
+        RENDERDOC_API_1_4_1 *getRenderDocApi( void ) { return mRenderDocApi; }
+
+        /** Determines if the system has anisotropic mip map filter support
+        */
+        virtual bool hasAnisotropicMipMapFilter() const = 0;
 
         /** Gets a custom (maybe platform-specific) attribute.
         @remarks This is a nasty way of satisfying any API's need to see platform-specific details.
@@ -1188,17 +1455,74 @@ namespace Ogre
 		*/
 		virtual bool setDrawBuffer(ColourBufferType colourBuffer) { return false; };
 
+        /// Checks for the presense of an API-specific extension (eg. Vulkan, GL)
+        virtual bool checkExtension( const String &ext ) const      { return false; }
+
+        /** Instructs the RenderSystem to compile shaders without optimizations
+            and with debug information, for easier debugging on APIs that support it.
+            Default is true if OGRE_DEBUG_MODE >= OGRE_DEBUG_HIGH, else false
+
+            This setting takes effect for shaders compiled afterwards. Already
+            compiled shaders won't change unless you manually rebuild them.
+
+            It is highly recommended you disable the Microcode cache before changing
+            the default, or else debug shaders may contaminate your cache, or
+            alternatively a shader from the cache may be used which may have been
+            compiled with a different setting.
+        */
+        void setDebugShaders( bool bDebugShaders );
+        bool getDebugShaders(void) const                        { return mDebugShaders; }
+
+        bool isReverseDepth(void) const                         { return mReverseDepth; }
+
+        /// +Y is downwards in NDC (Normalized Device Coordinates). Only Vulkan has this problem.
+        bool getInvertedClipSpaceY( void ) const { return mInvertedClipSpaceY; }
+
+        /** Returns true if 'a' and 'b' internally map to the same layout and should be
+            considered equivalent for a given texture
+        @param bIsDebugCheck
+            When true, we're calling this as a consistency check (e.g. asserts if
+            layouts changed externally outside the BarrierSolver).
+            Non-explicit APIs may return too many false negatives triggering the
+            assert, thus this flag prevents false crashes
+        */
+        virtual bool isSameLayout( ResourceLayout::Layout a, ResourceLayout::Layout b,
+                                   const TextureGpu *texture, bool bIsDebugCheck ) const;
+
+        /// On D3D11 calls ClearState followed by Flush().
+        /// On GL3+ it calls glFlush
+        ///
+        /// Do not call this function while inside rendering internals, as it will clear
+        /// the device state, thus leaving it inconsistent with what we think it is set to.
+        virtual void _clearStateAndFlushCommandBuffer(void);
+
+        virtual void flushCommands(void) = 0;
+
+        virtual const PixelFormatToShaderType* getPixelFormatToShaderType(void) const = 0;
+
+        BarrierSolver &getBarrierSolver( void ) { return mBarrierSolver; }
+   
     protected:
 
-        /** DepthBuffers to be attached to render targets */
-        DepthBufferMap  mDepthBufferPool;
+        void destroyAllRenderPassDescriptors(void);
 
-        /** The render targets. */
-        RenderTargetMap mRenderTargets;
-        /** The render targets, ordered by priority. */
-        RenderTargetPriorityMap mPrioritisedRenderTargets;
-        /** The Active render target. */
-        RenderTarget * mActiveRenderTarget;
+        BarrierSolver mBarrierSolver;
+        ResourceTransitionArray mFinalResourceTransition;
+
+        DepthBufferMap2 mDepthBufferPool2;
+        DepthBufferRefMap mSharedDepthBufferRefs;
+        TextureGpuSet mSharedDepthBufferZeroRefCandidates;
+
+        typedef set<RenderPassDescriptor*>::type RenderPassDescriptorSet;
+        RenderPassDescriptorSet mRenderPassDescs;
+        RenderPassDescriptor    *mCurrentRenderPassDescriptor;
+        Viewport                mCurrentRenderViewport[16];
+        uint32                  mMaxBoundViewports;
+
+        typedef set<Window*>::type WindowSet;
+        WindowSet mWindows;
+
+        StencilParams   mStencilParams;
 
         /** The Active GPU programs and gpu program parameters*/
         GpuProgramParametersSharedPtr mActiveVertexGpuProgramParameters;
@@ -1208,26 +1532,18 @@ namespace Ogre
         GpuProgramParametersSharedPtr mActiveTessellationDomainGpuProgramParameters;
         GpuProgramParametersSharedPtr mActiveComputeGpuProgramParameters;
 
-        // Texture manager
-        // A concrete class of this will be created and
-        // made available under the TextureManager singleton,
-        // managed by the RenderSystem
-        TextureManager* mTextureManager;
+        VaoManager          *mVaoManager;
+        TextureGpuManager   *mTextureGpuManager;
 
-        // Active viewport (dest for future rendering operations)
-        Viewport* mActiveViewport;
+        bool mDebugShaders;
+        bool mWBuffer;
 
-        CullingMode mCullingMode;
-
-        size_t mBatchCount;
-        size_t mFaceCount;
-        size_t mVertexCount;
+        RenderingMetrics mMetrics;
 
         /// Saved manual colour blends
         ColourValue mManualBlendColours[OGRE_MAX_TEXTURE_LAYERS][2];
 
         bool mInvertVertexWinding;
-        bool mIsReverseDepthBufferEnabled;
 
         /// Texture units from this upwards are disabled
         size_t mDisabledTexUnitsFrom;
@@ -1241,10 +1557,14 @@ namespace Ogre
         float mDerivedDepthBiasMultiplier;
         float mDerivedDepthBiasSlopeScale;
 
+        bool                    mUavRenderingDirty;
+        uint32                  mUavStartingSlot;
+        DescriptorSetUav const  *mUavRenderingDescSet;
+
         /// a global vertex buffer for global instancing
-        HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
+        v1::HardwareVertexBufferSharedPtr mGlobalInstanceVertexBuffer;
         /// a vertex declaration for the global vertex buffer for the global instancing
-        VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
+        v1::VertexDeclaration* mGlobalInstanceVertexBufferVertexDeclaration;
         /// the number of global instances (this number will be multiply by the render op instance number) 
         size_t mGlobalNumberOfInstances;
 
@@ -1254,17 +1574,19 @@ namespace Ogre
         */
         bool updatePassIterationRenderState(void);
 
+        RENDERDOC_API_1_4_1 *mRenderDocApi;
+
         /// List of names of events this rendersystem may raise
         StringVector mEventNames;
 
         /// Internal method for firing a rendersystem event
-        void fireEvent(const String& name, const NameValuePairList* params = 0);
+        virtual void fireEvent(const String& name, const NameValuePairList* params = 0);
 
-        typedef std::list<Listener*> ListenerList;
+        typedef list<Listener*>::type ListenerList;
         ListenerList mEventListeners;
-        static Listener* msSharedEventListener;
+        static ListenerList msSharedEventListeners;
 
-        typedef std::list<HardwareOcclusionQuery*> HardwareOcclusionQueryList;
+        typedef list<HardwareOcclusionQuery*>::type HardwareOcclusionQueryList;
         HardwareOcclusionQueryList mHwOcclusionQueries;
 
         bool mVertexProgramBound;
@@ -1284,11 +1606,11 @@ namespace Ogre
         RenderSystemCapabilities* mCurrentCapabilities;
         bool mUseCustomCapabilities;
 
-        /// @deprecated only needed for fixed function APIs
-        virtual void setClipPlanesImpl(const PlaneList& clipPlanes) {}
+        /// Internal method used to set the underlying clip planes when needed
+        virtual void setClipPlanesImpl(const PlaneList& clipPlanes) = 0;
 
         /** Initialize the render system from the capabilities*/
-        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, RenderTarget* primary) = 0;
+        virtual void initialiseFromRenderSystemCapabilities(RenderSystemCapabilities* caps, Window* primary) = 0;
 
 
         DriverVersion mDriverVersion;
@@ -1297,17 +1619,9 @@ namespace Ogre
         bool mTexProjRelative;
         Vector3 mTexProjRelativeOrigin;
 
-        // Stored options
-        ConfigOptionMap mOptions;
+        bool mReverseDepth;
+        bool mInvertedClipSpaceY;
 
-        virtual void initConfigOptions();
-
-        ColourBlendState mCurrentBlend;
-        GpuProgramParametersSharedPtr mFixedFunctionParams;
-
-        void initFixedFunctionParams();
-        void setFFPLightParams(size_t index, bool enabled);
-        static CompareFunction reverseCompareFunction(CompareFunction func);
     };
     /** @} */
     /** @} */

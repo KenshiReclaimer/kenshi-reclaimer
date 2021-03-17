@@ -30,7 +30,8 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreSharedPtr.h"
-#include "OgreString.h"
+
+#include "ogrestd/vector.h"
 
 namespace Ogre {
     typedef _StringBase String;
@@ -42,7 +43,7 @@ namespace Ogre {
     *  @{
     */
 
-    typedef std::vector<String> StringVector;
+    typedef vector<String>::type StringVector;
     typedef SharedPtr<StringVector> StringVectorPtr;
 
     /** @} */

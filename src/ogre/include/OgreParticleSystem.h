@@ -30,7 +30,7 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#include "OgreVector.h"
+#include "OgreVector3.h"
 #include "OgreParticleIterator.h"
 #include "OgreStringInterface.h"
 #include "OgreMovableObject.h"
@@ -144,14 +144,13 @@ namespace Ogre {
             void doSet(void* target, const String& val);
         };
 
-        /// Default constructor required for STL creation in manager
-        ParticleSystem();
         /** Creates a particle system with no emitters or affectors.
         @remarks
             You should use the ParticleSystemManager to create particle systems rather than creating
             them directly.
         */
-        ParticleSystem(const String& name, const String& resourceGroupName);
+        ParticleSystem( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                        const String& resourceGroupName );
 
         virtual ~ParticleSystem();
 
@@ -347,18 +346,17 @@ namespace Ogre {
         */
         void _update(Real timeElapsed);
 
-        /** Returns all active particles in this system.
+        /** Returns an iterator for stepping through all particles in this system.
         @remarks
             This method is designed to be used by people providing new ParticleAffector subclasses,
             this is the easiest way to step through all the particles in a system and apply the
             changes the affector wants to make.
         */
-        const std::list<Particle*>& _getActiveParticles() { return mActiveParticles; }
-
-        /// @deprecated use _getActiveParticles()
-        OGRE_DEPRECATED ParticleIterator _getIterator(void);
+        ParticleIterator _getIterator(void);
 
         /** Sets the name of the material to be used for this billboard set.
+            @param
+                name The new name of the material to use for this set.
         */
         virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
@@ -367,15 +365,17 @@ namespace Ogre {
         */
         virtual const String& getMaterialName(void) const;
 
-        virtual void _notifyCurrentCamera(Camera* cam) override;
-        void _notifyAttached(Node* parent, bool isTagPoint = false) override;
-        virtual const AxisAlignedBox& getBoundingBox(void) const override { return mAABB; }
-        virtual Real getBoundingRadius(void) const override { return mBoundingRadius; }
-        virtual void _updateRenderQueue(RenderQueue* queue) override;
+        /** Overridden from MovableObject
+        @see
+        MovableObject
+        */
+        void _notifyAttached(Node* parent);
 
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
+        /** Overridden from MovableObject
+            @see
+                MovableObject
+        */
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
         /** Fast-forwards this system by the required number of seconds.
         @remarks
@@ -389,7 +389,7 @@ namespace Ogre {
             interval The sampling interval used to generate particles, apply affectors etc. The lower this
             is the more realistic the fast-forward, but it takes more iterations to do it.
         */
-        void fastForward(Real time, Real interval = 0.1f);
+        void fastForward(Real time, Real interval = 0.1);
 
         /** Sets a 'speed factor' on this particle system, which means it scales the elapsed
             real time which has passed by this factor before passing it to the emitters, affectors,
@@ -463,12 +463,16 @@ namespace Ogre {
         */
         static Real getDefaultNonVisibleUpdateTimeout(void) { return msDefaultNonvisibleTimeout; }
 
-        const String& getMovableType(void) const override;
+        /** Overridden from MovableObject */
+        const String& getMovableType(void) const;
 
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual void _notifyParticleResized() {}
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual void _notifyParticleRotated() {}
+        /** Internal callback used by Particles to notify their parent that they have been resized.
+        */
+        virtual void _notifyParticleResized(void);
+
+        /** Internal callback used by Particles to notify their parent that they have been rotated.
+        */
+        virtual void _notifyParticleRotated(void);
 
         /** Sets the default dimensions of the particles in this set.
             @remarks
@@ -528,7 +532,7 @@ namespace Ogre {
         /** @copydoc MovableObject::setRenderQueueGroup */
         void setRenderQueueGroup(uint8 queueID);
         /** @copydoc MovableObject::setRenderQueueGroupAndPriority */
-        void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority);
+        void setRenderQueueSubGroup( uint8 subGroup );
 
         /** Set whether or not particles are sorted according to the camera.
         @remarks
@@ -539,17 +543,6 @@ namespace Ogre {
         void setSortingEnabled(bool enabled) { mSorted = enabled; }
         /// Gets whether particles are sorted relative to the camera.
         bool getSortingEnabled(void) const { return mSorted; }
-
-        /** Set the (initial) bounds of the particle system manually. 
-        @remarks
-            If you can, set the bounds of a particle system up-front and 
-            call setBoundsAutoUpdated(false); this is the most efficient way to
-            organise it. Otherwise, set an initial bounds and let the bounds increase
-            for a little while (the default is 5 seconds), after which time the 
-            AABB is fixed to save time.
-        @param aabb Bounds in local space.
-        */
-        void setBounds(const AxisAlignedBox& aabb);
 
         /** Sets whether the bounds will be automatically updated
             for the life of the particle system
@@ -617,9 +610,6 @@ namespace Ogre {
             It only returns the value of emitting flag.
         */
         bool getEmitting() const;
-
-        /// Override to return specific type flag
-        uint32 getTypeFlags(void) const;
     protected:
 
         /// Command objects
@@ -635,15 +625,14 @@ namespace Ogre {
         static CmdIterationInterval msIterationIntervalCmd;
         static CmdNonvisibleTimeout msNonvisibleTimeoutCmd;
 
-
-        AxisAlignedBox mAABB;
-        Real mBoundingRadius;
         bool mBoundsAutoUpdate;
         Real mBoundsUpdateTime;
         Real mUpdateRemainTime;
 
         /// Name of the resource group to use to load materials
         String mResourceGroupName;
+        /// Name of the material to use
+        String mMaterialName;
         /// Have we set the material etc on the renderer?
         bool mIsRendererConfigured;
         /// Pointer to the material to use
@@ -677,9 +666,9 @@ namespace Ogre {
         /// Used to control if the particle system should emit particles or not.
         bool mIsEmitting;
 
-        typedef std::list<Particle*> ActiveParticleList;
-        typedef std::list<Particle*> FreeParticleList;
-        typedef std::vector<Particle*> ParticlePool;
+        typedef list<Particle*>::type ActiveParticleList;
+        typedef list<Particle*>::type FreeParticleList;
+        typedef vector<Particle*>::type ParticlePool;
 
         /** Sort by direction functor */
         struct SortByDirectionFunctor
@@ -731,11 +720,11 @@ namespace Ogre {
         */
         ParticlePool mParticlePool;
 
-        typedef std::list<ParticleEmitter*> FreeEmittedEmitterList;
-        typedef std::list<ParticleEmitter*> ActiveEmittedEmitterList;
-        typedef std::vector<ParticleEmitter*> EmittedEmitterList;
-        typedef std::map<String, FreeEmittedEmitterList> FreeEmittedEmitterMap;
-        typedef std::map<String, EmittedEmitterList> EmittedEmitterPool;
+        typedef list<ParticleEmitter*>::type FreeEmittedEmitterList;
+        typedef list<ParticleEmitter*>::type ActiveEmittedEmitterList;
+        typedef vector<ParticleEmitter*>::type EmittedEmitterList;
+        typedef map<String, FreeEmittedEmitterList>::type FreeEmittedEmitterMap;
+        typedef map<String, EmittedEmitterList>::type EmittedEmitterPool;
 
         /** Pool of emitted emitters for use and reuse in the active emitted emitter list.
         @remarks
@@ -760,8 +749,8 @@ namespace Ogre {
                 the list with active emitted emitters.        */
         ActiveEmittedEmitterList mActiveEmittedEmitters;
 
-        typedef std::vector<ParticleEmitter*> ParticleEmitterList;
-        typedef std::vector<ParticleAffector*> ParticleAffectorList;
+        typedef vector<ParticleEmitter*>::type ParticleEmitterList;
+        typedef vector<ParticleAffector*>::type ParticleAffectorList;
         
         /// List of particle emitters, ie sources of particles
         ParticleEmitterList mEmitters;

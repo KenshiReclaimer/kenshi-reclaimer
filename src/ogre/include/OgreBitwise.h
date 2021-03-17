@@ -30,15 +30,29 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#ifdef bswap16
-#undef bswap16
-#undef bswap32
-#undef bswap64
-#endif
+#include "OgreMath.h"
 
 #ifndef __has_builtin
     // Compatibility with non-clang compilers
     #define __has_builtin(x) 0
+#endif
+
+#if OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+    /// Undefine in <sys/endian.h> defined bswap macros for FreeBSD
+    #undef bswap16
+    #undef bswap32
+    #undef bswap64
+#endif
+
+#if OGRE_COMPILER == OGRE_COMPILER_MSVC
+    #include <intrin.h>
+    #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_32
+        #pragma intrinsic(_BitScanForward)
+        #pragma intrinsic(_BitScanReverse)
+    #else
+        #pragma intrinsic(_BitScanForward64)
+        #pragma intrinsic(_BitScanReverse64)
+    #endif
 #endif
 
 namespace Ogre {
@@ -55,7 +69,7 @@ namespace Ogre {
     public:
         /** Returns value with reversed bytes order.
         */
-        static OGRE_FORCE_INLINE uint16 bswap16(uint16 arg)
+        static FORCEINLINE uint16 bswap16(uint16 arg)
         {
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER >= 1310
             return _byteswap_ushort(arg);
@@ -67,7 +81,7 @@ namespace Ogre {
         }
         /** Returns value with reversed bytes order.
         */
-        static OGRE_FORCE_INLINE uint32 bswap32(uint32 arg)
+        static FORCEINLINE uint32 bswap32(uint32 arg)
         {
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER >= 1310
             return _byteswap_ulong(arg);
@@ -79,7 +93,7 @@ namespace Ogre {
         }
         /** Returns value with reversed bytes order.
         */
-        static OGRE_FORCE_INLINE uint64 bswap64(uint64 arg)
+        static FORCEINLINE uint64 bswap64(uint64 arg)
         {
 #if OGRE_COMPILER == OGRE_COMPILER_MSVC && OGRE_COMP_VER >= 1310
             return _byteswap_uint64(arg);
@@ -127,23 +141,20 @@ namespace Ogre {
 
         /** Returns the most significant bit set in a value.
         */
-        static OGRE_FORCE_INLINE unsigned int mostSignificantBitSet(unsigned int value)
+        static FORCEINLINE unsigned int mostSignificantBitSet(unsigned int value)
         {
-            //                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F
-            static const unsigned char msb[16] = { 0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4 };
-
             unsigned int result = 0;
-            if(value & 0xFFFF0000) { result += 16;value >>= 16; }
-            if(value & 0x0000FF00) { result += 8; value >>= 8; }
-            if(value & 0x000000F0) { result += 4; value >>= 4; }
-            result += msb[value];
+            while (value != 0) {
+                ++result;
+                value >>= 1;
+            }
             return result-1;
         }
         /** Returns the closest power-of-two number greater or equal to value.
             @note 0 and 1 are powers of two, so 
                 firstPO2From(0)==0 and firstPO2From(1)==1.
         */
-        static OGRE_FORCE_INLINE uint32 firstPO2From(uint32 n)
+        static FORCEINLINE uint32 firstPO2From(uint32 n)
         {
             --n;            
             n |= n >> 16;
@@ -158,7 +169,7 @@ namespace Ogre {
             @note 0 and 1 are tread as power of two.
         */
         template<typename T>
-        static OGRE_FORCE_INLINE bool isPO2(T n)
+        static FORCEINLINE bool isPO2(T n)
         {
             return (n & (n-1)) == 0;
         }
@@ -166,7 +177,7 @@ namespace Ogre {
             remove right-hand zeros.
         */
         template<typename T>
-        static OGRE_FORCE_INLINE unsigned int getBitShift(T mask)
+        static FORCEINLINE unsigned int getBitShift(T mask)
         {
             if (mask == 0)
                 return 0;
@@ -238,7 +249,7 @@ namespace Ogre {
         {
             if(value <= 0.0f) return 0;
             else if (value >= 1.0f) return (1<<bits)-1;
-            else return (unsigned int)(value * float(1<<bits));
+            else return (unsigned int)(value * (1<<bits));     
         }
 
         /**
@@ -315,9 +326,9 @@ namespace Ogre {
         */
         static inline uint16 floatToHalfI(uint32 i)
         {
-            int s =  (i >> 16) & 0x00008000;
-            int e = ((i >> 23) & 0x000000ff) - (127 - 15);
-            int m =   i        & 0x007fffff;
+            register int s =  (i >> 16) & 0x00008000;
+            register int e = ((i >> 23) & 0x000000ff) - (127 - 15);
+            register int m =   i        & 0x007fffff;
         
             if (e <= 0)
             {
@@ -367,9 +378,9 @@ namespace Ogre {
          */
         static inline uint32 halfToFloatI(uint16 y)
         {
-            int s = (y >> 15) & 0x00000001;
-            int e = (y >> 10) & 0x0000001f;
-            int m =  y        & 0x000003ff;
+            register int s = (y >> 15) & 0x00000001;
+            register int e = (y >> 10) & 0x0000001f;
+            register int m =  y        & 0x000003ff;
         
             if (e == 0)
             {
@@ -406,12 +417,131 @@ namespace Ogre {
         
             return (s << 31) | (e << 23) | m;
         }
-         
 
+        static inline int16 floatToSnorm16( float v )
+        {
+            //According to D3D10 rules, the value "-1.0f" has two representations:
+            //  0x1000 and 0x10001
+            //This allows everyone to convert by just multiplying by 32767 instead
+            //of multiplying the negative values by 32768 and 32767 for positive.
+            return static_cast<int16>( Math::Clamp( v >= 0.0f ?
+                                                        (v * 32767.0f + 0.5f) :
+                                                        (v * 32767.0f - 0.5f),
+                                                    -32768.0f,
+                                                     32767.0f ) );
+        }
+
+        static inline float snorm16ToFloat( int16 v )
+        {
+            // -32768 & -32767 both map to -1 according to D3D10 rules.
+            return std::max( v / 32767.0f, -1.0f );
+        }
+
+        static inline int8 floatToSnorm8( float v )
+        {
+            //According to D3D10 rules, the value "-1.0f" has two representations:
+            //  0x10 and 0x11
+            //This allows everyone to convert by just multiplying by 127 instead
+            //of multiplying the negative values by 128 and 127 for positive.
+            return static_cast<int8>( Math::Clamp( v >= 0.0f ?
+                                                       (v * 127.0f + 0.5f) :
+                                                       (v * 127.0f - 0.5f),
+                                                    -128.0f,
+                                                     127.0f ) );
+        }
+
+        static inline float snorm8ToFloat( int8 v )
+        {
+            // -128 & -127 both map to -1 according to D3D10 rules.
+            return std::max( v / 127.0f, -1.0f );
+        }
+
+        static inline uint32 ctz32( uint32 value )
+        {
+            if( value == 0 )
+                return 32u;
+
+        #if OGRE_COMPILER == OGRE_COMPILER_MSVC
+            unsigned long trailingZero = 0;
+            _BitScanForward( &trailingZero, value );
+            return trailingZero;
+        #else
+            return __builtin_ctz( value );
+        #endif
+        }
+
+        static inline uint32 clz32( uint32 value )
+        {
+            if( value == 0 )
+                return 32u;
+
+        #if OGRE_COMPILER == OGRE_COMPILER_MSVC
+            unsigned long lastBitSet = 0;
+            _BitScanReverse( &lastBitSet, value );
+            return 31u - lastBitSet;
+        #else
+            return __builtin_clz( value );
+        #endif
+        }
+
+        static inline uint32 ctz64( uint64 value )
+        {
+            if( value == 0 )
+                return 64u;
+
+        #if OGRE_COMPILER == OGRE_COMPILER_MSVC
+            unsigned long trailingZero = 0;
+            #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_32
+                //Scan the low 32 bits.
+                if( _BitScanForward( &trailingZero, static_cast<uint32>(value) ) )
+                    return trailingZero;
+
+                //Scan the high 32 bits.
+                _BitScanForward( &trailingZero, static_cast<uint32>(value >> 32u) );
+                trailingZero += 32u;
+            #else
+                _BitScanForward64( &trailingZero, value );
+            #endif
+            return trailingZero;
+        #else
+            return static_cast<uint32>( __builtin_ctzll( value ) );
+        #endif
+        }
+
+        static inline uint32 clz64( uint64 value )
+        {
+            if( value == 0 )
+                return 64u;
+
+        #if OGRE_COMPILER == OGRE_COMPILER_MSVC
+            unsigned long lastBitSet = 0;
+            #if OGRE_ARCH_TYPE == OGRE_ARCHITECTURE_32
+                //Scan the high 32 bits.
+                if( _BitScanReverse( &lastBitSet, static_cast<uint32>(value >> 32u) ) )
+                    return 63u - (lastBitSet + 32u);
+
+                //Scan the low 32 bits.
+                _BitScanReverse( &lastBitSet, static_cast<uint32>(value) );
+            #else
+                _BitScanReverse64( &lastBitSet, value );
+            #endif
+            return 63u - lastBitSet;
+        #else
+            return static_cast<uint32>( __builtin_clzll( value ) );
+        #endif
+        }
     };
     /** @} */
     /** @} */
 
 }
+
+/** Redefine in <sys/endian.h> defined bswap macros for FreeBSD
+ */
+#if OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD
+    #define bswap16(x) __bswap16(x)
+    #define bswap32(x) __bswap32(x)
+    #define bswap64(x) __bswap64(x)
+#endif
 
 #endif

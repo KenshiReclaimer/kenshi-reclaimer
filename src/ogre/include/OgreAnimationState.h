@@ -31,14 +31,18 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#include "OgreCommon.h"
 #include "OgreController.h"
-#include "OgreControllerManager.h"
-#include "OgreIteratorWrapper.h"
+#include "OgreIteratorWrappers.h"
 #include "Threading/OgreThreadHeaders.h"
+
+#include "ogrestd/list.h"
+#include "ogrestd/map.h"
+#include "ogrestd/vector.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -57,7 +61,7 @@ namespace Ogre {
     public:
 
         /// Typedef for an array of float values used as a bone blend mask
-        typedef std::vector<float> BoneBlendMask;
+        typedef vector<float>::type BoneBlendMask;
 
         /** Normal constructor with all params supplied
             @param
@@ -77,6 +81,7 @@ namespace Ogre {
             Real timePos, Real length, Real weight = 1.0, bool enabled = false);
         /// Constructor to copy from an existing state with new parent
         AnimationState(AnimationStateSet* parent, const AnimationState &rhs);
+        virtual ~AnimationState();
         
         /// Gets the name of the animation to which this state applies
         const String& getAnimationName() const;
@@ -184,11 +189,11 @@ namespace Ogre {
     };
 
     // A map of animation states
-    typedef std::map<String, AnimationState*> AnimationStateMap;
+    typedef map<String, AnimationState*>::type AnimationStateMap;
     typedef MapIterator<AnimationStateMap> AnimationStateIterator;
     typedef ConstMapIterator<AnimationStateMap> ConstAnimationStateIterator;
     // A list of enabled animation states
-    typedef std::list<AnimationState*> EnabledAnimationStateList;
+    typedef list<AnimationState*>::type EnabledAnimationStateList;
     typedef ConstVectorIterator<EnabledAnimationStateList> ConstEnabledAnimationStateIterator;
 
     /** Class encapsulating a set of AnimationState objects.
@@ -224,24 +229,19 @@ namespace Ogre {
         void removeAllAnimationStates(void);
 
         /** Get an iterator over all the animation states in this set.
-        @deprecated use getAnimationStates()
-        */
-        AnimationStateIterator getAnimationStateIterator(void);
-        /** Get an iterator over all the animation states in this set.
-        @deprecated use getAnimationStates()
-        */
-        OGRE_DEPRECATED ConstAnimationStateIterator getAnimationStateIterator(void) const;
-
-        /** Get all the animation states in this set.
         @note
-            This method is not threadsafe,
+            The iterator returned from this method is not threadsafe,
             you will need to manually lock the public mutex on this
             class to ensure thread safety if you need it.
         */
-        const AnimationStateMap& getAnimationStates() const {
-            return mAnimationStates;
-        }
-
+        AnimationStateIterator getAnimationStateIterator(void);
+        /** Get an iterator over all the animation states in this set.
+        @note
+            The iterator returned from this method is not threadsafe,
+            you will need to manually lock the public mutex on this
+            class to ensure thread safety if you need it.
+        */
+        ConstAnimationStateIterator getAnimationStateIterator(void) const;
         /// Copy the state of any matching animation states from this to another
         void copyMatchingState(AnimationStateSet* target) const;
         /// Set the dirty flag and dirty frame number on this state set
@@ -254,19 +254,12 @@ namespace Ogre {
         /// Tests if exists enabled animation state in this set
         bool hasEnabledAnimationState(void) const { return !mEnabledAnimationStates.empty(); }
         /** Get an iterator over all the enabled animation states in this set
-        @deprecated use getEnabledAnimationStates()
-        */
-        OGRE_DEPRECATED ConstEnabledAnimationStateIterator getEnabledAnimationStateIterator(void) const;
-
-        /** Get an iterator over all the enabled animation states in this set
         @note
             The iterator returned from this method is not threadsafe,
             you will need to manually lock the public mutex on this
             class to ensure thread safety if you need it.
         */
-        const EnabledAnimationStateList& getEnabledAnimationStates() const {
-            return mEnabledAnimationStates;
-        }
+        ConstEnabledAnimationStateIterator getEnabledAnimationStateIterator(void) const;
 
     protected:
         unsigned long mDirtyFrameNumber;
@@ -287,37 +280,23 @@ namespace Ogre {
     {
     protected:
         AnimationState* mTargetAnimationState;
-        bool mAddTime;
     public:
-        /// @deprecated use create instead
-        AnimationStateControllerValue(AnimationState* targetAnimationState, bool addTime = false)
-            : mTargetAnimationState(targetAnimationState), mAddTime(addTime) {}
-
-        /**
-         * create an instance of this class
-         * @param targetAnimationState
-         * @param addTime if true, increment time instead of setting to an absolute position
-         */
-        static ControllerValueRealPtr create(AnimationState* targetAnimationState, bool addTime = false);
+        /** Constructor, pass in the target animation state. */
+        AnimationStateControllerValue(AnimationState* targetAnimationState)
+            : mTargetAnimationState(targetAnimationState) {}
+        /// Destructor (parent already virtual)
+        ~AnimationStateControllerValue() {}
+        /** ControllerValue implementation. */
+        Real getValue(void) const;
 
         /** ControllerValue implementation. */
-        Real getValue(void) const
-        {
-            return mTargetAnimationState->getTimePosition() / mTargetAnimationState->getLength();
-        }
+        void setValue(Real value);
 
-        /** ControllerValue implementation. */
-        void setValue(Real value)
-        {
-            if(mAddTime)
-                mTargetAnimationState->addTime(value);
-            else
-                mTargetAnimationState->setTimePosition(value * mTargetAnimationState->getLength());
-        }
     };
 
     /** @} */   
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

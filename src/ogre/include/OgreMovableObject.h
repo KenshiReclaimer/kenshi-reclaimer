@@ -31,13 +31,16 @@ THE SOFTWARE.
 
 // Precompiler options
 #include "OgrePrerequisites.h"
-#include "OgreAxisAlignedBox.h"
-#include "OgreSphere.h"
-#include "OgreShadowCaster.h"
 #include "OgreAnimable.h"
+#include "OgreSceneNode.h"
+#include "Math/Array/OgreObjectData.h"
+#include "OgreId.h"
+#include "OgreVisibilityFlags.h"
+#include "OgreLodStrategy.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+    typedef vector<Frustum*>::type FrustumVec;
 
     // Forward declaration
     class MovableObjectFactory;
@@ -48,137 +51,117 @@ namespace Ogre {
     /** \addtogroup Scene
     *  @{
     */
+
+    typedef FastArray<Renderable*> RenderableArray;
+
     /** Abstract class defining a movable object in a scene.
         @remarks
             Instances of this class are discrete, relatively small, movable objects
             which are attached to SceneNode objects to define their position.
     */
-    class _OgreExport MovableObject : public ShadowCaster, public AnimableObject, public MovableAlloc
+    class _OgreExport MovableObject : public AnimableObject, public MovableAlloc, public IdObject
     {
     public:
+        static const FastArray<Real> c_DefaultLodMesh;
+
         /** Listener which gets called back on MovableObject events.
         */
         class _OgreExport Listener
         {
         public:
             Listener(void) {}
-            virtual ~Listener() {}
+            virtual ~Listener();
             /** MovableObject is being destroyed */
             virtual void objectDestroyed(MovableObject*) {}
             /** MovableObject has been attached to a node */
             virtual void objectAttached(MovableObject*) {}
             /** MovableObject has been detached from a node */
             virtual void objectDetached(MovableObject*) {}
-            /** MovableObject has been moved */
-            virtual void objectMoved(MovableObject*) {}
-            /** Called when the movable object of the camera to be used for rendering.
-            @return
-                true if allows queue for rendering, false otherwise.
-            */
-            virtual bool objectRendering(const MovableObject*, const Camera*) { return true; }
-            /** Called when the movable object needs to query a light list.
-            @remarks
-                If you want to customize light finding for this object, you should override 
-                this method and hook into MovableObject via MovableObject::setListener.
-                Be aware that the default method caches results within a frame to 
-                prevent unnecessary recalculation, so if you override this you 
-                should provide your own caching to maintain performance.
-            @note
-                If you use texture shadows, there is an additional restriction - 
-                since the lights which should have shadow textures rendered for
-                them are determined based on the entire frustum, and not per-object,
-                it is important that the lights returned at the start of this 
-                list (up to the number of shadow textures available) are the same 
-                lights that were used to generate the shadow textures, 
-                and they are in the same order (particularly for additive effects).
-            @note
-                This method will not be called for additive stencil shadows since the
-                light list cannot be varied per object with this technique.
-            @return
-                A pointer to a light list if you populated the light list yourself, or
-                NULL to fall back on the default finding process.
-            */
-            virtual const LightList* objectQueryLights(const MovableObject*) { return 0; }
         };
 
+        RenderableArray   mRenderables;
     protected:
-        /// Name of this object
-        String mName;
-        /// Creator of this object (if created by a factory)
-        MovableObjectFactory* mCreator;
-        /// SceneManager holding this object (if applicable)
-        SceneManager* mManager;
-        /// node to which this object is attached
+        /// Node to which this object is attached
         Node* mParentNode;
-        /// MovableObject listener - only one allowed (no list) for size & performance reasons. */
-        Listener* mListener;
-        bool mParentIsTagPoint : 1;
-        /// Is this object visible?
-        bool mVisible : 1;
-        /// Is debug display enabled?
-        bool mDebugDisplay : 1;
-        /// Hidden because of distance?
-        bool mBeyondFarDistance : 1;
-        /// Does this object cast shadows?
-        bool mCastShadows : 1;
-        /// Flags whether the RenderQueue's default should be used.
-        bool mRenderQueueIDSet : 1;
-        /// Flags whether the RenderQueue's default should be used.
-        bool mRenderQueuePrioritySet : 1;
-        /// Does rendering this object disabled by listener?
-        bool mRenderingDisabled : 1;
         /// The render queue to use when rendering this object
         uint8 mRenderQueueID;
-        /// The render queue group to use when rendering this object
-        ushort mRenderQueuePriority;
-        /// Upper distance to still render
-        Real mUpperDistance;
-        Real mSquaredUpperDistance;
+        /// All the object data needed in SoA form
+        ObjectData mObjectData;
+        /// SceneManager holding this object (if applicable)
+        SceneManager* mManager;
+
+        //One for each submesh/Renderable
+        FastArray<Real> const               *mLodMesh;
+        unsigned char                       mCurrentMeshLod;
+
         /// Minimum pixel size to still render
         Real mMinPixelSize;
         /// User objects binding.
         UserObjectBindings mUserObjectBindings;
-        /// Flags determining whether this object is included / excluded from scene queries
-        uint32 mQueryFlags;
-        /// Flags determining whether this object is visible (compared to SceneManager mask)
-        uint32 mVisibilityFlags;
-        /// Cached world AABB of this object
-        mutable AxisAlignedBox mWorldAABB;
-        // Cached world bounding sphere
-        mutable Sphere mWorldBoundingSphere;
-        /// World space AABB of this object's dark cap
-        mutable AxisAlignedBox mWorldDarkCapBounds;
+
+        /// MovableObject listener - only one allowed (no list) for size & performance reasons.
+        Listener* mListener;
+
         /// List of lights for this object
-        mutable LightList mLightList;
-        /// The last frame that this light list was updated in
-        mutable ulong mLightListUpdated;
-        /// the light mask defined for this movable. This will be taken into consideration when deciding which light should affect this movable
-        uint32 mLightMask;
+        LightList mLightList;
+
+        /// Only valid for V2 objects. Derived classes are in charge of
+        /// creating and/or destroying it. Placed here since it's the
+        /// most efficient method of retrieval during rendering, iterating
+        /// over each Item.
+        SkeletonInstance    *mSkeletonInstance;
+
+        /// The memory manager used to allocate the ObjectData.
+        ObjectMemoryManager *mObjectMemoryManager;
+
+#if OGRE_DEBUG_MODE
+        mutable bool mCachedAabbOutOfDate;
+#endif
+
+        /// Friendly name of this object, can be empty
+        String mName;
 
         // Static members
         /// Default query flags
         static uint32 msDefaultQueryFlags;
         /// Default visibility flags
         static uint32 msDefaultVisibilityFlags;
+        /// Default light mask
+        static uint32 msDefaultLightMask;
 
-
+    protected:
+        Aabb updateSingleWorldAabb();
+        float updateSingleWorldRadius();
 
     public:
-        /// Constructor
-        MovableObject();
+        /** Index in the vector holding this MO reference (could be our parent node, or a global
+            array tracking all movable objecst to avoid memory leaks). Used for O(1) removals.
+        @remarks
+            It is the parent (or our creator) the one that sets this value, not ourselves.
+            Do NOT modify it manually.
+        */
+        size_t mGlobalIndex;
+        /// @copydoc mGlobalIndex
+        size_t mParentIndex;
 
-        /// Named constructor
-        MovableObject(const String& name);
+        /** Constructor
+        @remarks
+            Valid render queue Id is between 0 & 254 inclusive
+        */
+        MovableObject( IdType id, ObjectMemoryManager *objectMemoryManager,
+                       SceneManager* manager, uint8 renderQueueId );
+
+        /** Don't use this constructor unless you know what you're doing.
+            @See ObjectMemoryManager::mDummyNode
+        */
+        MovableObject( ObjectData *objectDataPtrs );
+
         /** Virtual destructor - read Scott Meyers if you don't know why this is needed.
         */
         virtual ~MovableObject();
 
-        /** Notify the object of it's creator (internal use only) */
-        virtual void _notifyCreator(MovableObjectFactory* fact) { mCreator = fact; }
-        /** Get the creator of this object, if any (internal use only) */
-        MovableObjectFactory*  _getCreator(void) const { return mCreator; }
         /** Notify the object of it's manager (internal use only) */
-        virtual void _notifyManager(SceneManager* man) { mManager = man; }
+        void _notifyManager(SceneManager* man) { mManager = man; }
         /** Get the manager of this object, if any (internal use only) */
         SceneManager* _getManager(void) const { return mManager; }
 
@@ -198,82 +181,138 @@ namespace Ogre {
         */
         virtual void _restoreManualHardwareResources() {}
 
+        /** Sets a custom name for this node. Doesn't have to be unique */
+        void setName( const String &name )                                  { mName = name; }
+
         /** Returns the name of this object. */
-        const String& getName(void) const { return mName; }
+        const String& getName(void) const                                   { return mName; }
 
         /** Returns the type name of this object. */
         virtual const String& getMovableType(void) const = 0;
 
-        /** Returns the node to which this object is attached.
-        @remarks
-            A MovableObject may be attached to either a SceneNode or to a TagPoint, 
-            the latter case if it's attached to a bone on an animated entity. 
-            Both are Node subclasses so this method will return either.
-        */
-        Node* getParentNode(void) const { return mParentNode; }
+        /// Returns the node to which this object is attached.
+        Node* getParentNode(void) const                                     { return mParentNode; }
 
-        /** Returns the scene node to which this object is attached.
-        @remarks
-            A MovableObject may be attached to either a SceneNode or to a TagPoint, 
-            the latter case if it's attached to a bone on an animated entity. 
-            This method will return the scene node of the parent entity 
-            if the latter is true.
-        */
-        SceneNode* getParentSceneNode(void) const;
-
-        /// Gets whether the parent node is a TagPoint (or a SceneNode)
-        bool isParentTagPoint() const { return mParentIsTagPoint; }
+        inline SceneNode* getParentSceneNode(void) const;
 
         /** Internal method called to notify the object that it has been attached to a node.
         */
-        virtual void _notifyAttached(Node* parent, bool isTagPoint = false);
+        virtual void _notifyAttached( Node* parent );
 
-        /** Returns true if this object is attached to a SceneNode or TagPoint. */
-        bool isAttached(void) const { return (mParentNode != NULL); }
+        /** Returns true if this object is attached to a Node. */
+        bool isAttached(void) const                                         { return mParentNode != 0; }
 
-        /** Detaches an object from a parent SceneNode or TagPoint, if attached. */
+        /** Detaches an object from a parent SceneNode if attached. */
         void detachFromParent(void);
 
-        /** Returns true if this object is attached to a SceneNode or TagPoint, 
-            and this SceneNode / TagPoint is currently in an active part of the
-            scene graph. */
-        virtual bool isInScene(void) const;
+        /// @See Node::_callMemoryChangeListeners
+        virtual void _notifyParentNodeMemoryChanged(void) {}
 
-        /** Internal method called to notify the object that it has been moved.
+        unsigned char getCurrentMeshLod(void) const                         { return mCurrentMeshLod; }
+
+        /// Checks whether this MovableObject is static. @See setStatic
+        bool isStatic() const;
+
+        /** Turns this Node into static or dynamic
+        @remarks
+            Switching between dynamic and static has some overhead and forces to update all
+            static scene when converted to static. So don't do it frequently.
+            Static objects are not updated every frame, only when requested explicitly. Use
+            this feature if you plan to have this object unaltered for a very long times
+        @par
+            Note all MovableObjects support switching between static & dynamic after they
+            have been created (eg. InstancedEntity)
+        @par
+            Changing this attribute will cause to switch the attribute to our parent node,
+            and as a result, all of its other attached entities. @See Node::setStatic
+        @return
+            True if setStatic made an actual change. False otherwise. Can fail because the
+            object was already static/dynamic, or because switching is not supported
         */
-        virtual void _notifyMoved(void);
+        bool setStatic( bool bStatic );
 
-        /** Internal method to notify the object of the camera to be used for the next rendering operation.
-            @remarks
-                Certain objects may want to do specific processing based on the camera position. This method notifies
-                them in case they wish to do this.
-        */
-        virtual void _notifyCurrentCamera(Camera* cam);
+        /// Called by SceneManager when it is telling we're a static MovableObject being dirty
+        /// Don't call this directly. @see SceneManager::notifyStaticDirty
+        virtual void _notifyStaticDirty(void) const {}
 
-        /** Retrieves the local axis-aligned bounding box for this object.
-            @remarks
-                This bounding box is in local coordinates.
-        */
-        virtual const AxisAlignedBox& getBoundingBox(void) const = 0;
-
-        /** Retrieves the radius of the origin-centered bounding sphere 
-             for this object.
-        */
-        virtual Real getBoundingRadius(void) const = 0;
-
-        /// as getBoundingRadius, but with scaling applied
-        Real getBoundingRadiusScaled() const;
-
-        /** Retrieves the axis-aligned bounding box for this object in world coordinates. */
-        virtual const AxisAlignedBox& getWorldBoundingBox(bool derive = false) const;
-        /** Retrieves the worldspace bounding sphere for this object. */
-        virtual const Sphere& getWorldBoundingSphere(bool derive = false) const;
         /** Internal method by which the movable object must add Renderable subclass instances to the rendering queue.
             @remarks
                 The engine will call this method when this object is to be rendered. The object must then create one or more
                 Renderable subclass instances which it places on the passed in Queue for rendering.
         */
-        virtual void _updateRenderQueue(RenderQueue* queue) = 0;
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera) {}
+
+        /** @See SceneManager::updateAllBounds
+        @remarks
+            We don't pass by reference on purpose (avoid implicit aliasing)
+        */
+        static void updateAllBounds( const size_t numNodes, ObjectData t );
+
+        static inline ArrayReal calculateCameraDistance( uint32 _cameraSortMode, ArrayVector3 cameraPos,
+                                                         ArrayVector3 cameraDir,
+                                                         ArrayAabb *RESTRICT_ALIAS worldAabb,
+                                                         ArrayReal *RESTRICT_ALIAS worldRadius );
+
+        /** @See SceneManager::cullFrustum
+        @remarks
+            We don't pass by reference on purpose (avoid implicit aliasing)
+            We perform frustum culling AND test visibility mask at the same time
+        @param frustum
+            Frustum to clip against
+        @param sceneVisibilityFlags
+            Combined scene's visibility flags (i.e. viewport | scene). Set LAYER_SHADOW_CASTER
+            bit if you want to exclude non-shadow casters.
+        @param outCulledObjects
+            Out. List of objects that are (fully or partially) inside the frustum and
+            should be rendered
+        @param lodCamera
+            Camera in which lod levels calculations are based (i.e. during shadow pass renders)
+            Note however, we only use this camera to calulate if should be visible according to
+            mUpperDistance
+        */
+        typedef FastArray<MovableObject*> MovableObjectArray;
+        static void cullFrustum( const size_t numNodes, ObjectData t, const Camera *frustum,
+                                 uint32 sceneVisibilityFlags, MovableObjectArray &outCulledObjects,
+                                 const Camera *lodCamera );
+
+        /// @See InstancingTheadedCullingMethod, @see InstanceBatch::instanceBatchCullFrustumThreaded
+        virtual void instanceBatchCullFrustumThreaded( const Frustum *frustum, const Camera *lodCamera,
+                                                        uint32 combinedVisibilityFlags ) {}
+
+        /** @See SceneManager::cullLights & @see MovableObject::cullFrustum
+            Produces the global list of visible lights that is needed in buildLightList
+        @remarks
+            We don't pass ObjectData by reference on purpose (avoid implicit aliasing)
+            It's declared here because all affected elements are from MovableObject
+            IMPORTANT: It is assumed that all objects in ObjectData are Lights.
+        @param outGlobalLightList
+            Output, a list of lights, contiguously placed
+        @param frustums
+            An array of all frustums we need to check against
+        @param cubemapFrustums
+            An array of all frustums that are used at least once as cubemaps
+            (@See SceneManager::createCamera)
+        */
+        static void cullLights( const size_t numNodes, ObjectData t, uint32 sceneLightMask,
+                                LightListInfo &outGlobalLightList,
+                                const FrustumVec &frustums, const FrustumVec &cubemapFrustums );
+
+        /** @See SceneManager::buildLightList
+        @remarks
+            We don't pass by reference on purpose (avoid implicit aliasing)
+        @param globalLightList
+            List of lights already culled against all possible frustums and
+            reorganized contiguously for SoA
+        */
+        static void buildLightList( const size_t numNodes, ObjectData t,
+                                    const LightListInfo &globalLightList );
+
+        static void calculateCastersBox( const size_t numNodes, ObjectData t,
+                                         uint32 sceneVisibilityFlags, AxisAlignedBox *outBox );
+
+        friend void LodStrategy::lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                                const Camera *camera, Real bias ) const;
+        friend void LodStrategy::lodSet( ObjectData &t, Real lodValues[ARRAY_PACKED_REALS] );
 
         /** Tells this object whether to be visible or not, if it has a renderable component. 
         @note An alternative approach of making an object invisible is to detach it
@@ -289,64 +328,60 @@ namespace Ogre {
             changes are best done using this method; large or more longer term
             changes are best done by detaching.
         */
-        void setVisible(bool visible) { mVisible = visible; }
+        inline void setVisible( bool visible );
 
         /** Gets this object whether to be visible or not, if it has a renderable component. 
         @remarks
             Returns the value set by MovableObject::setVisible only.
         */
-        bool getVisible(void) const { return mVisible; }
+        inline bool getVisible(void) const;
 
         /** Returns whether or not this object is supposed to be visible or not. 
         @remarks
-            Takes into account both upper rendering distance and visible flag.
+            Takes into account visibility flags and the setVisible, but not rendering distance.
         */
-        virtual bool isVisible(void) const;
+        bool isVisible(void) const;
 
         /** Sets the distance at which the object is no longer rendered.
-        @note Camera::setUseRenderingDistance() needs to be called for this parameter to be used.
-        @param dist Distance beyond which the object will not be rendered 
-            (the default is 0, which means objects are always rendered).
+        @param
+            dist Distance beyond which the object will not be rendered (the default is FLT_MAX,
+            which means objects are always rendered). Values equal or below zero will be ignored,
+            and cause an assertion in debug mode.
         */
-        void setRenderingDistance(Real dist) {
-            mUpperDistance = dist; 
-            mSquaredUpperDistance = mUpperDistance * mUpperDistance;
-        }
+        inline void setRenderingDistance(Real dist);
 
         /** Gets the distance at which batches are no longer rendered. */
-        Real getRenderingDistance(void) const { return mUpperDistance; }
+        inline Real getRenderingDistance(void) const;
+
+        /** Sets the distance at which the object is no longer casting shadows.
+        @param
+            dist Distance beyond which the object will not cast shadows (the default is FLT_MAX,
+            which means objects are always casting shadows). Values equal or below zero will be ignored,
+            and cause an assertion in debug mode.
+        @note ShadowRenderingDistance will be clamped to RenderingDistance value
+        @see setRenderingDistance
+        */
+        inline void setShadowRenderingDistance(Real dist);
+
+        /** Gets the distance at which batches are no longer casting shadows. */
+        inline Real getShadowRenderingDistance(void) const;
 
         /** Sets the minimum pixel size an object needs to be in both screen axes in order to be rendered
         @note Camera::setUseMinPixelSize() needs to be called for this parameter to be used.
         @param pixelSize Number of minimum pixels
             (the default is 0, which means objects are always rendered).
         */
-        void setRenderingMinPixelSize(Real pixelSize) {
+        void setRenderingMinPixelSize(Real pixelSize) { 
             mMinPixelSize = pixelSize; 
         }
 
-        /** Returns the minimum pixel size an object needs to be in both screen axes in order to be rendered
+        /** Returns the minimum pixel size an object needs to be in both screen axes in order to be
+            rendered
         */
-        Real getRenderingMinPixelSize() const {
-            return mMinPixelSize; 
-        }
-
-        /** @deprecated use UserObjectBindings::setUserAny via getUserObjectBindings() instead.
-            Sets any kind of user value on this object.
-        @remarks
-            This method allows you to associate any user value you like with 
-            this MovableObject. This can be a pointer back to one of your own
-            classes for instance.       
-        */
-        OGRE_DEPRECATED void setUserAny(const Any& anything) { getUserObjectBindings().setUserAny(anything); }
-
-        /** @deprecated use UserObjectBindings::getUserAny via getUserObjectBindings() instead.
-            Retrieves the custom user value associated with this object.
-        */
-        OGRE_DEPRECATED const Any& getUserAny(void) const { return getUserObjectBindings().getUserAny(); }
+        Real getRenderingMinPixelSize() const                               { return mMinPixelSize; }
 
         /** Return an instance of user objects binding associated with this class.
-        You can use it to associate one or more custom objects with this class instance.
+            You can use it to associate one or more custom objects with this class instance.
         @see UserObjectBindings::setUserAny.        
         */
         UserObjectBindings& getUserObjectBindings() { return mUserObjectBindings; }
@@ -368,33 +403,68 @@ namespace Ogre {
             See RenderQueue for more details.
         @param queueID Enumerated value of the queue group to use. See the
             enum RenderQueueGroupID for what kind of values can be used here.
+        @par
+            Valid render queue ids are between 0 & 254 inclusive
         */
         virtual void setRenderQueueGroup(uint8 queueID);
 
-        /** Sets the render queue group and group priority this entity will be rendered through.
+        /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
+        inline uint8 getRenderQueueGroup(void) const;
+
+        /// Returns a direct access to the ObjectData state
+        ObjectData& _getObjectData()                                        { return mObjectData; }
+
+        /// Returns the full transformation of the parent sceneNode or the attachingPoint node
+        const Matrix4& _getParentNodeFullTransform(void) const;
+
+        /** Retrieves the local axis-aligned bounding box for this object.
+            @remarks
+                This bounding box is in local coordinates.
+        */
+        Aabb getLocalAabb(void) const;
+
+        /** Sets the local axis-aligned bounding box for this object.
+         @remarks
+         This bounding box is in local coordinates.
+         */
+        void setLocalAabb(const Aabb box);
+
+        /** Gets the axis aligned box in world space.
         @remarks
-            Render queues are grouped to allow you to more tightly control the ordering
-            of rendered objects. Within a single render group there another type of grouping
-            called priority which allows further control.  If you do not call this method, 
-            all Entity objects default to the default queue and priority 
-            (RenderQueue::getDefaultQueueGroup, RenderQueue::getDefaultRenderablePriority), 
-            which is fine for most objects. You may want to alter this if you want this entity 
-            to always appear in front of other objects, e.g. for a 3D menu system or such.
-        @par
-            See RenderQueue for more details.
-        @param queueID Enumerated value of the queue group to use. See the
-            enum RenderQueueGroupID for what kind of values can be used here.
-        @param priority The priority within a group to use.
+            Assumes the caches are already updated. Will trigger an assert
+            otherwise. @See getWorldAabbUpdated if you need the update process
+            to be guaranteed
         */
-        virtual void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority);
+        Aabb getWorldAabb() const;
 
-        /** Gets the queue group for this entity
-        @see setRenderQueueGroup
+        /** Gets the axis aligned box in world space.
+        @remarks
+            Unlike getWorldAabb, this function guarantees the cache stays up to date.
+            It is STRONGLY advised against calling this function for a large
+            number of MovableObject. Refactor your queries so that they happen
+            after SceneManager::updateAllBounds() has been called
         */
-        uint8 getRenderQueueGroup(void) const { return mRenderQueueID; }
+        Aabb getWorldAabbUpdated();
 
-        /// Return the full transformation of the parent sceneNode or the attachingPoint node
-        virtual const Affine3& _getParentNodeFullTransform(void) const;
+        /// See getLocalAabb and getWorldRadius
+        float getLocalRadius(void) const;
+
+        /** Gets the bounding Radius scaled by max( scale.x, scale.y, scale.z ).
+        @remarks
+            Assumes the caches are already updated. Will trigger an assert
+            otherwise. @See getWorldRadiusUpdated if you need the update process
+            to be guaranteed
+        */
+        float getWorldRadius() const;
+
+        /** Gets the bounding Radius scaled by max( scale.x, scale.y, scale.z ).
+        @remarks
+            Unlike getWorldRadius, this function guarantees the cache stays up to date.
+            It is STRONGLY advised against calling this function for a large
+            number of MovableObject. Refactor your queries so that they happen
+            after SceneManager::updateAllBounds() has been called
+        */
+        float getWorldRadiusUpdated();
 
         /** Sets the query flags for this object.
         @remarks
@@ -403,18 +473,18 @@ namespace Ogre {
             a bit on these flags is set, will it be included in a query asking for that flag. The
             meaning of the bits is application-specific.
         */
-        void setQueryFlags(uint32 flags) { mQueryFlags = flags; }
+        inline void setQueryFlags(uint32 flags);
 
         /** As setQueryFlags, except the flags passed as parameters are appended to the
-        existing flags on this object. */
-        void addQueryFlags(uint32 flags) { mQueryFlags |= flags; }
-            
+            existing flags on this object. */
+        inline void addQueryFlags(uint32 flags);
+
         /** As setQueryFlags, except the flags passed as parameters are removed from the
-        existing flags on this object. */
-        void removeQueryFlags(uint32 flags) { mQueryFlags &= ~flags; }
-        
+            existing flags on this object. */
+        inline void removeQueryFlags(uint32 flags);
+
         /// Returns the query flags relevant for this object
-        virtual uint32 getQueryFlags(void) const { return mQueryFlags; }
+        inline uint32 getQueryFlags(void) const;
 
         /** Set the default query flags for all future MovableObject instances.
         */
@@ -424,29 +494,37 @@ namespace Ogre {
         */
         static uint32 getDefaultQueryFlags() { return msDefaultQueryFlags; }
 
-        
+        /// Returns the distance to camera as calculated in @cullFrustum
+        inline RealAsUint getCachedDistanceToCamera(void) const;
+
+        /// Returns the distance to camera as calculated in @cullFrustum
+        inline Real getCachedDistanceToCameraAsReal(void) const;
+
         /** Sets the visibility flags for this object.
         @remarks
             As well as a simple true/false value for visibility (as seen in setVisible), 
-            you can also set visibility flags which when 'and'ed with the SceneManager's
-            visibility mask can also make an object invisible.
+            you can also set visibility flags that is applied a binary 'and' with the SceneManager's
+            mask and a compositor node pass. To exclude particular objects from rendering.
+            Changes to reserved visibility flags are ignored (won't take effect).
         */
-        void setVisibilityFlags(uint32 flags) { mVisibilityFlags = flags; }
+        inline void setVisibilityFlags(uint32 flags);
 
         /** As setVisibilityFlags, except the flags passed as parameters are appended to the
         existing flags on this object. */
-        void addVisibilityFlags(uint32 flags) { mVisibilityFlags |= flags; }
+        inline void addVisibilityFlags(uint32 flags);
             
         /** As setVisibilityFlags, except the flags passed as parameters are removed from the
         existing flags on this object. */
-        void removeVisibilityFlags(uint32 flags) { mVisibilityFlags &= ~flags; }
+        inline void removeVisibilityFlags(uint32 flags);
         
-        /// Returns the visibility flags relevant for this object
-        virtual uint32 getVisibilityFlags(void) const { return mVisibilityFlags; }
+        /** Returns the visibility flags relevant for this object. Reserved visibility flags are
+            not returned.
+        */
+        inline uint32 getVisibilityFlags(void) const;
 
         /** Set the default visibility flags for all future MovableObject instances.
         */
-        static void setDefaultVisibilityFlags(uint32 flags) { msDefaultVisibilityFlags = flags; }
+        inline static void setDefaultVisibilityFlags(uint32 flags);
         
         /** Get the default visibility flags for all future MovableObject instances.
         */
@@ -465,36 +543,31 @@ namespace Ogre {
 
         /** Gets a list of lights, ordered relative to how close they are to this movable object.
         @remarks
-            By default, this method gives the listener a chance to populate light list first,
-            if there is no listener or Listener::objectQueryLights returns NULL, it'll
-            query the light list from parent entity if it is present, or returns
-            SceneNode::findLights if it has parent scene node, otherwise it just returns
-            an empty list.
-        @par
-            The object internally caches the light list, so it will recalculate
-            it only when object is moved, or lights that affect the frustum have
-            been changed (@see SceneManager::_getLightsDirtyCounter),
-            but if listener exists, it will be called each time, so the listener 
-            should implement their own cache mechanism to optimise performance.
-        @par
-            This method can be useful when implementing Renderable::getLights in case
-            the renderable is a part of the movable.
+            The lights are filled in @see buildLightList
         @return The list of lights use to lighting this object.
         */
-        const LightList& queryLights(void) const;
+        const LightList& queryLights(void) const                                { return mLightList; }
 
         /** Get a bitwise mask which will filter the lights affecting this object
         @remarks
-        By default, this mask is fully set meaning all lights will affect this object
+            By default, this mask is fully set meaning all lights will affect this object
         */
-        uint32 getLightMask()const { return mLightMask; }
+        inline uint32 getLightMask()const;
         /** Set a bitwise mask which will filter the lights affecting this object
         @remarks
         This mask will be compared against the mask held against Light to determine
-        if a light should affect a given object. 
-        By default, this mask is fully set meaning all lights will affect this object
+            if a light should affect a given object. 
+            By default, this mask is fully set meaning all lights will affect this object
         */
-        void setLightMask(uint32 lightMask);
+        inline void setLightMask(uint32 lightMask);
+
+        /** Set the default light mask for all future MovableObject instances.
+        */
+        static void setDefaultLightMask(uint32 mask) { msDefaultLightMask = mask; }
+
+        /** Get the default light mask for all future MovableObject instances.
+        */
+        static uint32 getDefaultLightMask() { return msDefaultLightMask; }
 
         /** Returns a pointer to the current list of lights for this object.
         @remarks
@@ -504,16 +577,6 @@ namespace Ogre {
         */
         LightList* _getLightList() { return &mLightList; }
 
-        /// Returns details of the edges which might be used to determine a silhouette
-        EdgeData* getEdgeList(void) { return NULL; }
-        /// Define a default implementation of method from ShadowCaster which implements no shadows
-        const ShadowRenderableList& getShadowVolumeRenderableList(
-            ShadowTechnique shadowTechnique, const Light* light, 
-            HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
-            bool extrudeVertices, Real extrusionDist, unsigned long flags = 0);
-        
-        const AxisAlignedBox& getLightCapBounds(void) const override;
-        const AxisAlignedBox& getDarkCapBounds(const Light& light, Real dirLightExtrusionDist) const override;
         /** Sets whether or not this object will cast shadows.
         @remarks
         This setting simply allows you to turn on/off shadows for a given object.
@@ -526,57 +589,16 @@ namespace Ogre {
         since Light is also a subclass of MovableObject, in that context it means
         whether the light causes shadows itself.
         */
-        void setCastShadows(bool enabled) { mCastShadows = enabled; }
+        inline void setCastShadows( bool enabled );
         /** Returns whether shadow casting is enabled for this object. */
-        bool getCastShadows(void) const { return mCastShadows; }
-        /** Returns whether the Material of any Renderable that this MovableObject will add to 
-            the render queue will receive shadows. 
-        */
-        bool getReceivesShadows();
-            
-        /** Get the distance to extrude for a point/spot light */
-        Real getPointExtrusionDistance(const Light* l) const;
-        /** Get the 'type flags' for this MovableObject.
-        @remarks
-            A type flag identifies the type of the MovableObject as a bitpattern. 
-            This is used for categorical inclusion / exclusion in SceneQuery
-            objects. By default, this method returns all ones for objects not 
-            created by a MovableObjectFactory (hence always including them); 
-            otherwise it returns the value assigned to the MovableObjectFactory.
-            Custom objects which don't use MovableObjectFactory will need to 
-            override this if they want to be included in queries.
-        */
-        virtual uint32 getTypeFlags(void) const;
+        inline bool getCastShadows(void) const;
 
-        /** Method to allow a caller to abstractly iterate over the Renderable
-            instances that this MovableObject will add to the render queue when
-            asked, if any. 
-        @param visitor Pointer to a class implementing the Renderable::Visitor 
-            interface which will be called back for each Renderable which will
-            be queued. Bear in mind that the state of the Renderable instances
-            may not be finalised depending on when you call this.
-        @param debugRenderables If false, only regular renderables will be visited
-            (those for normal display). If true, debug renderables will be
-            included too.
-        */
-        virtual void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false) = 0;
+        SkeletonInstance* getSkeletonInstance(void) const   { return mSkeletonInstance; }
 
-        /** Sets whether or not the debug display of this object is enabled.
-        @remarks
-            Some objects aren't visible themselves but it can be useful to display
-            a debug representation of them. Or, objects may have an additional 
-            debug display on top of their regular display. This option enables / 
-            disables that debug display. Objects that are not visible never display
-            debug geometry regardless of this setting.
-        */
-        void setDebugDisplayEnabled(bool enabled) { mDebugDisplay = enabled; }
-        /// Gets whether debug display of this object is enabled. 
-        bool isDebugDisplayEnabled(void) const { return mDebugDisplay; }
-
-
-
-
+#if OGRE_DEBUG_MODE
+        void _setCachedAabbOutOfDate(void)                  { mCachedAabbOutOfDate = true; }
+        bool isCachedAabbOutOfDate() const                  { return mCachedAabbOutOfDate; }
+#endif
 
     };
 
@@ -588,68 +610,51 @@ namespace Ogre {
     class _OgreExport MovableObjectFactory : public MovableAlloc
     {
     protected:
-        /// Type flag, allocated if requested
-        uint32 mTypeFlag;
-
         /// Internal implementation of create method - must be overridden
-        virtual MovableObject* createInstanceImpl(
-            const String& name, const NameValuePairList* params = 0) = 0;
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager* manager,
+                                                   const NameValuePairList* params = 0) = 0;
     public:
-        MovableObjectFactory() : mTypeFlag(0xFFFFFFFF) {}
+        MovableObjectFactory() {}
         virtual ~MovableObjectFactory() {}
         /// Get the type of the object to be created
         virtual const String& getType(void) const = 0;
 
         /** Create a new instance of the object.
-        @param name The name of the new object
         @param manager The SceneManager instance that will be holding the
             instance once created.
         @param params Name/value pair list of additional parameters required to 
             construct the object (defined per subtype). Optional.
         */
-        MovableObject* createInstance(
-            const String& name, SceneManager* manager, 
-            const NameValuePairList* params = 0);
+        virtual MovableObject* createInstance( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                        SceneManager* manager, const NameValuePairList* params = 0);
         /** Destroy an instance of the object */
-        virtual void destroyInstance(MovableObject* obj) { delete obj; }
-
-        /** Does this factory require the allocation of a 'type flag', used to 
-            selectively include / exclude this type from scene queries?
-        @remarks
-            The default implementation here is to return 'false', ie not to 
-            request a unique type mask from Root. For objects that
-            never need to be excluded in SceneQuery results, that's fine, since
-            the default implementation of MovableObject::getTypeFlags is to return
-            all ones, hence matching any query type mask. However, if you want the
-            objects created by this factory to be filterable by queries using a 
-            broad type, you have to give them a (preferably unique) type mask - 
-            and given that you don't know what other MovableObject types are 
-            registered, Root will allocate you one. 
-        */
-        virtual bool requestTypeFlags(void) const { return false; }
-        /** Notify this factory of the type mask to apply. 
-        @remarks
-            This should normally only be called by Root in response to
-            a 'true' result from requestTypeMask. However, you can actually use
-            it yourself if you're careful; for example to assign the same mask
-            to a number of different types of object, should you always wish them
-            to be treated the same in queries.
-        */
-        void _notifyTypeFlags(uint32 flag) { mTypeFlag = flag; }
-
-        /** Gets the type flag for this factory.
-        @remarks
-            A type flag is like a query flag, except that it applies to all instances
-            of a certain type of object.
-        */
-        uint32 getTypeFlags(void) const { return mTypeFlag; }
-
+        virtual void destroyInstance(MovableObject* obj) = 0;
     };
+
+    class _OgreExport NullEntity : public MovableObject
+    {
+        static const String msMovableType;
+    public:
+        NullEntity() : MovableObject( 0 )
+        {
+        }
+
+        virtual ~NullEntity();
+
+        virtual const String& getMovableType(void) const
+        {
+            return msMovableType;
+        }
+    };
+
     /** @} */
     /** @} */
 
 }
 
 #include "OgreHeaderSuffix.h"
+
+#include "OgreMovableObject.inl"
 
 #endif

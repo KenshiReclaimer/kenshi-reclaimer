@@ -29,12 +29,12 @@ THE SOFTWARE.
 #define __Common_H__
 // Common stuff
 
-#include "OgreVector.h"
+#include "OgrePrerequisites.h"
+
 #include "OgreHeaderPrefix.h"
-#include "OgreMurmurHash3.h"
+#include "Hash/MurmurHash3.h"
 
 namespace Ogre {
-
     typedef _StringBase String;
 
     /** \addtogroup Core
@@ -45,7 +45,7 @@ namespace Ogre {
     */
 
     /// Fast general hashing algorithm
-    inline uint32 FastHash (const char * data, size_t len, uint32 hashSoFar = 0) {
+    inline uint32 FastHash (const char * data, int len, uint32 hashSoFar = 0) {
         uint32 ret;
         MurmurHash3_x86_32(data, len, hashSoFar, &ret);
         return ret;
@@ -57,36 +57,149 @@ namespace Ogre {
         return FastHash((const char*)&data, sizeof(T), hashSoFar);
     }
 
+    enum VertexPass
+    {
+        VpNormal,
+        VpShadow,
+        NumVertexPass
+    };
+
+    enum PrePassMode
+    {
+        /// This is a normal pass.
+        PrePassNone,
+        /// This is a depth pre-pass. Note: Implementations may write
+        /// to colour too for hybrid deferred & forward rendering.
+        PrePassCreate,
+        /// This pass will be using the results of a previous pre-pass
+        PrePassUse
+    };
+
+    enum IndexType
+    {
+        IT_16BIT,
+        IT_32BIT
+    };
 
     /** Comparison functions used for the depth/stencil buffer operations and 
         others. */
     enum CompareFunction
     {
-        CMPF_ALWAYS_FAIL,  //!< Never writes a pixel to the render target
-        CMPF_ALWAYS_PASS,  //!< Always writes a pixel to the render target
-        CMPF_LESS,         //!< Write if (new_Z < existing_Z)
-        CMPF_LESS_EQUAL,   //!< Write if (new_Z <= existing_Z)
-        CMPF_EQUAL,        //!< Write if (new_Z == existing_Z)
-        CMPF_NOT_EQUAL,    //!< Write if (new_Z != existing_Z)
-        CMPF_GREATER_EQUAL,//!< Write if (new_Z >= existing_Z)
-        CMPF_GREATER       //!< Write if (new_Z >= existing_Z)
+        CMPF_ALWAYS_FAIL,
+        CMPF_ALWAYS_PASS,
+        CMPF_LESS,
+        CMPF_LESS_EQUAL,
+        CMPF_EQUAL,
+        CMPF_NOT_EQUAL,
+        CMPF_GREATER_EQUAL,
+        CMPF_GREATER,
+        NUM_COMPARE_FUNCTIONS,
+    };
+
+    /// Enum describing the various actions which can be taken on the stencil buffer
+    enum StencilOperation
+    {
+        /// Leave the stencil buffer unchanged
+        SOP_KEEP,
+        /// Set the stencil value to zero
+        SOP_ZERO,
+        /// Set the stencil value to the reference value
+        SOP_REPLACE,
+        /// Increase the stencil value by 1, clamping at the maximum value
+        SOP_INCREMENT,
+        /// Decrease the stencil value by 1, clamping at 0
+        SOP_DECREMENT,
+        /// Increase the stencil value by 1, wrapping back to 0 when incrementing the maximum value
+        SOP_INCREMENT_WRAP,
+        /// Decrease the stencil value by 1, wrapping when decrementing 0
+        SOP_DECREMENT_WRAP,
+        /// Invert the bits of the stencil buffer
+        SOP_INVERT
+    };
+
+    struct StencilStateOp
+    {
+        StencilOperation stencilFailOp;
+        StencilOperation stencilPassOp;
+        StencilOperation stencilDepthFailOp;
+        CompareFunction compareOp;
+
+        StencilStateOp() :
+            stencilFailOp( SOP_KEEP ),
+            stencilPassOp( SOP_KEEP ),
+            stencilDepthFailOp( SOP_KEEP ),
+            compareOp( CMPF_ALWAYS_FAIL ) {}
+
+        bool operator < ( const StencilStateOp &other ) const
+        {
+            if( this->stencilFailOp != other.stencilFailOp )
+                return this->stencilFailOp < other.stencilFailOp;
+            if( this->stencilPassOp != other.stencilPassOp )
+                return this->stencilPassOp < other.stencilPassOp;
+            if( this->stencilDepthFailOp != other.stencilDepthFailOp )
+                return this->stencilDepthFailOp < other.stencilDepthFailOp;
+
+            return this->compareOp < other.compareOp;
+        }
+
+        bool operator != ( const StencilStateOp &other ) const
+        {
+            return this->stencilFailOp != other.stencilFailOp ||
+                   this->stencilPassOp != other.stencilPassOp ||
+                   this->stencilDepthFailOp != other.stencilDepthFailOp ||
+                   this->compareOp != other.compareOp;
+        }
+    };
+
+    ///@see HlmsPso regarding padding.
+    struct StencilParams
+    {
+        uint8           enabled;
+        uint8           readMask;
+        uint8           writeMask;
+        uint8           padding;
+        StencilStateOp  stencilFront;
+        StencilStateOp  stencilBack;
+
+        StencilParams() :
+            enabled( false ),
+            readMask( 0xFF ),
+            writeMask( 0xFF ),
+            padding( 0 ) {}
+
+        bool operator < ( const StencilParams &other ) const
+        {
+            if( this->enabled != other.enabled )
+                return this->enabled < other.enabled;
+            if( this->readMask != other.readMask )
+                return this->readMask < other.readMask;
+            if( this->stencilFront != other.stencilFront )
+                return this->stencilFront < other.stencilFront;
+
+            return this->stencilBack < other.stencilBack;
+        }
+
+        bool operator != ( const StencilParams &other ) const
+        {
+            return this->enabled != other.enabled ||
+                   this->readMask != other.readMask ||
+                   this->writeMask != other.writeMask ||
+                   this->stencilFront != other.stencilFront ||
+                   this->stencilBack != other.stencilBack;
+        }
     };
 
     /** High-level filtering options providing shortcuts to settings the
         minification, magnification and mip filters. */
     enum TextureFilterOptions
     {
-        /// No filtering or mipmapping is used. 
-        /// Equal to: min=Ogre::FO_POINT, mag=Ogre::FO_POINT, mip=Ogre::FO_NONE
+        /// Equal to: min=FO_POINT, mag=FO_POINT, mip=FO_NONE
         TFO_NONE,
-        /// 2x2 box filtering is performed when magnifying or reducing a texture, and a mipmap is picked from the list but no filtering is done between the levels of the mipmaps. 
-        /// Equal to: min=Ogre::FO_LINEAR, mag=Ogre::FO_LINEAR, mip=Ogre::FO_POINT
+        /// Equal to: min=FO_LINEAR, mag=FO_LINEAR, mip=FO_POINT
         TFO_BILINEAR,
-        /// 2x2 box filtering is performed when magnifying and reducing a texture, and the closest 2 mipmaps are filtered together. 
-        /// Equal to: min=Ogre::FO_LINEAR, mag=Ogre::FO_LINEAR, mip=Ogre::FO_LINEAR
+        /// Equal to: min=FO_LINEAR, mag=FO_LINEAR, mip=FO_LINEAR
         TFO_TRILINEAR,
-        /// This is the same as ’trilinear’, except the filtering algorithm takes account of the slope of the triangle in relation to the camera rather than simply doing a 2x2 pixel filter in all cases.
-        /// Equal to: min=Ogre::FO_ANISOTROPIC, max=Ogre::FO_ANISOTROPIC, mip=Ogre::FO_LINEAR
+        /// Equal to: min=FO_ANISOTROPIC, max=FO_ANISOTROPIC, mip=FO_LINEAR
         TFO_ANISOTROPIC
     };
 
@@ -108,37 +221,16 @@ namespace Ogre {
         FO_POINT,
         /// Average of a 2x2 pixel area, denotes bilinear for MIN and MAG, trilinear for MIP
         FO_LINEAR,
-        /// Similar to FO_LINEAR, but compensates for the angle of the texture plane. Note that in
-        /// order for this to make any difference, you must also set the
-        /// TextureUnitState::setTextureAnisotropy attribute too.
+        /// Similar to FO_LINEAR, but compensates for the angle of the texture plane
         FO_ANISOTROPIC
     };
 
-    /** Texture addressing modes - default is TAM_WRAP.
-    */
-    enum TextureAddressingMode
-    {
-        /// %Any value beyond 1.0 wraps back to 0.0. %Texture is repeated.
-        TAM_WRAP,
-        /// %Texture flips every boundary, meaning texture is mirrored every 1.0 u or v
-        TAM_MIRROR,
-        /// Values beyond 1.0 are clamped to 1.0. %Texture ’streaks’ beyond 1.0 since last line
-        /// of pixels is used across the rest of the address space. Useful for textures which
-        /// need exact coverage from 0.0 to 1.0 without the ’fuzzy edge’ wrap gives when
-        /// combined with filtering.
-        TAM_CLAMP,
-        /// %Texture coordinates outside the range [0.0, 1.0] are set to the border colour.
-        TAM_BORDER,
-        /// Unknown
-        TAM_UNKNOWN = 99
-    };
-
-    /** %Light shading modes. */
+    /** Light shading modes. DEPRECATED */
     enum ShadeOptions
     {
-        SO_FLAT, //!< No interpolation takes place. Each face is shaded with a single colour determined from the first vertex in the face.
-        SO_GOURAUD, //!< Colour at each vertex is linearly interpolated across the face.
-        SO_PHONG //!< Vertex normals are interpolated across the face, and these are used to determine colour at each pixel. Gives a more natural lighting effect but is more expensive and works better at high levels of tessellation. Not supported on all hardware.
+        SO_FLAT,
+        SO_GOURAUD,
+        SO_PHONG
     };
 
     /** Fog modes. */
@@ -155,7 +247,19 @@ namespace Ogre {
     };
 
     /** Hardware culling modes based on vertex winding.
-        This setting applies to how the hardware API culls triangles it is sent. */
+        This setting applies to how the hardware API culls triangles it is sent.
+    @par
+        A typical way for the rendering engine to cull triangles is based on the 'vertex winding' of
+        triangles. Vertex winding refers to the direction in which the vertices are passed or indexed
+        to in the rendering operation as viewed from the camera, and will wither be clockwise or
+        anticlockwise (that's 'counterclockwise' for you Americans out there ;) The default is
+        CULL_CLOCKWISE i.e. that only triangles whose vertices are passed/indexed in anticlockwise order
+        are rendered - this is a common approach and is used in 3D studio models for example. You can
+        alter this culling mode if you wish but it is not advised unless you know what you are doing.
+    @par
+        You may wish to use the CULL_NONE option for mesh data that you cull yourself where the vertex
+        winding is uncertain.
+    */
     enum CullingMode
     {
         /// Hardware never culls triangles and renders everything it receives.
@@ -164,21 +268,6 @@ namespace Ogre {
         CULL_CLOCKWISE = 2,
         /// Hardware culls triangles whose vertices are listed anticlockwise in the view.
         CULL_ANTICLOCKWISE = 3
-    };
-
-    /** Manual culling modes based on vertex normals.
-        This setting applies to how the software culls triangles before sending them to the 
-        hardware API. This culling mode is used by scene managers which choose to implement it -
-        normally those which deal with large amounts of fixed world geometry which is often 
-        planar (software culling movable variable geometry is expensive). */
-    enum ManualCullingMode
-    {
-        /// No culling so everything is sent to the hardware.
-        MANUAL_CULL_NONE = 1,
-        /// Cull triangles whose normal is pointing away from the camera (default).
-        MANUAL_CULL_BACK = 2,
-        /// Cull triangles whose normal is pointing towards the camera.
-        MANUAL_CULL_FRONT = 3
     };
 
     /** Enumerates the wave types usable with the Ogre engine. */
@@ -202,98 +291,12 @@ namespace Ogre {
     /** The polygon mode to use when rasterising. */
     enum PolygonMode
     {
-        /// Only the points of each polygon are rendered.
+        /// Only points are rendered.
         PM_POINTS = 1,
-        /// Polygons are drawn in outline only.
+        /// Wireframe models are rendered.
         PM_WIREFRAME = 2,
-        /// The normal situation - polygons are filled in.
+        /// Solid polygons are rendered.
         PM_SOLID = 3
-    };
-
-    /** An enumeration of broad shadow techniques */
-    enum ShadowTechnique
-    {
-        /** No shadows */
-        SHADOWTYPE_NONE = 0x00,
-        /** Mask for additive shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_ADDITIVE = 0x01,
-        /** Mask for modulative shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_MODULATIVE = 0x02,
-        /** Mask for integrated shadows (not for direct use, use SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_INTEGRATED = 0x04,
-        /** Mask for stencil shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_STENCIL = 0x10,
-        /** Mask for texture shadows (not for direct use, use  SHADOWTYPE_ enum instead)
-        */
-        SHADOWDETAILTYPE_TEXTURE = 0x20,
-        
-        /** Stencil shadow technique which renders all shadow volumes as
-            a modulation after all the non-transparent areas have been 
-            rendered. This technique is considerably less fillrate intensive 
-            than the additive stencil shadow approach when there are multiple
-            lights, but is not an accurate model. 
-        */
-        SHADOWTYPE_STENCIL_MODULATIVE = SHADOWDETAILTYPE_STENCIL | SHADOWDETAILTYPE_MODULATIVE,
-        /** Stencil shadow technique which renders each light as a separate
-            additive pass to the scene. This technique can be very fillrate
-            intensive because it requires at least 2 passes of the entire
-            scene, more if there are multiple lights. However, it is a more
-            accurate model than the modulative stencil approach and this is
-            especially apparent when using coloured lights or bump mapping.
-        */
-        SHADOWTYPE_STENCIL_ADDITIVE = SHADOWDETAILTYPE_STENCIL | SHADOWDETAILTYPE_ADDITIVE,
-        /** Texture-based shadow technique which involves a monochrome render-to-texture
-            of the shadow caster and a projection of that texture onto the 
-            shadow receivers as a modulative pass. 
-        */
-        SHADOWTYPE_TEXTURE_MODULATIVE = SHADOWDETAILTYPE_TEXTURE | SHADOWDETAILTYPE_MODULATIVE,
-        
-        /** Texture-based shadow technique which involves a render-to-texture
-            of the shadow caster and a projection of that texture onto the 
-            shadow receivers, built up per light as additive passes. 
-            This technique can be very fillrate intensive because it requires numLights + 2 
-            passes of the entire scene. However, it is a more accurate model than the 
-            modulative approach and this is especially apparent when using coloured lights 
-            or bump mapping.
-        */
-        SHADOWTYPE_TEXTURE_ADDITIVE = SHADOWDETAILTYPE_TEXTURE | SHADOWDETAILTYPE_ADDITIVE,
-
-        /** Texture-based shadow technique which involves a render-to-texture
-        of the shadow caster and a projection of that texture on to the shadow
-        receivers, with the usage of those shadow textures completely controlled
-        by the materials of the receivers.
-        This technique is easily the most flexible of all techniques because 
-        the material author is in complete control over how the shadows are
-        combined with regular rendering. It can perform shadows as accurately
-        as SHADOWTYPE_TEXTURE_ADDITIVE but more efficiently because it requires
-        less passes. However it also requires more expertise to use, and 
-        in almost all cases, shader capable hardware to really use to the full.
-        @note The 'additive' part of this mode means that the colour of
-        the rendered shadow texture is by default plain black. It does
-        not mean it does the adding on your receivers automatically though, how you
-        use that result is up to you.
-        */
-        SHADOWTYPE_TEXTURE_ADDITIVE_INTEGRATED = SHADOWTYPE_TEXTURE_ADDITIVE | SHADOWDETAILTYPE_INTEGRATED,
-        /** Texture-based shadow technique which involves a render-to-texture
-            of the shadow caster and a projection of that texture on to the shadow
-            receivers, with the usage of those shadow textures completely controlled
-            by the materials of the receivers.
-            This technique is easily the most flexible of all techniques because 
-            the material author is in complete control over how the shadows are
-            combined with regular rendering. It can perform shadows as accurately
-            as SHADOWTYPE_TEXTURE_ADDITIVE but more efficiently because it requires
-            less passes. However it also requires more expertise to use, and 
-            in almost all cases, shader capable hardware to really use to the full.
-            @note The 'modulative' part of this mode means that the colour of
-            the rendered shadow texture is by default the 'shadow colour'. It does
-            not mean it modulates on your receivers automatically though, how you
-            use that result is up to you.
-        */
-        SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED = SHADOWTYPE_TEXTURE_MODULATIVE | SHADOWDETAILTYPE_INTEGRATED
     };
 
     /** An enumeration describing which material properties should track the vertex colours */
@@ -306,21 +309,12 @@ namespace Ogre {
         TVC_EMISSIVE    = 0x8
     };
 
-    /** Function used compute the camera-distance for sorting objects */
+    /** Sort mode for billboard-set and particle-system */
     enum SortMode
     {
-
-        /** Sort by direction of the camera
-         *
-         * The distance along the camera view as in `cam->getDerivedDirection().dotProduct(diff)`
-         * Best for @ref PT_ORTHOGRAPHIC
-         */
+        /** Sort by direction of the camera */
         SM_DIRECTION,
-        /** Sort by distance from the camera
-         *
-         * The euclidean distance as in `diff.squaredLength()`
-         * Best for @ref PT_PERSPECTIVE
-         */
+        /** Sort by distance from the camera */
         SM_DISTANCE
     };
 
@@ -345,6 +339,22 @@ namespace Ogre {
       SMT_NONE = 0x0,
       SMT_FRAME_SEQUENTIAL
     };
+
+    enum ShaderType
+    {
+        VertexShader,
+        PixelShader,
+        GeometryShader,
+        HullShader,
+        DomainShader,
+        NumShaderTypes
+    };
+
+    static const uint8 c_allGraphicStagesMask = ( 1u << VertexShader ) | ( 1u << PixelShader ) |
+                                                ( 1u << GeometryShader ) | ( 1u << HullShader ) |
+                                                ( 1u << DomainShader );
+    // NumShaderTypes == GPT_COMPUTE_PROGRAM
+    static const uint8 c_computeStageMask = 1u << NumShaderTypes;
 
     /** Flags for the Instance Manager when calculating ideal number of instances per batch */
     enum InstanceManagerFlags
@@ -372,7 +382,58 @@ namespace Ogre {
 
         IM_USEALL       = IM_USE16BIT|IM_VTFBESTFIT|IM_USEONEWEIGHT
     };
-    
+
+    /** The types of NodeMemoryManager & ObjectMemoryManagers
+    @remarks
+        By default all objects are dynamic. Static objects can save a lot of performance on CPU side
+        (and sometimes GPU side, for example with some instancing techniques) by telling the engine
+        they won't be changing often.
+    @par
+        What it means for Nodes:
+            Nodes created with SCENE_STATIC won't update their derived position/rotation/scale every
+            frame.
+            This means that modifying (eg) a static node position won't actually take effect until
+            SceneManager::notifyStaticDirty( mySceneNode ) is called or some other similar call.
+
+            If the static scene node is child of a dynamic parent node, modifying the dynamic node
+            will not cause the static one to notice the change until explicitly notifying the
+            SceneManager that the child node should be updated.
+
+            If a static scene node is child of another static scene node, explicitly notifying the
+            SceneManager of the parent's change automatically causes the child to be updated as well
+
+            Having a dynamic node to be child of a static node is perfectly pausible and encouraged,
+            for example a moving pendulum hanging from a static clock.
+            Having a static node being child of a dynamic node doesn't make much sense, and is probably
+            a bug (unless the parent is the root node).
+    @par
+        What it means for Entities (and InstancedEntities, etc)
+            Static entities are scheduled for culling and rendering like dynamic ones, but won't update
+            their world AABB bounds (even if their scene node they're attached to changes)
+            
+            Static entities will update their aabb if user calls
+            SceneManager::notifyStaticDirty( myEntity ) or the static node they're attached to was also
+            flagged as dirty. Note that updating the node's position doesn't flag the node as dirty
+            (it's not implicit) and hence the entity won't be updated either.
+            
+            Static entities can only be attached to static nodes, and dynamic entities can only be
+            attached to dynamic nodes.
+    @par    
+        Note that on most cases, changing a single static entity or node (or creating more) can cause
+        a lot of other static objects to be scheduled to update, so don't do it often, and do it all
+        in the same frame. An example is doing it at startup (i.e. during loading time)
+    @par
+        Entities & Nodes can switch between dynamic & static at runtime. However InstancedEntities can't.
+        You need to destroy the InstancedEntity and create a new one if you wish to switch (which, by
+        the way, isn't expensive because batches preallocate the instances)
+        InstancedEntities with different SceneMemoryMgrTypes will never share the same batch.
+    */
+    enum SceneMemoryMgrTypes
+    {
+        SCENE_DYNAMIC = 0,
+        SCENE_STATIC,
+        NUM_SCENE_MEMORY_MANAGER_TYPES
+    };
     
     /** A hashed vector.
     */
@@ -380,7 +441,7 @@ namespace Ogre {
     class HashedVector
     {
     public:
-        typedef typename std::vector<T> VectorImpl;
+        typedef std::vector<T, STLAllocator<T, GeneralAllocPolicy> > VectorImpl;
     protected:
         VectorImpl mList;
         mutable uint32 mListHash;
@@ -587,20 +648,73 @@ namespace Ogre {
     };
 
     class Light;
-    typedef HashedVector<Light*> LightList;
+    typedef FastArray<Light*> LightArray;
 
+    /// Used as the light list, sorted
+    struct LightClosest
+    {
+        Light       *light;
+        /// Index to SceneManager::mGlobalLightList.
+        /// globalIndex may be == SceneManager::mGlobalLightList.size() if
+        /// it holds a static light (see CompositorShadowNode::setLightFixedToShadowMap)
+        /// that is not currently in camera.
+        size_t      globalIndex; //Index to SceneManager::mGlobalLightList
+        Real        distance;
+        bool        isStatic;
+        bool        isDirty;
+
+        LightClosest() :
+            light( 0 ),globalIndex( 0 ),distance( 0.0f ),
+            isStatic( false ), isDirty( false ) {}
+        LightClosest( Light *_light, size_t _globalIndex, Real _distance ) :
+            light( _light ), globalIndex( _globalIndex ), distance( _distance ),
+            isStatic( false ), isDirty( false ) {}
+
+        inline bool operator < ( const LightClosest &right ) const
+        {
+            /*Shouldn't be necessary. distance is insanely low (big negative number)
+            if( light->getType() == Light::LT_DIRECTIONAL &&
+                right.light->getType() != Light::LT_DIRECTIONAL )
+            {
+                return true;
+            }
+            else if( light->getType() != Light::LT_DIRECTIONAL &&
+                     right.light->getType() == Light::LT_DIRECTIONAL )
+            {
+                return false;
+            }*/
+            return distance < right.distance;
+        }
+    };
+    /// Holds all lights in SoA after being culled over all frustums
+    struct LightListInfo
+    {
+        LightArray                      lights;
+        ///Copy from lights[i]->getVisibilityFlags(), this copy avoids one level of indirection
+        uint32  * RESTRICT_ALIAS        visibilityMask;
+        Sphere  * RESTRICT_ALIAS        boundingSphere;
+
+        LightListInfo() : visibilityMask(0), boundingSphere(0) {}
+        ~LightListInfo()
+        {
+            OGRE_FREE_SIMD( visibilityMask, MEMCATEGORY_SCENE_CONTROL );
+            OGRE_FREE_SIMD( boundingSphere, MEMCATEGORY_SCENE_CONTROL );
+        }
+    };
+    typedef HashedVector<LightClosest> LightList;
+    typedef FastArray<LightClosest> LightClosestArray;
 
     /// Constant blank string, useful for returning by ref where local does not exist
     const String BLANKSTRING;
 
-    typedef std::map<String, bool> UnaryOptionList;
-    typedef std::map<String, String> BinaryOptionList;
+    typedef StdMap<String, bool> UnaryOptionList;
+    typedef StdMap<String, String> BinaryOptionList;
 
     /// Name / value parameter pair (first = name, second = value)
-    typedef std::map<String, String> NameValuePairList;
+    typedef StdMap<String, String> NameValuePairList;
 
     /// Alias / Texture name pair (first = alias, second = texture name)
-    typedef std::map<String, String> AliasTextureNamePairList;
+    typedef StdMap<String, String> AliasTextureNamePairList;
 
         template< typename T > struct TRect
         {
@@ -680,18 +794,14 @@ namespace Ogre {
               return ret;
 
           }
-          bool operator==(const TRect& rhs) const
-          {
-              return left == rhs.left && right == rhs.right && top == rhs.top && bottom == rhs.bottom;
-          }
-          bool operator!=(const TRect& rhs) const { return !(*this == rhs); }
+
         };
-        template<typename T>
+        /*template<typename T>
         std::ostream& operator<<(std::ostream& o, const TRect<T>& r)
         {
             o << "TRect<>(l:" << r.left << ", t:" << r.top << ", r:" << r.right << ", b:" << r.bottom << ")";
             return o;
-        }
+        }*/
 
         /** Structure used to define a rectangle in a 2-D floating point space.
         */
@@ -707,7 +817,7 @@ namespace Ogre {
         typedef TRect< long > Rect;
 
         /** Structure used to define a box in a 3-D integer space.
-            Note that the left, top, and front edges are included but the right,
+            Note that the left, top, and front edges are included but the right, 
             bottom and back ones are not.
          */
         struct Box
@@ -724,7 +834,8 @@ namespace Ogre {
                 @param  t   y value of top edge
                 @param  r   x value of right edge
                 @param  b   y value of bottom edge
-                @note @copydetails Ogre::Box
+                @note Note that the left, top, and front edges are included 
+                    but the right, bottom and back ones are not.
             */
             Box( uint32 l, uint32 t, uint32 r, uint32 b ):
                 left(l),
@@ -736,10 +847,6 @@ namespace Ogre {
             {
                 assert(right >= left && bottom >= top && back >= front);
             }
-
-            /// @overload
-            template <typename T> explicit Box(const TRect<T>& r) : Box(r.left, r.top, r.right, r.bottom) {}
-
             /** Define a box from left, top, front, right, bottom and back
                 coordinates.
                 @param  l   x value of left edge
@@ -748,7 +855,8 @@ namespace Ogre {
                 @param  r   x value of right edge
                 @param  b   y value of bottom edge
                 @param  bb  z value of back edge
-                @note @copydetails Ogre::Box
+                @note Note that the left, top, and front edges are included 
+                    but the right, bottom and back ones are not.
             */
             Box( uint32 l, uint32 t, uint32 ff, uint32 r, uint32 b, uint32 bb ):
                 left(l),
@@ -760,13 +868,7 @@ namespace Ogre {
             {
                 assert(right >= left && bottom >= top && back >= front);
             }
-
-            /// @overload
-            explicit Box(const Vector3i& size)
-                : left(0), top(0), right(size[0]), bottom(size[1]), front(0), back(size[2])
-            {
-            }
-
+            
             /// Return true if the other box is a part of this one
             bool contains(const Box &def) const
             {
@@ -780,11 +882,6 @@ namespace Ogre {
             uint32 getHeight() const { return bottom-top; }
             /// Get the depth of this box
             uint32 getDepth() const { return back-front; }
-
-            /// origin (top, left, front) of the box
-            Vector3i getOrigin() const { return Vector3i(left, top, front); }
-            /// size (width, height, depth) of the box
-            Vector3i getSize() const { return Vector3i(getWidth(), getHeight(), getDepth()); }
         };
 
     
@@ -814,24 +911,207 @@ namespace Ogre {
         CLIPPED_ALL = 2
     };
 
-    /// Render window creation parameters.
-    struct RenderWindowDescription
+    /** Specifies orientation mode.
+    */
+    enum OrientationMode
     {
-        String              name;
-        unsigned int        width;
-        unsigned int        height;
-        bool                useFullScreen;
-        NameValuePairList   miscParams;
+        OR_DEGREE_0       = 0,
+        /// Causes internal resolution to swap width and height
+        OR_DEGREE_90      = 1,
+        OR_DEGREE_180     = 2,
+        /// Causes internal resolution to swap width and height
+        OR_DEGREE_270     = 3,
+
+        OR_PORTRAIT       = OR_DEGREE_0,
+        OR_LANDSCAPERIGHT = OR_DEGREE_90,
+        OR_LANDSCAPELEFT  = OR_DEGREE_270
     };
 
-    /// Render window creation parameters container.
-    typedef std::vector<RenderWindowDescription> RenderWindowDescriptionList;
+    namespace MsaaPatterns
+    {
+        enum MsaaPatterns
+        {
+            /// Let the GPU decide.
+            Undefined,
+            /// The subsample locations follow a fixed known mPattern.
+            /// Call TextureGpu::getSubsampleLocations to get them.
+            Standard,
+            /// The subsample locations are centered in a grid.
+            /// May not be supported by the GPU/API, in which case Standard will be used instead
+            /// Call TextureGpu::isMsaaPatternSupported to check whether it will be honoured.
+            Center,
+            /// All subsamples are at 0, 0; effectively "disabling" msaa.
+            CenterZero
+        };
+    }
+
+    /// Opaque struct that holds effective FSAA (MSAA, CSAA, etc.) mode.
+    ///
+    /// Note that you can request a SampleDescription, but you may get the closest
+    /// quality if that particular setting is not supported by the GPU.
+    ///
+    /// Additionally, device lost events can cause FSAA settings to be degraded on the fly
+    /// Listen for TextureGpuListener::FsaaSettingAlteredByApi events to be notified of
+    /// this
+    struct _OgreExport SampleDescription
+    {
+    protected:
+        uint8 mColourSamples;
+        uint8 mCoverageSamples;
+        uint8 mPattern; /// See MsaaPatterns::MsaaPatterns
+        uint8 mPadding;
+
+    public:
+        SampleDescription( uint8 msaa = 1u,
+                           MsaaPatterns::MsaaPatterns pattern = MsaaPatterns::Undefined ) :
+            mColourSamples( msaa ),
+            mCoverageSamples( 0 ),
+            mPattern( pattern ),
+            mPadding( 0u )
+        {
+        }
+        explicit SampleDescription( const String &fsaaSetting )
+        {
+            parseString( fsaaSetting );
+        }
+
+        bool operator==( const SampleDescription &rhs ) const
+        {
+            return mColourSamples == rhs.mColourSamples && mCoverageSamples == rhs.mCoverageSamples &&
+                   mPattern == rhs.mPattern;
+        }
+
+        bool operator!=( const SampleDescription &rhs ) const
+        {
+            return mColourSamples != rhs.mColourSamples || mCoverageSamples != rhs.mCoverageSamples ||
+                   mPattern != rhs.mPattern;
+        }
+
+        bool operator<( const SampleDescription &other ) const
+        {
+            if( this->mColourSamples != other.mColourSamples )
+                return this->mColourSamples < other.mColourSamples;
+            if( this->mCoverageSamples != other.mCoverageSamples )
+                return this->mCoverageSamples < other.mCoverageSamples;
+
+            return this->mPattern < other.mPattern;
+        }
+
+        bool isMultisample( void ) const { return mColourSamples > 1u; }
+
+        /// For internal use
+        void _set( uint8 colourSamples, uint8 coverageSamples, MsaaPatterns::MsaaPatterns pattern );
+
+        uint8 getColourSamples( void ) const { return mColourSamples; }
+        uint8 getCoverageSamples( void ) const { return mCoverageSamples; }
+        uint8 getMaxSamples( void ) const { return std::max( mCoverageSamples, mColourSamples ); }
+        MsaaPatterns::MsaaPatterns getMsaaPattern( void ) const
+        {
+            return static_cast<MsaaPatterns::MsaaPatterns>( mPattern );
+        }
+
+        void setMsaa( uint8 msaa, MsaaPatterns::MsaaPatterns pattern = MsaaPatterns::Undefined );
+
+        bool isMsaa( void ) const;
+
+        /** Set CSAA by NVIDIA's marketing names e.g.
+                8x CSAA call setCsaa( 8u, false )
+                8x CSAA (Quality) then call setCsaa( 8u, true )
+                16x CSAA call setCsaa( 16u, false )
+                16x CSAA (Quality) then call setCsaa( 16u, true )
+        @param samples
+            Marketing value. Can be 8 or 16
+        @param bQuality
+            True to use the 'quality' variation, false otherwise
+        */
+        void setCsaa( uint8 samples, bool bQuality );
+
+        /** Returns true if this is CSAA, whether it's quality or not
+        @remark
+            There is some overlap between CSAA and EQAA modes, hence this
+            function may return true even if setEqaa was called
+        */
+        bool isCsaa( void ) const;
+
+        /** Returns true if this is CSAA in quality mode
+        @remark
+            There is some overlap between CSAA and EQAA modes, hence this
+            function may return true even if setEqaa was called
+        */
+        bool isCsaaQuality( void ) const;
+
+        /** Set EQAA by its marketing number (which coincides with its technical spec) e.g.
+                2f4x EQAA call setEqaa( 2u, 4u )
+                4f8x EQAA call setEqaa( 4u, 8u )
+                8f16x EQAA call setEqaa( 8u, 16u )
+        @param mColourSamples
+        @param coverageSample
+        */
+        void setEqaa( uint8 colourSamples, uint8 coverageSamples );
+
+        void parseString( const String &fsaaSetting );
+        /// Appends the FSAA description to the string
+        void getFsaaDesc( LwString &outFsaaSetting ) const;
+        /// Appends the FSAA description to the string
+        void getFsaaDesc( String &outFsaaSetting ) const;
+    };
+
+    struct _OgreExport RenderingMetrics
+    {
+        bool mIsRecordingMetrics;
+        size_t mBatchCount;
+        size_t mFaceCount;
+        size_t mVertexCount;
+        size_t mDrawCount;
+        size_t mInstanceCount;
+        RenderingMetrics();
+    };
 
     /// Render window container.
-    typedef std::vector<RenderWindow*> RenderWindowList;
+    typedef StdVector<Window*> WindowList;
 
     /** @} */
     /** @} */
+
+    /** Used for efficient removal in std::vector and std::deque (like an std::list)
+        However it assumes the order of elements in container is not important or
+        something external to the container holds the index of an element in it
+        (but still should be kept deterministically across machines)
+        Basically it swaps the iterator with the last iterator, and pops back
+        Returns the next iterator
+    */
+    template<typename T>
+    typename T::iterator efficientVectorRemove( T& container, typename T::iterator& iterator )
+    {
+        const size_t idx = iterator - container.begin();
+        *iterator = container.back();
+        container.pop_back();
+
+        return container.begin() + idx;
+    }
+
+    /// Aligns the input 'offset' to the next multiple of 'alignment'.
+    /// Alignment can be any value except 0. Some examples:
+    ///
+    /// alignToNextMultiple( 0, 4 ) = 0;
+    /// alignToNextMultiple( 1, 4 ) = 4;
+    /// alignToNextMultiple( 2, 4 ) = 4;
+    /// alignToNextMultiple( 3, 4 ) = 4;
+    /// alignToNextMultiple( 4, 4 ) = 4;
+    /// alignToNextMultiple( 5, 4 ) = 8;
+    ///
+    /// alignToNextMultiple( 0, 3 ) = 0;
+    /// alignToNextMultiple( 1, 3 ) = 3;
+    inline size_t alignToNextMultiple( size_t offset, size_t alignment )
+    {
+        return ( (offset + alignment - 1u) / alignment ) * alignment;
+    }
+    /// This function has been purposedly not been named 'alignToPrevMultiple'
+    /// to avoid easily confusing it with alignToNextMultiple
+    inline size_t alignToPreviousMult( size_t offset, size_t alignment )
+    {
+        return (offset / alignment) * alignment;
+    }
 }
 
 #include "OgreHeaderSuffix.h"

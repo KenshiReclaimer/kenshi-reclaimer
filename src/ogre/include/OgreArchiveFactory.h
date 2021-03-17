@@ -62,14 +62,22 @@ namespace Ogre {
         virtual ~ArchiveFactory() {}
         /** Creates a new object.
         @param name Name of the object to create
-        @param readOnly whether the Archive is read only
         @return
             An object created by the factory. The type of the object depends on
             the factory.
         */
-        virtual Archive* createInstance(const String& name, bool readOnly) OGRE_NODISCARD = 0;
+        virtual Archive* createInstance(const String& name, bool readOnly) = 0;
 
-        virtual Archive* createInstance(const String& name) OGRE_NODISCARD { return createInstance(name, true); }
+        virtual Archive* createInstance(const String& name) { return createInstance(name, true); }
+
+        /** Some implementations (i.e. APKFileSystemArchive) usually modify the filename. For example
+            in APKFileSystemArchive, "/path/to/localfile.mesh" gets internally stored as
+            "path/to/localfile.mesh" (no leading slash), but across the platform the leading slash
+            is required. The ArchiveManager needs to be aware of this.
+        @param inOutPath
+            Given the input path, converts it to the final path.
+        */
+        virtual void convertPath( String& inOutPath ) const {}
     };
     /** @} */
     /** @} */

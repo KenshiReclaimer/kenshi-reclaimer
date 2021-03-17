@@ -30,7 +30,10 @@ THE SOFTWARE.
 #define __Polygon_H__
 
 #include "OgrePrerequisites.h"
-#include "OgreVector.h"
+#include "OgreVector3.h"
+
+#include "ogrestd/vector.h"
+
 #include "OgreHeaderPrefix.h"
 
 
@@ -53,10 +56,9 @@ namespace Ogre
     {
 
     public:
-        typedef std::vector<Vector3>               VertexList;
-
-        typedef std::multimap<Vector3, Vector3>        EdgeMap;
-        typedef std::pair< Vector3, Vector3>        Edge;
+        typedef vector<Vector3>::type VertexList;
+        typedef StdMultiMap<Vector3, Vector3> EdgeMap;
+        typedef std::pair<Vector3, Vector3> Edge;
 
     protected:
         VertexList      mVertexList;
@@ -132,8 +134,6 @@ namespace Ogre
         */
         bool operator != (const Polygon& rhs) const
         { return !( *this == rhs ); }
-
-        Polygon& operator=(const Ogre::Polygon&) ;
 
         /** Prints out the polygon data.
         */

@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgrePatchSurface.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -74,14 +75,15 @@ namespace Ogre {
             subdivision). */
         void setSubdivision(Real factor);
     protected:
-        void loadImpl(void) override;
+        /// Overridden from Resource
+        void loadImpl(void);
         /// Overridden from Resource - do nothing (no disk caching)
-        void prepareImpl(void) override {}
+        void prepareImpl(void) {}
 
     };
     /** @} */
     /** @} */
-
+}
 }
 
 #endif

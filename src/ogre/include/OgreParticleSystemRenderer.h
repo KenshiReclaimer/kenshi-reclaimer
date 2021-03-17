@@ -35,7 +35,11 @@ THE SOFTWARE.
 #include "OgreCommon.h"
 #include "OgreRenderable.h"
 
+#include "ogrestd/list.h"
+
 namespace Ogre {
+
+    typedef FastArray<Renderable*> RenderableArray;
 
     /** \addtogroup Core
     *  @{
@@ -62,19 +66,22 @@ namespace Ogre {
             The subclass must update the render queue using whichever Renderable
             instance(s) it wishes.
         */
-        virtual void _updateRenderQueue(RenderQueue* queue, 
-            std::list<Particle*>& currentParticles, bool cullIndividually) = 0;
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera,
+            const Camera *lodCamera, list<Particle*>::type& currentParticles,
+            bool cullIndividually, RenderableArray &outRenderables ) = 0;
 
+        /** Sets the HLMS material this renderer must use; called by ParticleSystem. */
+        virtual void _setDatablock( HlmsDatablock *datablock ) = 0;
         /** Sets the material this renderer must use; called by ParticleSystem. */
-        virtual void _setMaterial(MaterialPtr& mat) = 0;
+        virtual void _setMaterialName( const String &matName, const String &resourceGroup ) = 0;
         /** Delegated to by ParticleSystem::_notifyCurrentCamera */
-        virtual void _notifyCurrentCamera(Camera* cam) = 0;
+        virtual void _notifyCurrentCamera(const Camera* camera, const Camera* lodCamera) = 0;
         /** Delegated to by ParticleSystem::_notifyAttached */
-        virtual void _notifyAttached(Node* parent, bool isTagPoint = false) = 0;
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual void _notifyParticleRotated(void) {}
-        /// @deprecated do not use
-        OGRE_DEPRECATED virtual void _notifyParticleResized(void) {}
+        virtual void _notifyAttached(Node* parent) = 0;
+        /** Optional callback notified when particles are rotated */
+        virtual void _notifyParticleRotated(void) {}
+        /** Optional callback notified when particles are resized individually */
+        virtual void _notifyParticleResized(void) {}
         /** Tells the renderer that the particle quota has changed */
         virtual void _notifyParticleQuota(size_t quota) = 0;
         /** Tells the renderer that the particle default size has changed */
@@ -84,9 +91,9 @@ namespace Ogre {
         /** Optional callback notified when particle expired */
         virtual void _notifyParticleExpired(Particle* particle) {}
         /** Optional callback notified when particles moved */
-        virtual void _notifyParticleMoved(std::list<Particle*>& currentParticles) {}
+        virtual void _notifyParticleMoved(list<Particle*>::type& currentParticles) {}
         /** Optional callback notified when particles cleared */
-        virtual void _notifyParticleCleared(std::list<Particle*>& currentParticles) {}
+        virtual void _notifyParticleCleared(list<Particle*>::type& currentParticles) {}
         /** Create a new ParticleVisualData instance for attachment to a particle.
         @remarks
             If this renderer needs additional data in each particle, then this should
@@ -108,10 +115,8 @@ namespace Ogre {
             output.
         */
         virtual void setRenderQueueGroup(uint8 queueID) = 0;
-        /** Sets which render queue group and priority this renderer should target with it's
-            output.
-        */
-        virtual void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority) = 0;
+
+        virtual void setRenderQueueSubGroup( uint8 subGroupId ) = 0;
 
         /** Setting carried over from ParticleSystem.
         */
@@ -120,20 +125,18 @@ namespace Ogre {
         /** Gets the desired particles sort mode of this renderer */
         virtual SortMode _getSortMode(void) const = 0;
 
-        /** Required method to allow the renderer to communicate the Renderables
-            it will be using to render the system to a visitor.
-        @see MovableObject::visitRenderables
-        */
-        virtual void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false) = 0;
-
-        /// Tells the Renderer about the ParticleSystem bounds
-        virtual void _notifyBoundingBox(const AxisAlignedBox& aabb) {}
-
-        /// Tells the Renderer whether to cast shadows
-        virtual void _notifyCastShadows(bool enabled) {}
     };
 
+    /** Abstract class definition of a factory object for ParticleSystemRenderer. */
+    class _OgreExport ParticleSystemRendererFactory : public FactoryObj<ParticleSystemRenderer>, public FXAlloc
+    {
+    public:
+        // No methods, must just override all methods inherited from FactoryObj
+        ParticleSystemRendererFactory() : mCurrentSceneManager(0) {}
+
+        /// Needs to be set directly before calling createInstance
+        SceneManager *mCurrentSceneManager;
+    };
     /** @} */
     /** @} */
 

@@ -30,7 +30,6 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreGpuProgram.h"
-#include "OgreHeaderPrefix.h"
 
 namespace Ogre {
 
@@ -63,25 +62,38 @@ namespace Ogre {
     */
     class _OgreExport HighLevelGpuProgram : public GpuProgram
     {
+    public:
+        /// Command object for enabling include in shaders
+        class _OgrePrivate CmdEnableIncludeHeader : public ParamCommand
+        {
+        public:
+            String doGet(const void* target) const;
+            void doSet(void* target, const String& val);
+        };
+
+        static CmdEnableIncludeHeader msEnableIncludeHeaderCmd;
+
     protected:
         /// Whether the high-level program (and it's parameter defs) is loaded
         bool mHighLevelLoaded;
-        /// Have we built the name->index parameter map yet?
-        mutable bool mConstantDefsBuilt;
+        /// See setEnableIncludeHeader
+        bool mEnableIncludeHeader;
         /// The underlying assembler program
         GpuProgramPtr mAssemblerProgram;
-        /// Preprocessor options
-        String mPreprocessorDefines;
-
-        /// in-situ parsing of defines
-        static std::vector<std::pair<const char*, const char*>> parseDefines(String& defines);
-
-        String appendBuiltinDefines(String defines);
+        /// Have we built the name->index parameter map yet?
+        mutable bool mConstantDefsBuilt;
 
         /// Internal load high-level portion if not loaded
         virtual void loadHighLevel(void);
         /// Internal unload high-level portion if loaded
         virtual void unloadHighLevel(void);
+
+        void dumpSourceIfHasIncludeEnabled(void);
+        void parseIncludeFile( String &inOutSourceFile );
+        /** Internal load implementation, loads just the high-level portion, enough to 
+            get parameters.
+        */
+        virtual void loadHighLevelImpl(void);
         /** Internal method for creating an appropriate low-level program from this
         high-level program, must be implemented by subclasses. */
         virtual void createLowLevelImpl(void) = 0;
@@ -97,12 +109,12 @@ namespace Ogre {
         */
         virtual void buildConstantDefinitions() const = 0;
 
+        void setupBaseParamDictionary(void);
+
         /** @copydoc Resource::loadImpl */
         void loadImpl();
         /** @copydoc Resource::unloadImpl */
         void unloadImpl();
-
-        void setupBaseParamDictionary();
     public:
         /** Constructor, should be used only by factory classes. */
         HighLevelGpuProgram(ResourceManager* creator, const String& name, ResourceHandle handle,
@@ -119,7 +131,34 @@ namespace Ogre {
         */
         GpuProgramParametersSharedPtr createParameters(void);
         /** @copydoc GpuProgram::_getBindingDelegate */
-        GpuProgram* _getBindingDelegate(void) { return mAssemblerProgram.get(); }
+        GpuProgram* _getBindingDelegate(void) { return mAssemblerProgram.getPointer(); }
+
+        /** Whether we should parse the source code looking for include files and
+            embedding the file. Disabled by default to avoid slowing down when
+            #include is not used. Not needed if the API natively supports it (D3D11).
+        @remarks
+            Single line comments are supported:
+                // #include "MyFile.h" --> won't be included.
+
+            Block comment lines are not supported, but may not matter if
+            the included file does not close the block:
+                / *
+                    #include "MyFile.h" --> file will be included anyway.
+                * /
+
+            Preprocessor macros are not supported, but should not matter:
+                #if SOME_MACRO
+                    #include "MyFile.h" --> file will be included anyway.
+                #endif
+        @par
+            Recursive includes are supported (e.g. header includes a header)
+        @par
+            Beware included files mess up error reporting (wrong lines)
+        @param bEnable
+            True to support #include. Must be toggled before loading the source file.
+        */
+        void setEnableIncludeHeader( bool bEnable );
+        bool getEnableIncludeHeader(void) const;
 
         /** Get the full list of GpuConstantDefinition instances.
         @note
@@ -129,19 +168,12 @@ namespace Ogre {
 
         virtual size_t calculateSize(void) const;
 
-        /** Sets the preprocessor defines used to compile the program. */
-        void setPreprocessorDefines(const String& defines) { mPreprocessorDefines = defines; }
-        /** Gets the preprocessor defines used to compile the program. */
-        const String& getPreprocessorDefines(void) const { return mPreprocessorDefines; }
 
-        /// Scan the source for \#include and replace with contents from OGRE resources
-        static String _resolveIncludes(const String& source, Resource* resourceBeingLoaded, const String& fileName, bool supportsFilename = false);
+
+
     };
     /** @} */
     /** @} */
 
 }
-
-#include "OgreHeaderSuffix.h"
-
 #endif

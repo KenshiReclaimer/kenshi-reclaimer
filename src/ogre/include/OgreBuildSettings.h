@@ -3,110 +3,111 @@
 
 // CMake auto-generated configuration options
 
-// Define ogre version
-#define OGRE_VERSION_MAJOR 1
-#define OGRE_VERSION_MINOR 12
-#define OGRE_VERSION_PATCH 12
-#define OGRE_VERSION_SUFFIX ""
-#define OGRE_VERSION_NAME "Rhagorthua"
-
 /* #undef OGRE_STATIC_LIB */
-#define OGRE_DEBUG_MODE 0
+#define OGRE_DEBUG_LEVEL_DEBUG 3
+#define OGRE_DEBUG_LEVEL_RELEASE 0
 
-/** There are three modes for resource lookup
-0 - LEGACY - search in all groups twice - for case sensitive and insensitive lookup
-1 - PEDANTIC - require an explicit resource group. Case sensitive lookup.
-2 - STRICT - search in default group if not specified otherwise. Case sensitive lookup.
-*/
-#define OGRE_RESOURCEMANAGER_STRICT 2
-
-#define OGRE_NODELESS_POSITIONING
+#define OGRE_BUILD_RENDERSYSTEM_D3D11
+#define OGRE_BUILD_RENDERSYSTEM_GL3PLUS
+/* #undef OGRE_BUILD_RENDERSYSTEM_GLES */
+/* #undef OGRE_BUILD_RENDERSYSTEM_GLES2 */
+/* #undef OGRE_BUILD_RENDERSYSTEM_METAL */
+/* #undef OGRE_BUILD_RENDERSYSTEM_VULKAN */
+#define OGRE_BUILD_PLUGIN_PFX
+/* #undef OGRE_BUILD_COMPONENT_HLMS_PBS_MOBILE */
+/* #undef OGRE_BUILD_COMPONENT_HLMS_UNLIT_MOBILE */
+#define OGRE_BUILD_COMPONENT_HLMS_PBS
+#define OGRE_BUILD_COMPONENT_HLMS_UNLIT
+/* #undef OGRE_BUILD_COMPONENT_PAGING */
+/* #undef OGRE_BUILD_COMPONENT_PLANAR_REFLECTIONS */
+/* #undef OGRE_BUILD_COMPONENT_SCENE_FORMAT */
+#define OGRE_BUILD_COMPONENT_MESHLODGENERATOR
+/* #undef OGRE_BUILD_COMPONENT_TERRAIN */
+/* #undef OGRE_BUILD_COMPONENT_VOLUME */
+/* #undef OGRE_BUILD_COMPONENT_PROPERTY */
+/* #undef OGRE_BUILD_COMPONENT_OVERLAY */
+/* #undef OGRE_BUILD_COMPONENT_RTSHADERSYSTEM */
 
 #define OGRE_CONFIG_LITTLE_ENDIAN
 /* #undef OGRE_CONFIG_BIG_ENDIAN */
+/* #undef OGRE_CONFIG_UNIX_NO_X11 */
 
-/** If set to 1, Real is typedef'ed to double. Otherwise, Real is typedef'ed
-    to float. Setting this allows you to perform mathematical operations in the
-    CPU (Quaternion, Vector3 etc) with more precision, but bear in mind that the
-    GPU still operates in single-precision mode.
-*/
+#define OGRE_LEGACY_ANIMATIONS
+
 #define OGRE_DOUBLE_PRECISION 0
 
 #define OGRE_NODE_INHERIT_TRANSFORM 0
 
-/** There are three modes for handling asserts in OGRE:
-0 - STANDARD - Standard asserts in debug builds, nothing in release builds
-1 - RELEASE_EXCEPTIONS - Standard asserts in debug builds, exceptions in release builds
-2 - EXCEPTIONS - Exceptions in debug builds, exceptions in release builds
-*/
-#define OGRE_ASSERT_MODE 1
+#define OGRE_MEMORY_ALLOCATOR 1
 
-/** Support for multithreading, there are 3 options
+#define OGRE_CONTAINERS_USE_CUSTOM_MEMORY_ALLOCATOR 1
 
-OGRE_THREAD_SUPPORT = 0
-    No support for threading.       
-OGRE_THREAD_SUPPORT = 1
-    Thread support for background loading, by both loading and constructing resources
-    in a background thread. Resource management and SharedPtr handling becomes
-    thread-safe, and resources may be completely loaded in the background. 
-    The places where threading is available are clearly
-    marked, you should assume state is NOT thread safe unless otherwise
-    stated in relation to this flag.
-OGRE_THREAD_SUPPORT = 2
-    Thread support for background resource preparation. This means that resource
-    data can streamed into memory in the background, but the final resource
-    construction (including RenderSystem dependencies) is still done in the primary
-    thread. Has a lower synchronisation primitive overhead than full threading
-    while still allowing the major blocking aspects of resource management (I/O)
-    to be done in the background.
-OGRE_THREAD_SUPPORT = 3
-    No synchronisation primitive overhead. WorkQueue is threaded.
-*/
-#define OGRE_THREAD_SUPPORT 3
+#define OGRE_STRING_USE_CUSTOM_MEMORY_ALLOCATOR 0
 
-/** Provider for threading functionality, there are 4 options.
+#define OGRE_MEMORY_TRACKER_DEBUG_MODE 0
 
-OGRE_THREAD_PROVIDER = 0
-    No support for threading.
-OGRE_THREAD_PROVIDER = 1
-    Boost libraries provide threading functionality.
-OGRE_THREAD_PROVIDER = 2
-    Poco libraries provide threading functionality.
-OGRE_THREAD_PROVIDER = 3
-    TBB library provides threading functionality.
-OGRE_THREAD_PROVIDER = 4
-    Standard library provides threading functionality. (requires compiler support)
-*/
-#define OGRE_THREAD_PROVIDER 4
+#define OGRE_MEMORY_TRACKER_RELEASE_MODE 0
+
+#define OGRE_ASSERT_MODE 0
+
+#define OGRE_THREAD_SUPPORT 0
+
+#define OGRE_THREAD_PROVIDER 0
 
 #define OGRE_NO_MESHLOD 0
 
-/** Disables use of the internal image codec for loading DDS files. */
+#define OGRE_NO_FREEIMAGE 1
+
+#define OGRE_NO_JSON 1
+
 #define OGRE_NO_DDS_CODEC 0
 
-/** Disables use of the internal image codec for loading PVRTC files. */
 #define OGRE_NO_PVRTC_CODEC 1
 
-/** Disables use of the internal image codec for loading ETC files. */
-#define OGRE_NO_ETC_CODEC 0
+#define OGRE_NO_ETC_CODEC 1
 
-#define OGRE_NO_ASTC_CODEC 0
+#define OGRE_NO_STBI_CODEC 1
 
-/** Disables use of the ZIP archive support.
-WARNING: Disabling this will make the samples unusable.
-*/
-#define OGRE_NO_ZIP_ARCHIVE 0
+#define OGRE_NO_ASTC_CODEC 1
+
+#define OGRE_NO_ZIP_ARCHIVE 1
 
 #define OGRE_NO_VIEWPORT_ORIENTATIONMODE 1
 
+#define OGRE_NO_GLES2_GLSL_OPTIMISER 1
+
+#define OGRE_NO_GLES2_VAO_SUPPORT 1
+
+#define OGRE_NO_GL_STATE_CACHE_SUPPORT 1
+
+#define OGRE_NO_GLES3_SUPPORT 1
+
+#define OGRE_NO_RENDERDOC_INTEGRATION 1
+
 #define OGRE_NO_TBB_SCHEDULER 0
 
-/** If set to 1, profiling code will be included in the application. When you
-    are deploying your application you will probably want to set this to 0 */
+#define OGRE_USE_BOOST 0
+
 #define OGRE_PROFILING 0
+
+#define OGRE_PROFILING_EXHAUSTIVE 0
 
 #define OGRE_NO_QUAD_BUFFER_STEREO 1
 
-#define OGRE_NO_LOCALE_STRCONVERT 1
+#define OGRE_NO_AMD_AGS 1
+
+#define OGRE_NO_FINE_LIGHT_MASK_GRANULARITY 1
+
+#define OGRE_ENABLE_LIGHT_OBB_RESTRAINT 0
+
+#define OGRE_USE_SIMD 1
+
+#define OGRE_RESTRICT_ALIASING 1
+
+#define OGRE_IDSTRING_ALWAYS_READABLE 0
+
+/* #undef RTSHADER_SYSTEM_BUILD_CORE_SHADERS */
+
+/* #undef RTSHADER_SYSTEM_BUILD_EXT_SHADERS */
 
 #endif

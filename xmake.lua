@@ -5,6 +5,7 @@ add_rules("mode.debug", "mode.release")
 
 add_defines(
     "_OgreExport=__declspec(dllimport)",
+    "MYGUI_EXPORT=__declspec(dllimport)",
     "OGRE_DEPRECATED=",
     "_OgrePrivate="
     )
@@ -19,10 +20,19 @@ target("OgreMain")
     add_includedirs("src/ogre/include", {public=true})
 target_end()
 
+target("MyGUIMain")
+    set_kind("static")
+    set_group("third-party")
+    add_linkdirs("src/mygui/lib")
+    add_links("MyGUIEngine_x64")
+    add_headerfiles("src/mygui/include/**.h")
+    add_includedirs("src/mygui/include", {public=true})
+target_end()
+
 target("Plugin_Reclaimer")
     set_kind("shared")
     add_files("src/**.cpp")
-    add_deps("OgreMain")
+    add_deps("OgreMain", "MyGUIMain")
 
     
     add_linkdirs("src/ogre/lib")

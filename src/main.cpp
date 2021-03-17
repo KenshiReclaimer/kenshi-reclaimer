@@ -6,6 +6,8 @@
 #include <OgrePlugin.h>
 #include <OgreRoot.h>
 
+#include <MyGUI.h>
+
 class ReclaimerMain : public Ogre::Plugin
 {
     virtual const Ogre::String& getName() const { return "Reclaimer"; };
@@ -35,6 +37,13 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void initialise() override
     {
         printf("ReclaimerMain::initialise()\n");
+
+        auto& gui = MyGUI::Gui::getInstance();
+
+        m_mywin = gui.createWidget<MyGUI::Window>("WindowCSX", 50, 50, 400,300, MyGUI::Align::Default, "Overlapped");
+
+        m_mywin->setVisible(true);
+
     }
 
     /** Perform any tasks the plugin needs to perform when the system is shut down.
@@ -47,6 +56,7 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void shutdown() override
     {
         printf("ReclaimerMain::shutdown()\n");
+        m_mywin->destroySmooth();
     }
 
     /** Perform the final plugin uninstallation sequence.
@@ -62,6 +72,8 @@ class ReclaimerMain : public Ogre::Plugin
     {
         printf("ReclaimerMain::uninstall()\n");
     }
+
+    MyGUI::WindowPtr m_mywin;
 };
 
 

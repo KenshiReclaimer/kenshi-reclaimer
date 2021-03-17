@@ -25,17 +25,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 -----------------------------------------------------------------------------
 */
-#ifndef _LIGHT_H__
-#define _LIGHT_H__
+#ifndef __LIGHT_H__
+#define __LIGHT_H__
 
 #include "OgrePrerequisites.h"
 
 #include "OgreColourValue.h"
-#include "OgreVector.h"
+#include "OgreVector4.h"
 #include "OgreMovableObject.h"
 #include "OgrePlaneBoundedVolume.h"
-#include "OgreNode.h"
-#include "OgreCamera.h"
+#include "OgreTextureGpuListener.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -48,42 +47,20 @@ namespace Ogre {
     *  @{
     */
     /** Representation of a dynamic light source in the scene.
-
+    @remarks
         Lights are added to the scene like any other object. They contain various
-        parameters like type, attenuation (how light intensity fades with
+        parameters like type, position, attenuation (how light intensity fades with
         distance), colour etc.
-
-        The light colour is computed based on the
-        [Direct3D Light Model](https://docs.microsoft.com/en-us/windows/win32/direct3d9/mathematics-of-lighting) as:
-
-        \f[ L_d = C_d \cdot p \cdot ( N \cdot L_{dir}) \cdot A \cdot S \f]
-        \f[ L_s = C_s \cdot p \cdot ( N \cdot H)^s \cdot A \cdot S \f]
-
-        where
-        \f[ A = \frac{1}{c + l \cdot d + q \cdot d^2} \f]
-        and only computed when attenuation is enabled,
-
-        \f[ S = \left[ \frac{\rho - cos(0.5 \cdot \phi)}{cos(0.5 \cdot \theta) - cos(0.5 \cdot \phi)} \right]^f \f]
-        and only computed with spotlights
-
-        - \f$C_d\f$ is the light diffuse colour
-        - \f$C_s\f$ is the light specular colour
-        - \f$p\f$ is the light power scale factor
-        - \f$s\f$ is the surface shininess
-        - \f$N\f$ is the current surface normal
-        - \f$L_{dir}\f$ is vector from the vertex position to the light (constant for directional lights)
-        - \f$H = normalised(L_{dir} + V)\f$, where V is the vector from the vertex position to the camera
-        - \f$c, l, q\f$ are the constant, linear and quadratic attenuation factors
-        - \f$d = |L_{dir}|\f$
-        - \f$\theta, \phi, f\f$ are the spotlight inner angle, outer angle and falloff
-        - \f$\rho = \langle L_{dir} , L_{dcs} \rangle \f$ where \f$L_{dcs}\f$ is the light direction in camera space
-
+    @par
         The defaults when a light is created is pure white diffuse light, with no
         attenuation (does not decrease with distance) and a range of 1000 world units.
-
-        Lights are created by using the SceneManager::createLight method. They subsequently must be
-        added to a SceneNode to orient them in the scene and to allow moving them.
-
+    @par
+        Lights are created by using the SceneManager::createLight method. Starting Ogre 2.0
+        all Lights must be associated to a SceneNode in order to work; which holds the position
+        and direction.
+        Light::setDirection and Light::getDirection will redirect to the SceneNode and assert
+        or crash if not attached to one.
+    @par
         Remember also that dynamic lights rely on modifying the colour of vertices based on the position of
         the light compared to an object's vertex normals. Dynamic lighting will only look good if the
         object being lit has a fair level of tessellation and the normals are properly set. This is particularly
@@ -91,32 +68,43 @@ namespace Ogre {
         extended for certain scene types so an alternative to the standard dynamic lighting may be used, such
             as dynamic lightmaps.
     */
-    class _OgreExport Light : public MovableObject
+    class _OgreExport Light : public MovableObject, public TextureGpuListener
     {
+		void resetAabb(void);
+		void updateLightBounds(void);
     public:
         /// Temp tag used for sorting
         Real tempSquareDist;
-        /// internal method for calculating current squared distance from some world position
+        /// Internal method for calculating current squared distance from some world position
         void _calcTempSquareDist(const Vector3& worldPos);
 
         /// Defines the type of light
         enum LightTypes
         {
-            /// Point light sources give off light equally in all directions, so require only position not direction
-            LT_POINT = 0,
             /// Directional lights simulate parallel light beams from a distant source, hence have direction but no position
-            LT_DIRECTIONAL = 1,
+            LT_DIRECTIONAL = 0,
+            /// Point light sources give off light equally in all directions, so require only position not direction
+            LT_POINT = 1,
             /// Spotlights simulate a cone of light from a source so require position and direction, plus extra values for falloff
-            LT_SPOTLIGHT = 2
-        };
+            LT_SPOTLIGHT = 2,
+            /// Virtual point lights, used for Instant Radiosity (Global Illumination fake / approximation)
+            LT_VPL = 3,
+            MAX_FORWARD_PLUS_LIGHTS = 4,
+            /// Non-PBR version of Area lights. Not an accurate approximation, but
+            /// they're flexible, useful & cheap. They aren't physically correct at all.
+            LT_AREA_APPROX = 4,
+            /// PBR version of Area lights using Linearly Transformed Cosines as researched
+            /// by Eric Heitz, Jonathan Dupuy, Stephen Hill and David Neubelt.
+            /// It's slower than LT_AREA_APPROX, and does not currently support textures.
+            /// However it's physically accurate.
+            LT_AREA_LTC = 5,
 
-        /** Default constructor (for Python mainly).
-        */
-        Light();
+            NUM_LIGHT_TYPES
+        };
 
         /** Normal constructor. Should not be called directly, but rather the SceneManager::createLight method should be used.
         */
-        Light(const String& name);
+        Light( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
 
         /** Standard destructor.
         */
@@ -126,9 +114,12 @@ namespace Ogre {
         */
         void setType(LightTypes type);
 
+        /// Overload to avoid it. Light::setType uses the RenderQueue ID to classify lights per type.
+        virtual void setRenderQueueGroup(uint8 queueID);
+
         /** Returns the light type.
         */
-        LightTypes getType(void) const;
+        LightTypes getType(void) const                              { return mLightType; }
 
         /** Sets the colour of the diffuse light given off by this source.
         @remarks
@@ -139,14 +130,22 @@ namespace Ogre {
             Diffuse light simulates the typical light emanating from light sources and affects the base colour
             of objects together with ambient light.
         */
-        void setDiffuseColour(float red, float green, float blue);
+        inline void setDiffuseColour(Real red, Real green, Real blue);
 
-        /// @overload
-        void setDiffuseColour(const ColourValue& colour);
+        /** Sets the colour of the diffuse light given off by this source.
+        @remarks
+            Material objects have ambient, diffuse and specular values which indicate how much of each type of
+            light an object reflects. This value denotes the amount and colour of this type of light the light
+            exudes into the scene. The actual appearance of objects is a combination of the two.
+        @par
+            Diffuse light simulates the typical light emanating from light sources and affects the base colour
+            of objects together with ambient light.
+        */
+        inline void setDiffuseColour(const ColourValue& colour);
 
         /** Returns the colour of the diffuse light given off by this light source (see setDiffuseColour for more info).
         */
-        const ColourValue& getDiffuseColour(void) const;
+        const ColourValue& getDiffuseColour(void) const             { return mDiffuse; }
 
         /** Sets the colour of the specular light given off by this source.
         @remarks
@@ -157,14 +156,55 @@ namespace Ogre {
             Specular light affects the appearance of shiny highlights on objects, and is also dependent on the
             'shininess' Material value.
         */
-        void setSpecularColour(float red, float green, float blue);
+        inline void setSpecularColour(Real red, Real green, Real blue);
 
-        /// @overload
-        void setSpecularColour(const ColourValue& colour);
+        /** Sets the colour of the specular light given off by this source.
+        @remarks
+            Material objects have ambient, diffuse and specular values which indicate how much of each type of
+            light an object reflects. This value denotes the amount and colour of this type of light the light
+            exudes into the scene. The actual appearance of objects is a combination of the two.
+        @par
+            Specular light affects the appearance of shiny highlights on objects, and is also dependent on the
+            'shininess' Material value.
+        */
+        inline void setSpecularColour(const ColourValue& colour);
 
         /** Returns the colour of specular light given off by this light source.
         */
-        const ColourValue& getSpecularColour(void) const;
+        const ColourValue& getSpecularColour(void) const            { return mSpecular; }
+
+        /** Sets the attenuation parameters (range, constant, linear & quadratic, @see setAttenuation)
+            based on a given radius.
+        @remarks
+            The actual attenuation formula is:
+                            1
+            --------------------------------
+            (distance / radius)² * 0.5 + 0.5
+
+            The original formula never ends, that is the range is infinity. This function calculates
+            a range based on "lumThreshold": When the luminosity past certain distance is below the
+            established threshold, the light calculations are cut.
+        @param radius
+            The radius of the light. i.e. A light bulb is a couple centimeters, the sun is ~696km;
+            but be sure to be consistent in the unit of measurement you use (i.e. don't use km if
+            your default unit is in meters).
+            Note: Having a radius = 2 means that at distance = 2 the pixel is lit 100%
+            Anything inside that radius (which is supposedly impossible) will have more than 100%
+            light power.
+        @param lumThreshold
+            Value in the range [0; 1)
+            Sets range at which the luminance (in percentage) of a point would go below the threshold.
+            For example lumThreshold = 0 means the attenuation range is infinity; lumThreshold = 1 means
+            the range is set to 0.
+        @par
+            The value you want as threshold to use depends on your HDR pipeline and the power of the
+            light. For example, with a power = 1 in LDR, a lumThreshold < 1 / 255 (roughly 0.00392)
+            is pointless. Past that point the actual RGB value will always be (0, 0, 0).
+            But for an LDR pipeline with a light power of 50, lumThreshold < 1 / (255 * 50) is
+            pointless. For an HDR pipeline, the answer is more faint, as it depends on the threshold
+            of your HDR tonemapping past which it stops adjusting the exposure.
+        */
+        void setAttenuationBasedOnRadius( Real radius, Real lumThreshold);
 
         /** Sets the attenuation parameters of the light source i.e. how it diminishes with distance.
         @remarks
@@ -185,69 +225,76 @@ namespace Ogre {
         @param quadratic
             The quadratic factor in the attenuation formula: adds a curvature to the attenuation formula.
         */
-        void setAttenuation(float range, float constant, float linear, float quadratic)
-        {
-            mAttenuation = {range, constant, linear, quadratic};
-        }
+        void setAttenuation(Real range, Real constant, Real linear, Real quadratic);
 
         /** Returns the absolute upper range of the light.
         */
-        float getAttenuationRange(void) const { return mAttenuation[0]; }
+        Real getAttenuationRange(void) const                        { return mRange; }
 
         /** Returns the constant factor in the attenuation formula.
         */
-        float getAttenuationConstant(void) const { return mAttenuation[1]; }
+        Real getAttenuationConstant(void) const                     { return mAttenuationConst; }
 
         /** Returns the linear factor in the attenuation formula.
         */
-        float getAttenuationLinear(void) const { return mAttenuation[2]; }
+        Real getAttenuationLinear(void) const                       { return mAttenuationLinear; }
 
         /** Returns the quadric factor in the attenuation formula.
         */
-        float getAttenuationQuadric(void) const { return mAttenuation[3]; }
+        Real getAttenuationQuadric(void) const                      { return mAttenuationQuad; }
 
-        /// Returns all the attenuation params as (range, constant, linear, quadratic)
-        const Vector4f& getAttenuation() const { return mAttenuation; }
+        void _setLightProfileIdx( uint16 profileIdx )               { mLightProfileIdx = profileIdx; }
+        uint16 getLightProfileIdx(void) const                       { return mLightProfileIdx; }
 
-#ifdef OGRE_NODELESS_POSITIONING
-        /** Sets the position of the light.
+        /** Sets the direction in which a light points.
         @remarks
-            Applicable to point lights and spotlights only.
+            Applicable only to the spotlight and directional light types.
         @note
-            This will be overridden if the light is attached to a SceneNode.
-        @deprecated attach to SceneNode and use SceneNode::setPosition
+            This direction will be concatenated with the parent SceneNode.
         */
-        OGRE_DEPRECATED void setPosition(Real x, Real y, Real z);
+        void setDirection(const Vector3& vec);
 
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::setPosition
-        OGRE_DEPRECATED void setPosition(const Vector3& vec);
-
-        /** Returns the position of the light.
-        @note
-            Applicable to point lights and spotlights only.
-        @deprecated attach to SceneNode and use SceneNode::getPosition
+        /** Returns the light's direction.
+        @remarks
+            Applicable only to the spotlight and directional light types.
+            Try to cache the value instead of calling it multiple times in the same scope
         */
-        OGRE_DEPRECATED const Vector3& getPosition(void) const;
+        Vector3 getDirection(void) const;
 
-        /// @deprecated attach to SceneNode and use SceneNode::setDirection
-        OGRE_DEPRECATED void setDirection(Real x, Real y, Real z);
+		/** A Light must always have a Node attached to it. The direction is taken from
+			the node's orientation, and thus setDirection modifies the attached node directly.
+		@par
+			However, when changing the range and the spot falloff; the node is not affected.
+			This is intentional in case you want to create (e.g.) a node for a flashlight,
+			and attach both the flashlight entity and the light to the same node; thus
+			controlling the node moves both the flashlight and its visual effect.
+		@par
+			Despite this, there are cases where you want the changes to this light to be
+			reflected in the parent node: The most common example are light volumes in
+			deferred shading setups, and debug objects.
+		@remarks
+			This setting is only useful for non-directional lights.
+			For point lights, the scale is calculated as setSize( range, range, range )
+			which means a light volume should be a sphere of radius = 1;
+		@par
+			For spot lights, the scale is calc. as
+				setSize( tan( outerAngle * 0.5 * range ), tan( outerAngle * 0.5 * range ), range );
+			which means a light volume should be a cone with Z = 1, and X & Y = 2
+		@param bAffect
+			When true, the scene node is affected and modified by changes to range and falloff.
+		*/
+		void setAffectParentNode( bool bAffect );
 
-        /// @overload
-        /// @deprecated attach to SceneNode and use SceneNode::setDirection
-        OGRE_DEPRECATED void setDirection(const Vector3& vec);
+		bool getAffectParentNode(void) const                        { return mAffectParentNode; }
 
-        /**
-        @deprecated attach to SceneNode and use SceneNode::getLocalAxes
+        /** For area lights and custom 2d shapes, specifies whether the light lits in both
+            directions (positive & negative sides of the plane) or if only towards one.
+        @param bDoubleSided
+            True to enable. Default: false.
         */
-        OGRE_DEPRECATED const Vector3& getDirection(void) const;
+        void setDoubleSided( bool bDoubleSided );
+        bool getDoubleSided(void) const                             { return mDoubleSided; }
 
-        /** @copydoc MovableObject::_notifyAttached */
-        void _notifyAttached(Node* parent, bool isTagPoint = false);
-
-        /** @copydoc MovableObject::_notifyMoved */
-        void _notifyMoved(void);
-#endif
         /** Sets the range of a spotlight, i.e. the angle of the inner and outer cones
             and the rate of falloff between them.
         @param innerAngle
@@ -264,15 +311,17 @@ namespace Ogre {
 
         /** Returns the angle covered by the spotlights inner cone.
         */
-        const Radian& getSpotlightInnerAngle(void) const;
+        const Radian& getSpotlightInnerAngle(void) const            { return mSpotInner; }
 
         /** Returns the angle covered by the spotlights outer cone.
         */
-        const Radian& getSpotlightOuterAngle(void) const;
+        const Radian& getSpotlightOuterAngle(void) const            { return mSpotOuter; }
+
+        Real getSpotlightTanHalfAngle(void) const                   { return mTanHalfAngle; }
 
         /** Returns the falloff between the inner and outer cones of the spotlight.
         */
-        Real getSpotlightFalloff(void) const;
+        Real getSpotlightFalloff(void) const                        { return mSpotFalloff; }
 
         /** Sets the angle covered by the spotlights inner cone.
         */
@@ -284,7 +333,7 @@ namespace Ogre {
 
         /** Sets the falloff between the inner and outer cones of the spotlight.
         */
-        void setSpotlightFalloff(Real val);
+        inline void setSpotlightFalloff(Real val);
 
         /** Set the near clip plane distance to be used by spotlights that use light
             clipping, allowing you to render spots as if they start from further
@@ -294,10 +343,17 @@ namespace Ogre {
         */
         void setSpotlightNearClipDistance(Real nearClip) { mSpotNearClip = nearClip; }
         
-        /** Returns the near clip plane distance to be used by spotlights that use light
+        /** Get the near clip plane distance to be used by spotlights that use light
             clipping.
         */
         Real getSpotlightNearClipDistance() const { return mSpotNearClip; }
+
+        /** For custom 2D shape and area lights, sets the dimensions of the rectangle, in half size
+        @param halfSize
+        */
+        void setRectSize( Vector2 rectSize );
+        const Vector2& getRectSize(void) const          { return mRectSize; }
+        Vector2 getDerivedRectSize(void) const;
         
         /** Set a scaling factor to indicate the relative power of a light.
         @remarks
@@ -309,89 +365,37 @@ namespace Ogre {
         */
         void setPowerScale(Real power);
 
-        /** Returns the scaling factor which indicates the relative power of a
+        /** Set the scaling factor which indicates the relative power of a 
             light.
         */
-        Real getPowerScale(void) const;
-
-        /** @copydoc MovableObject::getBoundingBox */
-        const AxisAlignedBox& getBoundingBox(void) const;
+        Real getPowerScale(void) const                              { return mPowerScale; }
 
         /** @copydoc MovableObject::_updateRenderQueue */
-        void _updateRenderQueue(RenderQueue* queue);
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera) {}
 
         /** @copydoc MovableObject::getMovableType */
         const String& getMovableType(void) const;
 
-        /** Retrieves the position of the light including any transform from nodes it is attached to. 
-        @param cameraRelativeIfSet If set to true, returns data in camera-relative units if that's been set up (render use)
-        */
-#ifdef OGRE_NODELESS_POSITIONING
-        const Vector3& getDerivedPosition(bool cameraRelativeIfSet = false) const;
-#else
-        Vector3 getDerivedPosition(bool cameraRelativeIfSet = false) const
-        {
-            assert(mParentNode && "Light must be attached to a SceneNode");
-            auto ret = mParentNode->_getDerivedPosition();
-            if (cameraRelativeIfSet && mCameraToBeRelativeTo)
-                ret -= mCameraToBeRelativeTo->getDerivedPosition();
-            return ret;
-        }
-#endif
-
         /** Retrieves the direction of the light including any transform from nodes it is attached to. */
-#ifdef OGRE_NODELESS_POSITIONING
-        const Vector3& getDerivedDirection(void) const;
-#else
-        Vector3 getDerivedDirection(void) const
-        {
-            assert(mParentNode && "Light must be attached to a SceneNode");
-            return -mParentNode->_getDerivedOrientation().zAxis();
-        }
-#endif
+        Vector3 getDerivedDirection(void) const;
+        Vector3 getDerivedDirectionUpdated(void) const;
 
-        /** @copydoc MovableObject::setVisible
+        /** @copydoc MovableObject::setVisible.
         @remarks
             Although lights themselves are not 'visible', setting a light to invisible
             means it no longer affects the scene.
         */
-        void setVisible(bool visible) { MovableObject::setVisible(visible); }
+        //void setVisible(bool visible);
 
-        /** @copydoc MovableObject::getBoundingRadius */
-        Real getBoundingRadius(void) const { return 0; /* not visible */ }
-
-        /** Returns the details of this light as a 4D vector.
+        /** Gets the details of this light as a 4D vector.
         @remarks
             Getting details of a light as a 4D vector can be useful for
             doing general calculations between different light types; for
             example the vector can represent both position lights (w=1.0f)
             and directional lights (w=0.0f) and be used in the same 
             calculations.
-        @param cameraRelativeIfSet
-            If set to @c true, returns data in camera-relative units if that's been set up (render use).
         */
-        Vector4 getAs4DVector(bool cameraRelativeIfSet = false) const;
-
-        /** Internal method for calculating the 'near clip volume', which is
-            the volume formed between the near clip rectangle of the 
-            camera and the light.
-        @remarks
-            This volume is a pyramid for a point/spot light and
-            a cuboid for a directional light. It can used to detect whether
-            an object could be casting a shadow on the viewport. Note that
-            the reference returned is to a shared volume which will be 
-            reused across calls to this method.
-        */
-        virtual const PlaneBoundedVolume& _getNearClipVolume(const Camera* const cam) const;
-
-        /** Internal method for calculating the clip volumes outside of the 
-            frustum which can be used to determine which objects are casting
-            shadow on the frustum as a whole. 
-        @remarks
-            Each of the volumes is a pyramid for a point/spot light and
-            a cuboid for a directional light. 
-        */
-        virtual const PlaneBoundedVolumeList& _getFrustumClipVolumes(const Camera* const cam) const;
+        Vector4 getAs4DVector(void) const;
 
         /// Override to return specific type flag
         uint32 getTypeFlags(void) const;
@@ -399,51 +403,28 @@ namespace Ogre {
         /// @copydoc AnimableObject::createAnimableValue
         AnimableValuePtr createAnimableValue(const String& valueName);
 
-        /** Set this light to use a custom shadow camera when rendering texture shadows.
-        @remarks
-            This changes the shadow camera setup for just this light,  you can set
-            the shadow camera setup globally using SceneManager::setShadowCameraSetup
-        @see ShadowCameraSetup
-        */
-        void setCustomShadowCameraSetup(const ShadowCameraSetupPtr& customShadowSetup);
-
-        /** Reset the shadow camera setup to the default. 
-        @see ShadowCameraSetup
-        */
-        void resetCustomShadowCameraSetup(void);
-
-        /** Return a pointer to the custom shadow camera setup (null means use SceneManager global version). */
-        const ShadowCameraSetupPtr& getCustomShadowCameraSetup(void) const;
-
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
-
-        /** Returns the index at which this light is in the current render.
-        @remarks
-            Lights will be present in the in a list for every renderable,
-            detected and sorted appropriately, and sometimes it's useful to know 
-            what position in that list a given light occupies. This can vary 
-            from frame to frame (and object to object) so you should not use this
-            value unless you're sure the context is correct.
-        */
-        size_t _getIndexInFrame() const { return mIndexInFrame; }
-        void _notifyIndexInFrame(size_t i) { mIndexInFrame = i; }
-        
         /** Sets the maximum distance away from the camera that shadows
             by this light will be visible.
-
+        @remarks
             Shadow techniques can be expensive, therefore it is a good idea
             to limit them to being rendered close to the camera if possible,
             and to skip the expense of rendering shadows for distance objects.
-            This method allows you to set the distance at which shadows casters
-            will be culled.
+            This method allows you to set the distance at which shadows will no
+            longer be rendered.
+        @note
+            Each shadow technique can interpret this subtely differently.
+            For example, one technique may use this to eliminate casters,
+            another might use it to attenuate the shadows themselves.
+            You should tweak this value to suit your chosen shadow technique
+            and scene setup.
         */
         void setShadowFarDistance(Real distance);
+        bool _getOwnShadowFarDistance(void) const;
         /** Tells the light to use the shadow far distance of the SceneManager
         */
         void resetShadowFarDistance(void);
-        /** Returns the maximum distance away from the camera that shadows
+
+        /** Gets the maximum distance away from the camera that shadows
             by this light will be visible.
         */
         Real getShadowFarDistance(void) const;
@@ -456,7 +437,7 @@ namespace Ogre {
         */
         void setShadowNearClipDistance(Real nearClip) { mShadowNearClipDist = nearClip; }
 
-        /** Returns the near clip plane distance to be used by the shadow camera, if
+        /** Get the near clip plane distance to be used by the shadow camera, if
             this light casts texture shadows.
         @remarks
             May be zero if the light doesn't have it's own near distance set;
@@ -480,7 +461,7 @@ namespace Ogre {
         */
         void setShadowFarClipDistance(Real farClip) { mShadowFarClipDist = farClip; }
 
-        /** Returns the far clip plane distance to be used by the shadow camera, if
+        /** Get the far clip plane distance to be used by the shadow camera, if
             this light casts texture shadows.
         @remarks
             May be zero if the light doesn't have it's own far distance set;
@@ -488,17 +469,42 @@ namespace Ogre {
         */
         Real getShadowFarClipDistance() const { return mShadowFarClipDist; }
 
-        /** Derive a shadow camera far distance
+        /** Derive a shadow camera far distance from either the light, or
+            from the main camera if the light doesn't have its own setting.
         */
-        Real _deriveShadowFarClipDistance() const;
-        /// @deprecated use _deriveShadowFarClipDistance()
-        OGRE_DEPRECATED Real _deriveShadowFarClipDistance(const Camera*) const
-        {
-            return _deriveShadowFarClipDistance();
-        }
+        Real _deriveShadowFarClipDistance(const Camera* maincam) const;
 
-        /// Set the camera which this light should be relative to, for camera-relative rendering
-        void _setCameraRelative(Camera* cam);
+#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+        /** Sets an OBB (Oriented Bounding Box) to restraint where the light affects objects
+
+            The derived transform of the node is in world space and can be independent of the
+            light's transform or its scene node (but you can attach the OBB node to the light's
+            node to inherit its transform)
+
+            The scale of the node determines the half size of the OBB.
+
+            This is most useful for Area lights. Because they do not support shadows, area
+            lights can leak and light things very far away even if they are behind a wall.
+            OBB restraints allows you contain the lighting to a particular location, like a room.
+        @param node
+            A node containing position, rotation & scale. Scale is the half size of the OBB.
+            Null to disable.
+        */
+        void setObbRestraint( Node *node );
+        Node* getObbRestraint(void) const       { return mObbRestraint; }
+
+        /// Sets the distance in Ogre units (e.g. cm, meters, whatever your engine is using)
+        /// to the OBB bounds at which the smooth fade kicks in.
+        /// Set 0 for no smooth fading.
+        /// This value should be smaller than all 3 xyz components of mObbRestraint->getScale()
+        /// However values higher than that are allowed and may give interesting results.
+        ///
+        /// Valid Range: [0; min( obbRestraintScale.x, obbRestraintScale.y, obbRestraintScale.z ))
+        void setObbRestraintSmoothFadeDistance( float smoothFadeDistance );
+        float getObbRestraintSmoothFadeDistance(void) const	{ return mObbRestraintSmoothFadeDistance; }
+
+        Vector3 _getObbRestraintFadeFactor(void) const;
+#endif
 
         /** Sets a custom parameter for this Light, which may be used to 
             drive calculations for this specific Renderable, like GPU program parameters.
@@ -519,13 +525,14 @@ namespace Ogre {
         */
         void setCustomParameter(uint16 index, const Vector4& value);
 
-        /** Returns the custom value associated with this Light at the given index.
+        /** Gets the custom value associated with this Light at the given index.
         @param index Index of the parameter to retrieve
         @see setCustomParameter for full details.
         */
         const Vector4& getCustomParameter(uint16 index) const;
+        const Vector4* getCustomParameterNoThrow( uint16 index ) const;
 
-        /** Update a custom GpuProgramParameters constant which is derived from 
+        /** Update a custom GpuProgramParameters constant which is derived from
             information only this Light knows.
         @remarks
             This method allows a Light to map in a custom GPU program parameter
@@ -551,7 +558,7 @@ namespace Ogre {
             set the updated parameters.
         */
         virtual void _updateCustomGpuParameter(uint16 paramIndex, 
-            const GpuProgramParameters::AutoConstantEntry& constantEntry, 
+            const GpuProgramParameters_AutoConstantEntry& constantEntry,
             GpuProgramParameters* params) const;
                 
         /** Check whether a sphere is included in the lighted area of the light 
@@ -567,63 +574,87 @@ namespace Ogre {
             false-positives (The function should not return any false-negatives).
         */
         bool isInLightRange(const Ogre::AxisAlignedBox& container) const;
+
+        /** Sets a textured for types of light that support it. At the time of
+            writing only LT_AREA_APPROX supports it.
+        @remarks
+            Note that HlmsPbs only supports one 2D Array texture active at a time.
+            i.e. you must call hlmsPbs->setAreaLightMasks( texture );
+            and if that texture belongs to a different pool as the one you're
+            inputting here, the wrong texture will be displayed!
+        @param texture
+            Texture. Can be monochrome or coloured.
+            For Raw version must be a 2D Array texture.
+            For non-Raw version, must be a 2D texture.
+        @param sliceIdx
+            Slice to the texture.
+        */
+        void setTexture( TextureGpu *texture );
+        void setTextureRaw( TextureGpu *texture, uint32 sliceIdx );
+
+        TextureGpu* getTexture(void) const          { return mTexture; }
+
+        virtual void notifyTextureChanged( TextureGpu *texture, TextureGpuListener::Reason reason,
+                                           void *extraData );
     
     protected:
-        LightTypes mLightType;
-#ifdef OGRE_NODELESS_POSITIONING
-        Vector3 mPosition;
-        Vector3 mDirection;
-        mutable Vector3 mDerivedPosition;
-        mutable Vector3 mDerivedDirection;
-        // Slightly hacky but unless we separate observed light render state from main Light...
-        mutable Vector3 mDerivedCamRelativePosition;
-        mutable bool mDerivedCamRelativeDirty;
-        /// Is the derived transform dirty?
-        mutable bool mDerivedTransformDirty;
 
-        /// Internal method for synchronising with parent node (if any)
-        virtual void update(void) const;
-#endif
+        LightTypes mLightType;
         ColourValue mDiffuse;
         ColourValue mSpecular;
 
         Radian mSpotOuter;
         Radian mSpotInner;
+        Real mTanHalfAngle; // = tan( mSpotOuter * 0.5f );
         Real mSpotFalloff;
         Real mSpotNearClip;
-        // range, const, linear, quad coeffs
-        Vector4f mAttenuation;
+        Real mRange;
+        Real mAttenuationConst;
+        Real mAttenuationLinear;
+        Real mAttenuationQuad;
         Real mPowerScale;
-        size_t mIndexInFrame;
+        bool mOwnShadowFarDist;
+        bool mAffectParentNode;
+        /// Valid only for area lights
+        bool mDoubleSided;
+    protected:
+        Vector2 mRectSize;
+        TextureGpu *mTexture;
+    public:
+        uint16 mTextureLightMaskIdx;
+        /// Control the start of mip level for diffuse component for area lights
+        /// The value is UNORM, thus the range [0; 65535] maps to [0; 1] where
+        /// 1.0 means to use the highest mip level, and 0 the lowest mip.
+        uint16 mTexLightMaskDiffuseMipStart;
+    protected:
+        /// Used for IES photogametry
+        uint16 mLightProfileIdx;
         Real mShadowFarDist;
         Real mShadowFarDistSquared;
-        
+
         Real mShadowNearClipDist;
         Real mShadowFarClipDist;
 
-        Camera* mCameraToBeRelativeTo;
+#if OGRE_ENABLE_LIGHT_OBB_RESTRAINT
+        float mObbRestraintSmoothFadeDistance;
+        Node *mObbRestraint;
+#endif
 
         /// Shared class-level name for Movable type.
         static String msMovableType;
 
-        mutable PlaneBoundedVolume mNearClipVolume;
-        mutable PlaneBoundedVolumeList mFrustumClipVolumes;
-
-        /// Pointer to a custom shadow camera setup.
-        mutable ShadowCameraSetupPtr mCustomShadowCameraSetup;
-
-        typedef std::map<uint16, Vector4> CustomParameterMap;
+        typedef map<uint16, Vector4>::type CustomParameterMap;
         /// Stores the custom parameters for the light.
         CustomParameterMap mCustomParameters;
-
-        bool mOwnShadowFarDist;
     };
 
     /** Factory object for creating Light instances. */
     class _OgreExport LightFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         LightFactory() {}
         ~LightFactory() {}
@@ -631,11 +662,16 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance(MovableObject* obj);  
+
     };
     /** @} */
     /** @} */
 
-#include "OgreHeaderSuffix.h"
-
 } // namespace Ogre
-#endif // _LIGHT_H__
+
+#include "OgreLight.inl"
+
+#include "OgreHeaderPrefix.h"
+
+#endif // __LIGHT_H__

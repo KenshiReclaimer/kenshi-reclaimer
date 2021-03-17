@@ -30,7 +30,12 @@ THE SOFTWARE.
 #define __ShadowCameraSetupPSSM_H__
 
 #include "OgrePrerequisites.h"
-#include "OgreShadowCameraSetupLiSPSM.h"
+
+#include "OgreShadowCameraSetupConcentric.h"
+#include "OgreShadowCameraSetupFocused.h"
+
+#include "ogrestd/vector.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -53,47 +58,47 @@ namespace Ogre
         the number of shadow textures available (via SceneManager) to match the 
         number of shadow maps required (default is 3 per light). 
     */
-    class _OgreExport PSSMShadowCameraSetup : public LiSPSMShadowCameraSetup
+    class _OgreExport PSSMShadowCameraSetup : public FocusedShadowCameraSetup
     {
-        using LiSPSMShadowCameraSetup::setOptimalAdjustFactor;
     public:
-        typedef std::vector<Real> SplitPointList;
-        typedef std::vector<Real> OptimalAdjustFactorList;
+        typedef vector<Real>::type SplitPointList;
 
     protected:
-        uint mSplitCount;
+        uint32 mSplitCount;
+        uint32 mNumStableSplits;
         SplitPointList mSplitPoints;
-        OptimalAdjustFactorList mOptimalAdjustFactors;
+        SplitPointList mSplitBlendPoints;
+        Real mSplitFadePoint;
         Real mSplitPadding;
 
         mutable size_t mCurrentIteration;
 
+        ConcentricShadowCamera mConcentricShadowCamera;
+
     public:
-        /// @deprecated use create()
+        /// Constructor, defaults to 3 splits
         PSSMShadowCameraSetup();
         virtual ~PSSMShadowCameraSetup();
-
-        /// Constructor, defaults to 3 splits
-        static ShadowCameraSetupPtr create()
-        {
-            return std::make_shared<PSSMShadowCameraSetup>();
-        }
 
         /** Calculate a new splitting scheme.
         @param splitCount The number of splits to use
         @param nearDist The near plane to use for the first split
         @param farDist The far plane to use for the last split
         @param lambda Factor to use to reduce the split size 
+        @param blend Factor to use to reduce the split seams
+        @param fade Factor to use to fade out the last split
         */
-        void calculateSplitPoints(uint splitCount, Real nearDist, Real farDist, Real lambda = 0.95f);
+        void calculateSplitPoints(uint splitCount, Real nearDist, Real farDist, Real lambda = 0.95, Real blend = 0.125, Real fade = 0.313);
 
         /** Manually configure a new splitting scheme.
         @param newSplitPoints A list which is splitCount + 1 entries long, containing the
             split points. The first value is the near point, the last value is the
             far point, and each value in between is both a far point of the previous
             split, and a near point for the next one.
+        @param blend Factor to use to reduce the split seams.
+        @param fade Factor to use to fade out the last split.
         */
-        void setSplitPoints(const SplitPointList& newSplitPoints);
+        void setSplitPoints(const SplitPointList& newSplitPoints, Real blend = 0.125, Real fade = 0.313);
 
         /** Set the LiSPSM optimal adjust factor for a given split (call after
             configuring splits).
@@ -112,21 +117,37 @@ namespace Ogre
         /// Get the number of splits. 
         uint getSplitCount() const { return mSplitCount; }
 
+        /// PSSM tends to be very unstable to camera rotation changes. Rotate the camera around
+        /// and the shadow mapping artifacts keep changing.
+        ///
+        /// setNumStableSplits allows you to fix that problem; by switching to ConcentricShadowCamera
+        /// for the first N splits you specify; while the rest of the splits will use
+        /// FocusedShadowCameraSetup.
+        ///
+        /// We achieve rotation stability by sacrificing overall quality. Using ConcentricShadowCamera
+        /// on higher splits means sacrificing exponentially a lot more quality (and even performance);
+        /// thus the recommended values are numStableSplits = 1 or numStableSplits = 2
+        ///
+        /// The default is numStableSplits = 0 which disables the feature
+        void setNumStableSplits( uint32 numStableSplits ) { mNumStableSplits = numStableSplits; }
+        uint32 getNumStableSplits( void ) const { return mNumStableSplits; }
+
         /// Returns a LiSPSM shadow camera with PSSM splits base on iteration.
-        virtual void getShadowCamera(const Ogre::SceneManager *sm, const Ogre::Camera *cam,
-            const Ogre::Viewport *vp, const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration) const;
+        virtual void getShadowCamera( const Ogre::SceneManager *sm, const Ogre::Camera *cam,
+                                      const Ogre::Light *light, Ogre::Camera *texCam, size_t iteration,
+                                      const Vector2 &viewportRealSize ) const;
 
         /// Returns the calculated split points.
         inline const SplitPointList& getSplitPoints() const
         { return mSplitPoints; }
 
-        /// Returns the optimal adjust factor for a given split.
-        inline Real getOptimalAdjustFactor(size_t splitIndex) const
-        { return mOptimalAdjustFactors[splitIndex]; }
+        /// Returns the calculated split blend points.
+        inline const SplitPointList& getSplitBlendPoints() const
+        { return mSplitBlendPoints; }
 
-        /// Overridden, recommended internal use only since depends on current iteration
-        Real getOptimalAdjustFactor() const;
-
+        /// Returns the calculated split fade point.
+        inline const Real& getSplitFadePoint() const
+        { return mSplitFadePoint; }
     };
     /** @} */
     /** @} */

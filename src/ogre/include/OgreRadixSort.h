@@ -110,7 +110,7 @@ namespace Ogre {
 
         };
         /// Temp sort storage
-        typedef typename std::vector<SortEntry> SortVector;
+        typedef std::vector<SortEntry, STLAllocator<SortEntry, GeneralAllocPolicy> > SortVector; 
         SortVector mSortArea1;
         SortVector mSortArea2;
         SortVector* mSrc;
@@ -242,26 +242,19 @@ namespace Ogre {
         @param func A functor which returns the value for comparison when given
             a container value
         */
-        template <class TFunction> void sort(TContainer& container, TFunction func)
-        {
-            sort(container.begin(), container.end(), func);
-        }
-
-        /// @overload
         template <class TFunction>
-        void sort(ContainerIter dbegin, ContainerIter dend, TFunction func)
+        void sort(TContainer& container, TFunction func)
         {
-            // Set up the sort areas
-            mSortSize = static_cast<int>(std::distance(dbegin, dend));
-
-            if (mSortSize == 0)
+            if (container.empty())
                 return;
 
-            mSortArea1.resize(mSortSize);
-            mSortArea2.resize(mSortSize);
+            // Set up the sort areas
+            mSortSize = static_cast<int>(container.size());
+            mSortArea1.resize(container.size());
+            mSortArea2.resize(container.size());
 
             // Copy data now (we need constant iterators for sorting)
-            mTmpContainer.assign(dbegin, dend);
+            mTmpContainer = container;
 
             mNumPasses = sizeof(TCompValueType);
 
@@ -320,7 +313,8 @@ namespace Ogre {
 
             // Copy everything back
             int c = 0;
-            for (i = dbegin; i != dend; ++i, ++c)
+            for (i = container.begin(); 
+                i != container.end(); ++i, ++c)
             {
                 *i = *((*mDest)[c].iter);
             }

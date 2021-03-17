@@ -47,41 +47,53 @@ namespace Ogre {
     */
     class _OgreExport GpuProgramManager : public ResourceManager, public Singleton<GpuProgramManager>
     {
-        // silence warnings
+    private:
+        using ResourceManager::createImpl;
         using ResourceManager::load;
+
     public:
 
-        typedef std::set<String> SyntaxCodes;
-        typedef std::map<String, GpuSharedParametersPtr> SharedParametersMap;
+        typedef set<String>::type SyntaxCodes;
+        typedef map<String, GpuSharedParametersPtr>::type SharedParametersMap;
+
+        struct Hash
+        {
+            uint64 hashVal[2];
+
+            bool operator < ( const Hash &_r ) const
+            {
+                if( hashVal[0] < _r.hashVal[0] ) return true;
+                if( hashVal[0] > _r.hashVal[0] ) return false;
+
+                if( hashVal[1] < _r.hashVal[1] ) return true;
+                //if( hashVal[1] > _r.hashVal[1] ) return false;
+
+                return false;
+            }
+        };
 
         typedef MemoryDataStreamPtr Microcode;
+        typedef map<Hash, Microcode>::type MicrocodeMap;
 
     protected:
-
         SharedParametersMap mSharedParametersMap;
-        std::map<uint32, Microcode> mMicrocodeCache;
+        MicrocodeMap mMicrocodeCache;
         bool mSaveMicrocodesToCache;
         bool mCacheDirty;           // When this is true the cache is 'dirty' and should be resaved to disk.
-            
-        static String addRenderSystemToName( const String &  name );
 
-        /// Generic create method
-        Resource* createImpl(const String& name, ResourceHandle handle,
-            const String& group, bool isManual, ManualResourceLoader* loader,
-            const NameValuePairList* createParams);
+        static Hash computeHashWithRenderSystemName( const String &source );
 
         /// Specialised create method with specific parameters
         virtual Resource* createImpl(const String& name, ResourceHandle handle, 
             const String& group, bool isManual, ManualResourceLoader* loader,
-            GpuProgramType gptype, const String& syntaxCode);
+            GpuProgramType gptype, const String& syntaxCode) = 0;
     public:
         GpuProgramManager();
         virtual ~GpuProgramManager();
 
         /// Get a resource by name
         /// @see GpuProgramManager::getResourceByName
-        GpuProgramPtr getByName(const String& name, const String& group OGRE_RESOURCE_GROUP_INIT, bool preferHighLevelPrograms = true);
-
+        GpuProgramPtr getByName(const String& name, bool preferHighLevelPrograms = true);
 
         /** Loads a GPU program from a file of assembly. 
         @remarks
@@ -170,16 +182,21 @@ namespace Ogre {
             GpuProgramType gptype, const String& syntaxCode, bool isManual = false, 
             ManualResourceLoader* loader = 0);
 
+#if OGRE_COMPILER == OGRE_COMPILER_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
+
         /** Overrides the standard ResourceManager getResourceByName method.
         @param name The name of the program to retrieve
-        @param group The name of the resource group to attach this new resource to
         @param preferHighLevelPrograms If set to true (the default), high level programs will be
             returned in preference to low-level programs.
         */
-        ResourcePtr getResourceByName(const String& name, const String& group, bool preferHighLevelPrograms);
+        ResourcePtr getResourceByName(const String& name, bool preferHighLevelPrograms = true);
 
-        /// @overload
-        ResourcePtr getResourceByName(const String& name, const String& group OGRE_RESOURCE_GROUP_INIT);
+#if OGRE_COMPILER == OGRE_COMPILER_CLANG
+#pragma clang diagnostic pop
+#endif
 
         /** Create a new set of shared parameters, which can be used across many 
             GpuProgramParameters objects of different structures.
@@ -199,56 +216,85 @@ namespace Ogre {
 
         /** Get if the microcode of a shader should be saved to a cache
         */
-        bool getSaveMicrocodesToCache() const;
+        bool getSaveMicrocodesToCache();
         /** Set if the microcode of a shader should be saved to a cache
         */
-        void setSaveMicrocodesToCache( bool val );
+        void setSaveMicrocodesToCache( const bool val );
 
         /** Returns true if the microcodecache changed during the run.
         */
         bool isCacheDirty(void) const;
 
-        static bool canGetCompiledShaderBuffer();
+        bool canGetCompiledShaderBuffer();
         /** Check if a microcode is available for a program in the microcode cache.
-        @param id The id of the program.
+        @param name The name of the program.
         */
-        bool isMicrocodeAvailableInCache(uint32 id) const;
-
+        virtual bool isMicrocodeAvailableInCache( const String &source ) const;
         /** Returns a microcode for a program from the microcode cache.
-        @param id The name of the program.
+        @param name The name of the program.
         */
-        const Microcode& getMicrocodeFromCache(uint32 id) const;
+        virtual const Microcode & getMicrocodeFromCache( const String &source ) const;
 
         /** Creates a microcode to be later added to the cache.
         @param size The size of the microcode in bytes
         */
-        Microcode createMicrocode( size_t size ) const;
+        virtual Microcode createMicrocode( const uint32 size ) const;
 
         /** Adds a microcode for a program to the microcode cache.
-        @param id The id of the program
-        @param microcode the program binary
+        @param name The name of the program.
         */
-        void addMicrocodeToCache(uint32 id, const Microcode& microcode);
+        virtual void addMicrocodeToCache( const String & source, const Microcode & microcode );
 
         /** Removes a microcode for a program from the microcode cache.
-        @param id The name of the program.
+        @param name The name of the program.
         */
-        void removeMicrocodeFromCache(uint32 id);
+        virtual void removeMicrocodeFromCache( const String & source );
 
         /** Saves the microcode cache to disk.
         @param stream The destination stream
         */
-        void saveMicrocodeCache( DataStreamPtr stream ) const;
+        virtual void saveMicrocodeCache( DataStreamPtr stream ) const;
         /** Loads the microcode cache from disk.
         @param stream The source stream
         */
-        void loadMicrocodeCache( DataStreamPtr stream );
+        virtual void loadMicrocodeCache( DataStreamPtr stream );
+
+        /// Deletes all microcodes. Useful when hot reloading.
+        virtual void clearMicrocodeCache(void);
         
 
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static GpuProgramManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static GpuProgramManager* getSingletonPtr(void);
     
 

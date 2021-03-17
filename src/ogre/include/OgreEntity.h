@@ -33,13 +33,15 @@ THE SOFTWARE.
 
 #include "OgreMovableObject.h"
 #include "OgreQuaternion.h"
-#include "OgreVector.h"
+#include "OgreVector3.h"
 #include "OgreHardwareBufferManager.h"
 #include "OgreRenderable.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreSubEntity.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -47,12 +49,12 @@ namespace Ogre {
     *  @{
     */
     /** Defines an instance of a discrete, movable object based on a Mesh.
-
-        %Ogre generally divides renderable objects into 2 groups, discrete
+    @remarks
+        Ogre generally divides renderable objects into 2 groups, discrete
         (separate) and relatively small objects which move around the world,
         and large, sprawling geometry which makes up generally immovable
         scenery, aka 'level geometry'.
-
+    @par
         The Mesh and SubMesh classes deal with the definition of the geometry
         used by discrete movable objects. Entities are actual instances of
         objects based on this geometry in the world. Therefore there is
@@ -66,34 +68,36 @@ namespace Ogre {
         individual changes is kept in the SubEntity class. There is a 1:1
         relationship between SubEntity instances and the SubMesh instances
         associated with the Mesh the Entity is based on.
-
+    @par
         Entity and SubEntity classes are never created directly. Use the
         createEntity method of the SceneManager (passing a model name) to
         create one.
-
+    @par
         Entities are included in the scene by associating them with a
-        SceneNode, using the @ref SceneNode::attachObject method.
+        SceneNode, using the attachEntity method. See the SceneNode class
+        for full information.
     @note
         No functions were declared virtual to improve performance.
     */
-    class _OgreExport Entity: public MovableObject, public Resource::Listener
+    class _OgreExport Entity : public MovableObject, public Resource::Listener
     {
         // Allow EntityFactory full access
         friend class EntityFactory;
         friend class SubEntity;
     public:
         
-        typedef std::set<Entity*> EntitySet;
-        typedef std::vector<std::pair<unsigned short, bool>> SchemeHardwareAnimMap;
-        typedef std::vector<SubEntity*> SubEntityList;
+        typedef set<Entity*>::type EntitySet;
+        typedef map<unsigned short, bool>::type SchemeHardwareAnimMap;
+
     protected:
 
         /** Private constructor (instances cannot be created directly).
         */
-        Entity();
-        /** Private constructor - specify name (the usual constructor used).
+        Entity( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
+        /** Private constructor.
         */
-        Entity( const String& name, const MeshPtr& mesh);
+        Entity( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                const MeshPtr& mesh );
 
         /** The Mesh that this Entity is based on.
         */
@@ -101,6 +105,7 @@ namespace Ogre {
 
         /** List of SubEntities (point to SubMeshes).
         */
+        typedef vector<SubEntity>::type SubEntityList;
         SubEntityList mSubEntityList;
 
 
@@ -111,34 +116,19 @@ namespace Ogre {
         /// Temp buffer details for software skeletal anim of shared geometry
         TempBlendedBufferInfo mTempSkelAnimInfo;
         /// Vertex data details for software skeletal anim of shared geometry
-        std::unique_ptr<VertexData> mSkelAnimVertexData;
+        VertexData* mSkelAnimVertexData;
         /// Temp buffer details for software vertex anim of shared geometry
         TempBlendedBufferInfo mTempVertexAnimInfo;
         /// Vertex data details for software vertex anim of shared geometry
-        std::unique_ptr<VertexData> mSoftwareVertexAnimVertexData;
+        VertexData* mSoftwareVertexAnimVertexData;
         /// Vertex data details for hardware vertex anim of shared geometry
         /// - separate since we need to s/w anim for shadows whilst still altering
         ///   the vertex data for hardware morphing (pos2 binding)
-        std::unique_ptr<VertexData> mHardwareVertexAnimVertexData;
-
+        VertexData* mHardwareVertexAnimVertexData;
         /// Have we applied any vertex animation to shared geometry?
-        bool mVertexAnimationAppliedThisFrame : 1;
+        bool mVertexAnimationAppliedThisFrame;
         /// Have the temp buffers already had their geometry prepared for use in rendering shadow volumes?
-        bool mPreparedForShadowVolumes : 1;
-        /// Flag determines whether or not to display skeleton.
-        bool mDisplaySkeleton : 1;
-        /// Current state of the hardware animation as represented by the entities parameters.
-        bool mCurrentHWAnimationState : 1;
-        /// Flag indicating whether to skip automatic updating of the Skeleton's AnimationState.
-        bool mSkipAnimStateUpdates : 1;
-        /// Flag indicating whether to update the main entity skeleton even when an LOD is displayed.
-        bool mAlwaysUpdateMainSkeleton : 1;
-        /// Flag indicating whether to update the bounding box from the bones of the skeleton.
-        bool mUpdateBoundingBoxFromSkeleton : 1;
-        /// Flag indicating whether we have a vertex program in use on any of our subentities.
-        bool mVertexProgramInUse : 1;
-        /// Has this entity been initialised yet?
-        bool mInitialised : 1;
+        bool mPreparedForShadowVolumes;
 
         /** Internal method - given vertex data which could be from the Mesh or
             any submesh, finds the temporary blend copy.
@@ -186,13 +176,11 @@ namespace Ogre {
         */
         void finalisePoseNormals(const VertexData* srcData, VertexData* destData);
 
-        /// Number of hardware poses supported by materials.
-        ushort mHardwarePoseCount;
-        ushort mNumBoneMatrices;
         /// Cached bone matrices, including any world transform.
-        Affine3 *mBoneWorldMatrices;
+        Matrix4 *mBoneWorldMatrices;
         /// Cached bone matrices in skeleton local space, might shares with other entity instances.
-        Affine3 *mBoneMatrices;
+        Matrix4 *mBoneMatrices;
+        unsigned short mNumBoneMatrices;
         /// Records the last frame in which animation was updated.
         unsigned long mFrameAnimationLastUpdated;
 
@@ -204,8 +192,8 @@ namespace Ogre {
         /// a shared skeleton.
         unsigned long *mFrameBonesLastUpdated;
 
-        /** A set of all the entities which shares a single SkeletonInstance.
-            This is only created if the entity is in fact sharing it's SkeletonInstance with
+        /** A set of all the entities which shares a single OldSkeletonInstance.
+            This is only created if the entity is in fact sharing it's OldSkeletonInstance with
             other Entities.
         */
         EntitySet* mSharedSkeletonEntities;
@@ -216,75 +204,54 @@ namespace Ogre {
         */
         bool cacheBoneMatrices(void);
 
+        /// Flag determines whether or not to display skeleton.
+        bool mDisplaySkeleton;
         /** Flag indicating whether hardware animation is supported by this entities materials
             data is saved per scehme number.
         */
         SchemeHardwareAnimMap mSchemeHardwareAnim;
 
+        /// Current state of the hardware animation as represented by the entities parameters.
+        bool mCurrentHWAnimationState;
+
+        /// Number of hardware poses supported by materials.
+        ushort mHardwarePoseCount;
+        /// Flag indicating whether we have a vertex program in use on any of our subentities.
+        bool mVertexProgramInUse;
         /// Counter indicating number of requests for software animation.
         int mSoftwareAnimationRequests;
         /// Counter indicating number of requests for software blended normals.
         int mSoftwareAnimationNormalsRequests;
-
-
-#if !OGRE_NO_MESHLOD
-        /// The LOD number of the mesh to use, calculated by _notifyCurrentCamera.
-        ushort mMeshLodIndex;
-
-        /// LOD bias factor, transformed for optimisation when calculating adjusted LOD value.
-        Real mMeshLodFactorTransformed;
-        /// Index of minimum detail LOD (NB higher index is lower detail).
-        ushort mMinMeshLodIndex;
-        /// Index of maximum detail LOD (NB lower index is higher detail).
-        ushort mMaxMeshLodIndex;
-
-        /// LOD bias factor, not transformed.
-        Real mMaterialLodFactor;
-        /// LOD bias factor, transformed for optimisation when calculating adjusted LOD value.
-        Real mMaterialLodFactorTransformed;
-        /// Index of minimum detail LOD (NB higher index is lower detail).
-        ushort mMinMaterialLodIndex;
-        /// Index of maximum detail LOD (NB lower index is higher detail).
-        ushort mMaxMaterialLodIndex;
+        /// Flag indicating whether to skip automatic updating of the Skeleton's AnimationState.
+        bool mSkipAnimStateUpdates;
+        /// Flag indicating whether to update the main entity skeleton even when an LOD is displayed.
+        bool mAlwaysUpdateMainSkeleton;
+        /// Flag indicating whether to update the bounding box from the bones of the skeleton.
+        bool mUpdateBoundingBoxFromSkeleton;
 
         /** List of LOD Entity instances (for manual LODs).
             We don't know when the mesh is using manual LODs whether one LOD to the next will have the
             same number of SubMeshes, therefore we have to allow a separate Entity list
             with each alternate one.
         */
-        typedef std::vector<Entity*> LODEntityList;
+        typedef vector<Entity*>::type LODEntityList;
         LODEntityList mLodEntityList;
-#else
-        const ushort mMeshLodIndex;
-        const Real mMeshLodFactorTransformed;
-        const ushort mMinMeshLodIndex;
-        const ushort mMaxMeshLodIndex;
-        const Real mMaterialLodFactor;
-        const Real mMaterialLodFactorTransformed;
-        const ushort mMinMaterialLodIndex;
-        const ushort mMaxMaterialLodIndex;
-#endif
+
         /** This Entity's personal copy of the skeleton, if skeletally animated.
         */
-        SkeletonInstance* mSkeletonInstance;
+        OldSkeletonInstance* mSkeletonInstance;
+
+        /// Has this entity been initialised yet?
+        bool mInitialised;
 
         /// Last parent transform.
-        Affine3 mLastParentXform;
+        Matrix4 mLastParentXform;
 
         /// Mesh state count, used to detect differences.
         size_t mMeshStateCount;
 
         /** Builds a list of SubEntities based on the SubMeshes contained in the Mesh. */
-        void buildSubEntityList(MeshPtr& mesh, SubEntityList* sublist);
-
-        /// Internal implementation of attaching a 'child' object to this entity and assign the parent node to the child entity.
-        void attachObjectImpl(MovableObject *pMovable, TagPoint *pAttachingPoint);
-
-        /// Internal implementation of detaching a 'child' object of this entity and clear the parent node of the child entity.
-        void detachObjectImpl(MovableObject* pObject);
-
-        /// Internal implementation of detaching all 'child' objects of this entity.
-        void detachAllObjectsImpl(void);
+        void buildSubEntityList(MeshPtr& mesh, SubEntityList* sublist, vector<String>::type* materialsList = 0);
 
         /// Ensures reevaluation of the vertex processing usage.
         void reevaluateVertexProcessing(void);
@@ -298,7 +265,7 @@ namespace Ogre {
         bool calcVertexProcessing(void);
     
         /// Apply vertex animation.
-        void applyVertexAnimation(bool hardwareAnimation, bool stencilShadows);
+        void applyVertexAnimation(bool hardwareAnimation);
         /// Initialise the hardware animation elements for given vertex data.
         ushort initHardwareAnimationElements(VertexData* vdata, ushort numberOfElements, bool animateNormals);
         /// Are software vertex animation temp buffers bound?
@@ -307,79 +274,40 @@ namespace Ogre {
         bool tempSkelAnimBuffersBound(bool requestNormals) const;
 
     public:
-        /// Contains the child objects (attached to bones) indexed by name.
-        typedef std::vector<MovableObject*> ChildObjectList;
-    protected:
-        ChildObjectList mChildObjectList;
-
-
-        /// Bounding box that 'contains' all the mesh of each child entity.
-        mutable AxisAlignedBox mFullBoundingBox;  // note: this exists only so that getBoundingBox() can return an AAB by reference
-
-        ShadowRenderableList mShadowRenderables;
-
-        /** Nested class to allow entity shadows. */
-        class _OgreExport EntityShadowRenderable : public ShadowRenderable
-        {
-        protected:
-            Entity* mParent;
-            /// Shared link to position buffer.
-            HardwareVertexBufferSharedPtr mPositionBuffer;
-            /// Shared link to w-coord buffer (optional).
-            HardwareVertexBufferSharedPtr mWBuffer;
-            /// Link to current vertex data used to bind (maybe changes).
-            const VertexData* mCurrentVertexData;
-            /// Link to SubEntity, only present if SubEntity has it's own geometry.
-            SubEntity* mSubEntity;
-            /// Original position buffer source binding.
-            ushort mOriginalPosBufferBinding;
-
-        public:
-            EntityShadowRenderable(Entity* parent,
-                HardwareIndexBufferSharedPtr* indexBuffer, const VertexData* vertexData,
-                bool createSeparateLightCap, SubEntity* subent, bool isLightCap = false);
-            ~EntityShadowRenderable();
-            
-            /// Create the separate light cap if it doesn't already exists.
-            void _createSeparateLightCap();
-            void getWorldTransforms(Matrix4* xform) const override;
-            HardwareVertexBufferSharedPtr getPositionBuffer(void) { return mPositionBuffer; }
-            HardwareVertexBufferSharedPtr getWBuffer(void) { return mWBuffer; }
-            /// Rebind the source positions (for temp buffer users).
-            void rebindPositionBuffer(const VertexData* vertexData, bool force);
-            bool isVisible(void) const override;
-            virtual void rebindIndexBuffer(const HardwareIndexBufferSharedPtr& indexBuffer) override;
-        };
-    public:
         /** Default destructor.
         */
         ~Entity();
+
+        /** @copydoc MovableObject::_releaseManualHardwareResources */
+        void _releaseManualHardwareResources();
+        /** @copydoc MovableObject::_restoreManualHardwareResources */
+        void _restoreManualHardwareResources();
 
         /** Gets the Mesh that this Entity is based on.
         */
         const MeshPtr& getMesh(void) const;
 
         /** Gets a pointer to a SubEntity, ie a part of an Entity.
-         @deprecated use getSubEntities()
         */
-        SubEntity* getSubEntity(size_t index) const;
+        SubEntity* getSubEntity(size_t index);
+        const SubEntity* getSubEntity(size_t index) const;
 
         /** Gets a pointer to a SubEntity by name
         @remarks 
             Names should be initialized during a Mesh creation.
         */
-        SubEntity* getSubEntity( const String& name ) const;
+        SubEntity* getSubEntity( const String& name );
+        const SubEntity* getSubEntity( const String& name ) const;
 
         /** Retrieves the number of SubEntity objects making up this entity.
-        * @deprecated use getSubEntities()
         */
         size_t getNumSubEntities(void) const;
 
-        /** Retrieves SubEntity objects making up this entity.
-        */
-        const SubEntityList& getSubEntities() const {
-            return mSubEntityList;
-        }
+        /// Sets the given HLMS datablock to all SubEntities
+        void setDatablock( HlmsDatablock *datablock );
+
+        /// Sets the given HLMS datablock to all SubEntities
+        void setDatablock( IdString datablockName );
 
         /** Clones this entity and returns a pointer to the clone.
         @remarks
@@ -390,7 +318,18 @@ namespace Ogre {
         @param newName
             Name for the new entity.
         */
-        Entity* clone( const String& newName ) const;
+        Entity* clone(void) const;
+
+        /** Sets the material to use for the whole of this Item.
+        @remarks
+            This is a shortcut method to set all the materials for all
+            subentities of this Item. Only use this method is you want to
+            set the same material for all subentities or if you know there
+            is only one. Otherwise call getSubItem() and call the same
+            method on the individual SubItem.
+        */
+        void setDatablockOrMaterialName( const String& name,
+                                         const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
 
         /** Sets the material to use for the whole of this entity.
         @remarks
@@ -413,22 +352,25 @@ namespace Ogre {
         */
         void setMaterial(const MaterialPtr& material);
 
-        void _releaseManualHardwareResources() override;
-        void _restoreManualHardwareResources() override;
+        /** Sets the RenderQueue subgroup ID for the whole of this entity.
+        @remarks
+            This is a shortcut method to set all the subgroups for all
+            subentities of this entity. Only use this method is you want to
+            set the same subgroup for all subentities or if you know there
+            is only one. Otherwise call getSubEntity() and call the same
+            method on the individual SubEntity.
+        */
+        void setRenderQueueSubGroup( uint8 subGroup );
 
-        void _notifyCurrentCamera(Camera* cam) override;
+        /// @copydoc MovableObject::setRenderQueueGroup.
+        void setRenderQueueGroup(uint8 queueID);
 
-        void setRenderQueueGroup(uint8 queueID) override;
+        /** @copydoc MovableObject::_updateRenderQueue.
+        */
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
-        void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority) override;
-
-        const AxisAlignedBox& getBoundingBox(void) const override;
-
-        /// Merge all the child object Bounds a return it.
-        AxisAlignedBox getChildObjectsBoundingBox(void) const;
-
-        void _updateRenderQueue(RenderQueue* queue) override;
-        const String& getMovableType(void) const override;
+        /** @copydoc MovableObject::getMovableType */
+        const String& getMovableType(void) const;
 
         /** For entities based on animated meshes, gets the AnimationState object for a single animation.
         @remarks
@@ -458,17 +400,6 @@ namespace Ogre {
         */
         bool getDisplaySkeleton(void) const;
 
-        /** Returns the number of manual levels of detail that this entity supports.
-        @remarks
-            This number never includes the original entity, it is difference
-            with Mesh::getNumLodLevels.
-        */
-        size_t getNumManualLodLevels(void) const;
-
-        /** Returns the current LOD used to render
-        */
-        ushort getCurrentLodIndex() { return mMeshLodIndex; }
-
         /** Gets a pointer to the entity representing the numbered manual level of detail.
         @remarks
             The zero-based index never includes the original entity, unlike
@@ -476,139 +407,31 @@ namespace Ogre {
         */
         Entity* getManualLodLevel(size_t index) const;
 
-#if !OGRE_NO_MESHLOD
-        /** Sets a level-of-detail bias for the mesh detail of this entity.
+        /** Returns the number of manual levels of detail that this entity supports.
         @remarks
-            Level of detail reduction is normally applied automatically based on the Mesh
-            settings. However, it is possible to influence this behaviour for this entity
-            by adjusting the LOD bias. This 'nudges' the mesh level of detail used for this
-            entity up or down depending on your requirements. You might want to use this
-            if there was a particularly important entity in your scene which you wanted to
-            detail better than the others, such as a player model.
-        @par
-            There are three parameters to this method; the first is a factor to apply; it
-            defaults to 1.0 (no change), by increasing this to say 2.0, this model would
-            take twice as long to reduce in detail, whilst at 0.5 this entity would use lower
-            detail versions twice as quickly. The other 2 parameters are hard limits which
-            let you set the maximum and minimum level-of-detail version to use, after all
-            other calculations have been made. This lets you say that this entity should
-            never be simplified, or that it can only use LODs below a certain level even
-            when right next to the camera.
-        @param factor
-            Proportional factor to apply to the distance at which LOD is changed.
-            Higher values increase the distance at which higher LODs are displayed (2.0 is
-            twice the normal distance, 0.5 is half).
-        @param maxDetailIndex
-            The index of the maximum LOD this entity is allowed to use (lower
-            indexes are higher detail: index 0 is the original full detail model).
-        @param minDetailIndex
-            The index of the minimum LOD this entity is allowed to use (higher
-            indexes are lower detail). Use something like 99 if you want unlimited LODs (the actual
-            LOD will be limited by the number in the Mesh).
+            This number never includes the original entity, it is difference
+            with Mesh::getNumLodLevels.
         */
-        void setMeshLodBias(Real factor, ushort maxDetailIndex = 0, ushort minDetailIndex = 99);
+        size_t getNumManualLodLevels(void) const;
 
-        /** Sets a level-of-detail bias for the material detail of this entity.
-        @remarks
-            Level of detail reduction is normally applied automatically based on the Material
-            settings. However, it is possible to influence this behaviour for this entity
-            by adjusting the LOD bias. This 'nudges' the material level of detail used for this
-            entity up or down depending on your requirements. You might want to use this
-            if there was a particularly important entity in your scene which you wanted to
-            detail better than the others, such as a player model.
-        @par
-            There are three parameters to this method; the first is a factor to apply; it
-            defaults to 1.0 (no change), by increasing this to say 2.0, this entity would
-            take twice as long to use a lower detail material, whilst at 0.5 this entity
-            would use lower detail versions twice as quickly. The other 2 parameters are
-            hard limits which let you set the maximum and minimum level-of-detail index
-            to use, after all other calculations have been made. This lets you say that
-            this entity should never be simplified, or that it can only use LODs below
-            a certain level even when right next to the camera.
-        @param factor
-            Proportional factor to apply to the distance at which LOD is changed.
-            Higher values increase the distance at which higher LODs are displayed (2.0 is
-            twice the normal distance, 0.5 is half).
-        @param maxDetailIndex
-            The index of the maximum LOD this entity is allowed to use (lower
-            indexes are higher detail: index 0 is the original full detail model).
-        @param minDetailIndex
-            The index of the minimum LOD this entity is allowed to use (higher
-            indexes are lower detail. Use something like 99 if you want unlimited LODs (the actual
-            LOD will be limited by the number of LOD indexes used in the Material).
-        */
-        void setMaterialLodBias(Real factor, ushort maxDetailIndex = 0, ushort minDetailIndex = 99);
-#endif
         /** Sets whether the polygon mode of this entire entity may be
             overridden by the camera detail settings.
         */
         void setPolygonModeOverrideable(bool PolygonModeOverrideable);
-        /** Attaches another object to a certain bone of the skeleton which this entity uses.
-        @remarks
-            This method can be used to attach another object to an animated part of this entity,
-            by attaching it to a bone in the skeleton (with an offset if required). As this entity
-            is animated, the attached object will move relative to the bone to which it is attached.
-        @par
-            An exception is thrown if the movable object is already attached to the bone, another bone or scenenode.
-            If the entity has no skeleton or the bone name cannot be found then an exception is thrown.
-        @param boneName
-            The name of the bone (in the skeleton) to attach this object
-        @param pMovable
-            Pointer to the object to attach
-        @param offsetOrientation
-            An adjustment to the orientation of the attached object, relative to the bone.
-        @param offsetPosition
-            An adjustment to the position of the attached object, relative to the bone.
-        @return
-            The TagPoint to which the object has been attached
-        */
-        TagPoint* attachObjectToBone(const String &boneName,
-            MovableObject *pMovable,
-            const Quaternion &offsetOrientation = Quaternion::IDENTITY,
-            const Vector3 &offsetPosition = Vector3::ZERO);
 
-        /** Detach a MovableObject previously attached using attachObjectToBone.
-            If the movable object name is not found then an exception is raised.
-        @param movableName
-            The name of the movable object to be detached.
-        */
-        MovableObject* detachObjectFromBone(const String &movableName);
-
-        /** Detaches an object by pointer.
-        @remarks
-            Use this method to destroy a MovableObject which is attached to a bone of belonging this entity.
-            But sometimes the object may be not in the child object list because it is a LOD entity,
-            this method can safely detect and ignore in this case and won't raise an exception.
-        */
-        void detachObjectFromBone(MovableObject* obj);
-
-        /// Detach all MovableObjects previously attached using attachObjectToBone
-        void detachAllObjectsFromBone(void);
-
-        typedef VectorIterator<ChildObjectList> ChildObjectListIterator;
-        /// @deprecated use getAttachedObjects()
-        OGRE_DEPRECATED ChildObjectListIterator getAttachedObjectIterator(void);
-        /** Gets an iterator to the list of objects attached to bones on this entity. */
-        const ChildObjectList& getAttachedObjects() const { return mChildObjectList; }
-
-        Real getBoundingRadius(void) const override;
-        const AxisAlignedBox& getWorldBoundingBox(bool derive = false) const override;
-        const Sphere& getWorldBoundingSphere(bool derive = false) const override;
-
-        EdgeData* getEdgeList(void) override;
-        const ShadowRenderableList& getShadowVolumeRenderableList(
-            ShadowTechnique shadowTechnique, const Light* light,
-            HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
-            bool extrudeVertices, Real extrusionDistance, unsigned long flags = 0) override;
+        /** @copydoc ShadowCaster::getEdgeList. */
+        EdgeData* getEdgeList(void);
+        /** @copydoc ShadowCaster::hasEdgeList. */
+        bool hasEdgeList(void);
 
         /** Internal method for retrieving bone matrix information. */
-        const Affine3* _getBoneMatrices(void) const { return mBoneMatrices;}
+        const Matrix4* _getBoneMatrices(void) const { return mBoneMatrices;}
         /** Internal method for retrieving bone matrix information. */
         unsigned short _getNumBoneMatrices(void) const { return mNumBoneMatrices; }
         /** Returns whether or not this entity is skeletally animated. */
         bool hasSkeleton(void) const { return mSkeletonInstance != 0; }
         /** Get this Entity's personal skeleton instance. */
-        SkeletonInstance* getSkeleton(void) const { return mSkeletonInstance; }
+        OldSkeletonInstance* getSkeleton(void) const { return mSkeletonInstance; }
         /** Returns whether or not hardware animation is enabled.
         @remarks
             Because fixed-function indexed vertex blending is rarely supported
@@ -626,7 +449,8 @@ namespace Ogre {
         */
         bool isHardwareAnimationEnabled(void);
 
-        void _notifyAttached(Node* parent, bool isTagPoint = false) override;
+        /** @copydoc MovableObject::_notifyAttached */
+        void _notifyAttached( Node* parent );
         /** Returns the number of requests that have been made for software animation
         @remarks
             If non-zero then software animation will be performed in updateAnimation
@@ -673,7 +497,7 @@ namespace Ogre {
         */
         void removeSoftwareAnimationRequest(bool normalsAlso);
 
-        /** Shares the SkeletonInstance with the supplied entity.
+        /** Shares the OldSkeletonInstance with the supplied entity.
             Note that in order for this to work, both entities must have the same
             Skeleton.
         */
@@ -684,7 +508,7 @@ namespace Ogre {
         bool hasVertexAnimation(void) const;
 
 
-        /** Stops sharing the SkeletonInstance with other entities.
+        /** Stops sharing the OldSkeletonInstance with other entities.
         */
         void stopSharingSkeletonInstance();
 
@@ -693,8 +517,8 @@ namespace Ogre {
         */
         inline bool sharesSkeletonInstance() const { return mSharedSkeletonEntities != NULL; }
 
-        /** Returns a pointer to the set of entities which share a SkeletonInstance.
-            If this instance does not share it's SkeletonInstance with other instances @c NULL will be returned
+        /** Returns a pointer to the set of entities which share a OldSkeletonInstance.
+            If this instance does not share it's OldSkeletonInstance with other instances @c NULL will be returned
         */
         inline const EntitySet* getSkeletonInstanceSharingSet() const { return mSharedSkeletonEntities; }
 
@@ -765,7 +589,7 @@ namespace Ogre {
         /// Override to return specific type flag.
         uint32 getTypeFlags(void) const;
         /// Retrieve the VertexData which should be used for GPU binding.
-        VertexData* getVertexDataForBinding(void);
+        VertexData* getVertexDataForBinding( bool casterPass );
 
         /// Identify which vertex data we should be sending to the renderer.
         enum VertexDataBindChoice
@@ -809,16 +633,6 @@ namespace Ogre {
         /** Tear down the internal structures of this Entity, rendering it uninitialised. */
         void _deinitialise(void);
 
-        /** Resource::Listener hook to notify Entity that a delay-loaded Mesh is
-            complete.
-        */
-        void loadingComplete(Resource* res);
-
-        void visitRenderables(Renderable::Visitor* visitor, bool debugRenderables = false) override;
-
-        /** Get the LOD strategy transformation of the mesh LOD factor. */
-        Real _getMeshLodFactorTransformed() const;
-        
         /** Entity's skeleton's AnimationState will not be automatically updated when set to true.
             Useful if you wish to handle AnimationState updates manually.
         */
@@ -874,7 +688,9 @@ namespace Ogre {
     class _OgreExport EntityFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         EntityFactory() {}
         ~EntityFactory() {}
@@ -882,10 +698,13 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);
+
     };
     /** @} */
     /** @} */
 
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

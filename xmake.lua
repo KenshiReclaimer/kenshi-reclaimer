@@ -32,7 +32,7 @@ target("Plugin_Reclaimer")
 
     after_build(function (target)
         in_dir = target:targetfile()
-        out_dir = os.getenv('KenshiGamePath') .. '/' .. target:name() .. '.dll'
+        out_dir = os.getenv('KenshiGamePath') .. '\\' .. target:name() .. '.dll'
         print('copying file:')
         print('\tin_dir = ' .. in_dir)
         print('\tout_dir = ' .. out_dir)

@@ -7,6 +7,7 @@
 #include <OgreRoot.h>
 
 #include <MyGUI.h>
+#include "kenshi/Kenshi.h"
 
 class ReclaimerMain : public Ogre::Plugin
 {
@@ -37,12 +38,8 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void initialise() override
     {
         printf("ReclaimerMain::initialise()\n");
-
-        auto& gui = MyGUI::Gui::getInstance();
-
-        m_mywin = gui.createWidget<MyGUI::Window>("WindowCSX", 50, 50, 400,300, MyGUI::Align::Default, "Overlapped");
-
-        m_mywin->setVisible(true);
+        auto gui = Kenshi::getGuiInstance();
+        printf("ui_instance=%p\n", gui);
 
     }
 
@@ -56,7 +53,6 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void shutdown() override
     {
         printf("ReclaimerMain::shutdown()\n");
-        m_mywin->destroySmooth();
     }
 
     /** Perform the final plugin uninstallation sequence.

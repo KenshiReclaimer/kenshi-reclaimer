@@ -23,33 +23,13 @@ namespace MyGUI
 	public:
 		typedef Singleton<T> Base;
 
-		Singleton()
-		{
-			MYGUI_ASSERT(nullptr == msInstance, "Singleton instance " << getClassTypeName() << " already exsist");
-			msInstance = static_cast<T*>(this);
-		}
+		Singleton();
 
-		virtual ~Singleton()
-		{
-			MYGUI_ASSERT(nullptr != msInstance, "Destroying Singleton instance " << getClassTypeName() << " before constructing it.");
-			msInstance = nullptr;
-		}
+		virtual ~Singleton();
 
-		static T& getInstance()
-		{
-			MYGUI_ASSERT(nullptr != getInstancePtr(), "Singleton instance " << getClassTypeName() << " was not created");
-			return (*getInstancePtr());
-		}
-
-		static T* getInstancePtr()
-		{
-			return msInstance;
-		}
-
-		static const char* getClassTypeName()
-		{
-			return mClassTypeName;
-		}
+		static T& getInstance();
+		static T* getInstancePtr();
+		static const char* getClassTypeName();
 
 	private:
 		static T* msInstance;

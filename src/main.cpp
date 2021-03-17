@@ -1,7 +1,6 @@
-#include <Windows.h>
-#include <stdio.h>
+#include "stdafx.h"
 
-#define _OgreExport __declspec(dllimport)
+#include <stdio.h>
 
 #include <Ogre.h>
 #include <OgrePlugin.h>
@@ -9,7 +8,7 @@
 
 class ReclaimerMain : public Ogre::Plugin
 {
-    virtual const Ogre::String& getName() const { return "Reclaimer" };
+    virtual const Ogre::String& getName() const { return "Reclaimer"; };
 
     /** Perform the plugin initial installation sequence.
     @remarks An implementation must be supplied for this method. It must perform
@@ -66,14 +65,23 @@ class ReclaimerMain : public Ogre::Plugin
 };
 
 
+static ReclaimerMain* g_instance = nullptr;
+
+
 extern "C" void __declspec(dllexport) dllStartPlugin(void)
 {
+    g_instance = new ReclaimerMain();
+
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
 
     printf("dllStartPlugin()\n");
+
+    Ogre::Root::getSingleton().installPlugin(g_instance);
 }
 extern "C" void __declspec(dllexport) dllStopPlugin(void)
 {
     printf("dllStopPlugin()\n");
+    
+    Ogre::Root::getSingleton().uninstallPlugin(g_instance);
 }

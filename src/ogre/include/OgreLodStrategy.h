@@ -30,9 +30,7 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#include "OgreMesh.h"
-#include "OgreMaterial.h"
-
+#include "Math/Array/OgreArrayConfig.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -40,7 +38,7 @@ namespace Ogre {
     /** \addtogroup Core
     *  @{
     */
-    /** \defgroup LOD Level of Detail
+    /** \addtogroup LOD
     *  @{
     */
     /** Strategy for determining level of detail.
@@ -72,6 +70,12 @@ namespace Ogre {
         /** Transform LOD bias so it only needs to be multiplied by the LOD value. */
         virtual Real transformBias(Real factor) const = 0;
 
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const = 0;
+
+        //Include OgreLodStrategyPrivate.inl in the CPP files that use this function.
+        inline static void lodSet( ObjectData &t, Real lodValues[ARRAY_PACKED_REALS] );
+
         /** Transform user supplied value to internal value.
         @remarks
             By default, performs no transformation.
@@ -84,45 +88,26 @@ namespace Ogre {
         /** Compute the LOD value for a given movable object relative to a given camera. */
         Real getValue(const MovableObject *movableObject, const Camera *camera) const;
 
-        /** Get the index of the LOD usage which applies to a given value. */
-        virtual ushort getIndex(Real value, const Mesh::MeshLodUsageList& meshLodUsageList) const = 0;
+#if 0 // Unused and requires including Mesh.h and Material.h
 
         /** Get the index of the LOD usage which applies to a given value. */
-        virtual ushort getIndex(Real value, const Material::LodValueList& materialLodValueList) const = 0;
+        static ushort getIndex(Real value, const v1::Mesh::MeshLodUsageList& meshLodUsageList);
+
+        /** Get the index of the LOD usage which applies to a given value. */
+        static ushort getIndex(Real value, const Material::LodValueArray& materialLodValueArray);
 
         /** Sort mesh LOD usage list from greatest to least detail */
-        virtual void sort(Mesh::MeshLodUsageList& meshLodUsageList) const = 0;
+        static void sort(v1::Mesh::MeshLodUsageList& meshLodUsageList);
 
         /** Determine if the LOD values are sorted from greatest detail to least detail. */
-        virtual bool isSorted(const Mesh::LodValueList& values) const = 0;
+        static bool isSorted(const v1::Mesh::LodValueArray& values);
 
         /** Assert that the LOD values are sorted from greatest detail to least detail. */
-        void assertSorted(const Mesh::LodValueList& values) const;
+        static void assertSorted(const v1::Mesh::LodValueArray& values);
+#endif
 
         /** Get the name of this strategy. */
         const String& getName() const { return mName; }
-
-    protected:
-        /** Implementation of isSorted suitable for ascending values. */
-        static bool isSortedAscending(const Mesh::LodValueList& values);
-        /** Implementation of isSorted suitable for descending values. */
-        static bool isSortedDescending(const Mesh::LodValueList& values);
-
-        /** Implementation of sort suitable for ascending values. */
-        static void sortAscending(Mesh::MeshLodUsageList& meshLodUsageList);
-        /** Implementation of sort suitable for descending values. */
-        static void sortDescending(Mesh::MeshLodUsageList& meshLodUsageList);
-
-        /** Implementation of getIndex suitable for ascending values. */
-        static ushort getIndexAscending(Real value, const Mesh::MeshLodUsageList& meshLodUsageList);
-        /** Implementation of getIndex suitable for descending values. */
-        static ushort getIndexDescending(Real value, const Mesh::MeshLodUsageList& meshLodUsageList);
-
-        /** Implementation of getIndex suitable for ascending values. */
-        static ushort getIndexAscending(Real value, const Material::LodValueList& materialLodValueList);
-        /** Implementation of getIndex suitable for descending values. */
-        static ushort getIndexDescending(Real value, const Material::LodValueList& materialLodValueList);
-
     };
     /** @} */
     /** @} */

@@ -32,9 +32,12 @@ THE SOFTWARE.
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
 #include "OgreMesh.h"
+#include "OgreHardwareIndexBuffer.h"
+#include "OgreVertexIndexData.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -144,7 +147,7 @@ namespace Ogre {
             VertexData *vertexData;
             IndexData *indexData;
         };
-        typedef std::list<OptimisedSubMeshGeometry*> OptimisedSubMeshGeometryList;
+        typedef list<OptimisedSubMeshGeometry*>::type OptimisedSubMeshGeometryList;
         /// Saved link between SubMesh at a LOD and vertex/index data
         /// May point to original or optimised geometry
         struct SubMeshLodGeometryLink
@@ -152,8 +155,8 @@ namespace Ogre {
             VertexData* vertexData;
             IndexData* indexData;
         };
-        typedef std::vector<SubMeshLodGeometryLink> SubMeshLodGeometryLinkList;
-        typedef std::map<SubMesh*, SubMeshLodGeometryLinkList*> SubMeshGeometryLookup;
+        typedef vector<SubMeshLodGeometryLink>::type SubMeshLodGeometryLinkList;
+        typedef map<SubMesh*, SubMeshLodGeometryLinkList*>::type SubMeshGeometryLookup;
         /// Structure recording a queued submesh for the build
         struct QueuedSubMesh : public BatchedGeometryAlloc
         {
@@ -167,7 +170,7 @@ namespace Ogre {
             /// Pre-transformed world AABB 
             AxisAlignedBox worldBounds;
         };
-        typedef std::vector<QueuedSubMesh*> QueuedSubMeshList;
+        typedef vector<QueuedSubMesh*>::type QueuedSubMeshList;
         /// Structure recording a queued geometry for low level builds
         struct QueuedGeometry : public BatchedGeometryAlloc
         {
@@ -176,7 +179,7 @@ namespace Ogre {
             Quaternion orientation;
             Vector3 scale;
         };
-        typedef std::vector<QueuedGeometry*> QueuedGeometryList;
+        typedef vector<QueuedGeometry*>::type QueuedGeometryList;
         
         // forward declarations
         class LODBucket;
@@ -234,7 +237,7 @@ namespace Ogre {
             /// @copydoc Renderable::getMaterial
             const MaterialPtr& getMaterial(void) const;
             Technique* getTechnique(void) const;
-            void getRenderOperation(RenderOperation& op);
+            void getRenderOperation(RenderOperation& op, bool casterPass);
             void getWorldTransforms(Matrix4* xform) const;
             Real getSquaredViewDepth(const Camera* cam) const;
             const LightList& getLights(void) const;
@@ -245,7 +248,7 @@ namespace Ogre {
             */
             bool assign(QueuedGeometry* qsm);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Dump contents for diagnostics
             void dump(std::ofstream& of) const;
         };
@@ -255,7 +258,7 @@ namespace Ogre {
         {
         public:
             /// list of Geometry Buckets in this region
-            typedef std::vector<GeometryBucket*> GeometryBucketList;
+            typedef vector<GeometryBucket*>::type GeometryBucketList;
         protected:
             /// Pointer to parent LODBucket
             LODBucket* mParent;
@@ -269,7 +272,7 @@ namespace Ogre {
             /// list of Geometry Buckets in this region
             GeometryBucketList mGeometryBucketList;
             // index to current Geometry Buckets for a given geometry format
-            typedef std::map<String, GeometryBucket*> CurrentGeometryMap;
+            typedef map<String, GeometryBucket*>::type CurrentGeometryMap;
             CurrentGeometryMap mCurrentGeometryMap;
             /// Get a packed string identifying the geometry format
             String getGeometryFormatString(SubMeshLodGeometryLink* geom);
@@ -283,23 +286,20 @@ namespace Ogre {
             /// Assign geometry to this bucket
             void assign(QueuedGeometry* qsm);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Add children to the render queue
-            void addRenderables(RenderQueue* queue, uint8 group, 
-                Real lodValue);
+            void addRenderables(RenderQueue* queue, uint8 group,
+                size_t materialLod);
             /// Get the material for this bucket
             const MaterialPtr& getMaterial(void) const { return mMaterial; }
             /// Iterator over geometry
             typedef VectorIterator<GeometryBucketList> GeometryIterator;
-            /// Get a list of the contained geometry
-            const GeometryBucketList& getGeometryList() const { return mGeometryBucketList; }
-            /// @deprecated use getGeometryList()
-            OGRE_DEPRECATED GeometryIterator getGeometryIterator(void);
+            /// Get an iterator over the contained geometry
+            GeometryIterator getGeometryIterator(void);
             /// Get the current Technique
             Technique* getCurrentTechnique(void) const { return mTechnique; }
             /// Dump contents for diagnostics
             void dump(std::ofstream& of) const;
-            void visitRenderables(Renderable::Visitor* visitor, bool debugRenderables);
         };
         /** A LODBucket is a collection of smaller buckets with the same LOD. 
         @remarks
@@ -310,29 +310,8 @@ namespace Ogre {
         {
         public:
             /// Lookup of Material Buckets in this region
-            typedef std::map<String, MaterialBucket*> MaterialBucketMap;
+            typedef map<String, MaterialBucket*>::type MaterialBucketMap;
         protected:
-            /** Nested class to allow shadows. */
-            class _OgreExport LODShadowRenderable : public ShadowRenderable
-            {
-            protected:
-                LODBucket* mParent;
-                // Shared link to position buffer
-                HardwareVertexBufferSharedPtr mPositionBuffer;
-                // Shared link to w-coord buffer (optional)
-                HardwareVertexBufferSharedPtr mWBuffer;
-
-            public:
-                LODShadowRenderable(LODBucket* parent, 
-                    HardwareIndexBufferSharedPtr* indexBuffer, const VertexData* vertexData, 
-                    bool createSeparateLightCap, bool isLightCap = false);
-                ~LODShadowRenderable();
-                void getWorldTransforms(Matrix4* xform) const override;
-                HardwareVertexBufferSharedPtr getPositionBuffer(void) { return mPositionBuffer; }
-                HardwareVertexBufferSharedPtr getWBuffer(void) { return mWBuffer; }
-                virtual void rebindIndexBuffer(const HardwareIndexBufferSharedPtr& indexBuffer) override;
-
-            };
             /// Pointer to parent region
             Region* mParent;
             /// LOD level (0 == full LOD)
@@ -347,8 +326,6 @@ namespace Ogre {
             EdgeData* mEdgeList;
             /// Is a vertex program in use somewhere in this group?
             bool mVertexProgramInUse;
-            /// List of shadow renderables
-            ShadowCaster::ShadowRenderableList mShadowRenderables;
         public:
             LODBucket(Region* parent, unsigned short lod, Real lodValue);
             virtual ~LODBucket();
@@ -360,26 +337,19 @@ namespace Ogre {
             /// Assign a queued submesh to this bucket, using specified mesh LOD
             void assign(QueuedSubMesh* qsm, ushort atLod);
             /// Build
-            void build(bool stencilShadows);
+            void build();
             /// Add children to the render queue
             void addRenderables(RenderQueue* queue, uint8 group, 
-                Real lodValue);
+                const FastArray<unsigned char> &currentMatLod);
             /// Iterator over the materials in this LOD
             typedef MapIterator<MaterialBucketMap> MaterialIterator;
             /// Get an iterator over the materials in this LOD
-            const MaterialBucketMap& getMaterialBuckets() const { return mMaterialBucketMap; }
-            /// @deprecated use getMaterialBuckets()
-            OGRE_DEPRECATED MaterialIterator getMaterialIterator(void);
+            MaterialIterator getMaterialIterator(void);
+            size_t getNumMaterials(void) const          { return mMaterialBucketMap.size(); }
             /// Dump contents for diagnostics
             void dump(std::ofstream& of) const;
-            void visitRenderables(Renderable::Visitor* visitor, bool debugRenderables);
             EdgeData* getEdgeList() const { return mEdgeList; }
-            ShadowCaster::ShadowRenderableList& getShadowRenderableList() { return mShadowRenderables; }
             bool isVertexProgramInUse() const { return mVertexProgramInUse; }
-            void updateShadowRenderables(
-                ShadowTechnique shadowTechnique, const Vector4& lightPos, 
-                HardwareIndexBufferSharedPtr* indexBuffer, 
-                bool extrudeVertices, Real extrusionDistance, unsigned long flags = 0 );
             
         };
         /** The details of a topological region which is the highest level of
@@ -396,7 +366,7 @@ namespace Ogre {
             friend class GeometryBucket;
         public:
             /// list of LOD Buckets in this region
-            typedef std::vector<LODBucket*> LODBucketList;
+            typedef vector<LODBucket*>::type LODBucketList;
         protected:
             /// Parent static geometry
             StaticGeometry* mParent;
@@ -411,66 +381,43 @@ namespace Ogre {
             /// Center of the region
             Vector3 mCentre;
             /// LOD values as built up - use the max at each level
-            Mesh::LodValueList mLodValues;
-            /// Local AABB relative to region centre
-            AxisAlignedBox mAABB;
-            /// Local bounding radius
-            Real mBoundingRadius;
-            /// The current LOD level, as determined from the last camera
-            ushort mCurrentLod;
-            /// Current LOD value, passed on to do material LOD later
-            Real mLodValue;
+            Mesh::LodValueArray mLodValues;
             /// List of LOD buckets         
             LODBucketList mLodBucketList;
             /// List of lights for this region
             mutable LightList mLightList;
             /// The last frame that this light list was updated in
             mutable ulong mLightListUpdated;
-            /// LOD strategy reference
-            const LodStrategy *mLodStrategy;
             /// Current camera
-            Camera *mCamera;
+            Camera const *mCamera;
             /// Cached squared view depth value to avoid recalculation by GeometryBucket
             Real mSquaredViewDepth;
 
         public:
-            Region(StaticGeometry* parent, const String& name, SceneManager* mgr, 
-                uint32 regionID, const Vector3& centre);
+            Region( IdType id, ObjectMemoryManager *objectMemoryManager, StaticGeometry* parent,
+                    SceneManager* mgr, uint32 regionID, const Vector3& centre );
             virtual ~Region();
             // more fields can be added in subclasses
             StaticGeometry* getParent(void) const { return mParent;}
             /// Assign a queued mesh to this region, read for final build
             void assign(QueuedSubMesh* qmesh);
             /// Build this region
-            void build(bool stencilShadows);
+            void build( bool parentVisible );
             /// Get the region ID of this region
             uint32 getID(void) const { return mRegionID; }
             /// Get the centre point of the region
             const Vector3& getCentre(void) const { return mCentre; }
             const String& getMovableType(void) const;
-            void _notifyCurrentCamera(Camera* cam);
-            const AxisAlignedBox& getBoundingBox(void) const;
-            Real getBoundingRadius(void) const;
-            void _updateRenderQueue(RenderQueue* queue);
-            /// @copydoc MovableObject::visitRenderables
-            void visitRenderables(Renderable::Visitor* visitor, 
-                bool debugRenderables = false);
-            bool isVisible(void) const;
+            void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
             uint32 getTypeFlags(void) const;
 
             typedef VectorIterator<LODBucketList> LODIterator;
-            /// @deprecated use getLODBuckets()
-            OGRE_DEPRECATED LODIterator getLODIterator(void);
-            /// Get an list of the LODs in this region
-            const LODBucketList& getLODBuckets() const { return mLodBucketList; }
-            const ShadowRenderableList& getShadowVolumeRenderableList(
-                ShadowTechnique shadowTechnique, const Light* light, 
-                HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
-                bool extrudeVertices, Real extrusionDistance, unsigned long flags = 0 ) override;
-            EdgeData* getEdgeList(void) override;
-
-            void _releaseManualHardwareResources() override;
-            void _restoreManualHardwareResources() override;
+            /// Get an iterator over the LODs in this region
+            LODIterator getLODIterator(void);
+            /// Overridden from MovableObject
+            EdgeData* getEdgeList(void);
+            /** Overridden member from ShadowCaster. */
+            bool hasEdgeList(void);
 
             /// Dump contents for diagnostics
             void dump(std::ofstream& of) const;
@@ -483,7 +430,7 @@ namespace Ogre {
             0 in the x axis begins at mOrigin.x + (mRegionDimensions.x * -512), 
             and region 1023 ends at mOrigin + (mRegionDimensions.x * 512).
         */
-        typedef std::map<uint32, Region*> RegionMap;
+        typedef map<uint32, Region*>::type RegionMap;
     protected:
         // General state & settings
         SceneManager* mOwner;
@@ -555,7 +502,7 @@ namespace Ogre {
         void splitGeometry(VertexData* vd, IndexData* id, 
             SubMeshLodGeometryLink* targetGeomLink);
 
-        typedef std::map<size_t, size_t> IndexRemap;
+        typedef map<size_t, size_t>::type IndexRemap;
         /** Method for figuring out which vertices are used by an index buffer
             and calculating a remap lookup for a vertex buffer just containing
             those vertices. 
@@ -567,7 +514,7 @@ namespace Ogre {
             for (size_t i = 0; i < numIndexes; ++i)
             {
                 // use insert since duplicates are silently discarded
-                remap.emplace(*pBuffer++, remap.size());
+                remap.insert(IndexRemap::value_type(*pBuffer++, remap.size()));
                 // this will have mapped oldindex -> new index IF oldindex
                 // wasn't already there
             }
@@ -759,16 +706,11 @@ namespace Ogre {
 
         /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
         virtual uint8 getRenderQueueGroup(void) const;
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
         
         /// Iterator for iterating over contained regions
         typedef MapIterator<RegionMap> RegionIterator;
-        /// Get an list of the regions in this geometry
-        const RegionMap& getRegions() const { return mRegionMap; }
-        /// @deprecated use getRegions()
-        OGRE_DEPRECATED RegionIterator getRegionIterator(void);
+        /// Get an iterator over the regions in this geometry
+        RegionIterator getRegionIterator(void);
 
         /** Dump the contents of this StaticGeometry to a file for diagnostic
             purposes.
@@ -780,6 +722,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

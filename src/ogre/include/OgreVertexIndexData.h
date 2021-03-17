@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -42,20 +43,10 @@ namespace Ogre {
     */
 
     /// Define a list of usage flags
-    typedef std::vector<HardwareBuffer::Usage> BufferUsageList;
+    typedef vector<HardwareBuffer::Usage>::type BufferUsageList;
 
-    /** collects together all the vertex-related information used to render geometry.
-     *
-     * The RenderOperation requires a pointer to a VertexData object, and it is also used in Mesh and
-     * SubMesh to store the vertex positions, normals, texture coordinates etc. VertexData can either be
-     * used alone (in order to render unindexed geometry, where the stream of vertices defines the
-     * triangles), or in combination with IndexData where the triangles are defined by indexes which refer
-     * to the entries in VertexData.  It’s worth noting that you don’t necessarily have to use VertexData to
-     * store your applications geometry; all that is required is that you can build a VertexData structure
-     * when it comes to rendering. This is pretty easy since all of VertexData’s members are pointers, so
-     * you could maintain your vertex buffers and declarations in alternative structures if you like, so
-     * long as you can convert them for rendering.
-     */
+
+    /** Summary class collecting together vertex source information. */
     class _OgreExport VertexData : public VertexDataAlloc
     {
     private:
@@ -72,7 +63,7 @@ namespace Ogre {
             automatically, and arranges for their deletion afterwards.
         @param mgr Optional HardwareBufferManager from which to create resources
         */
-        VertexData(HardwareBufferManagerBase* mgr = 0);
+        VertexData(HardwareBufferManagerBase* mgr);
         /** Constructor.
         @note 
         This constructor receives the VertexDeclaration and VertexBufferBinding
@@ -84,19 +75,19 @@ namespace Ogre {
         VertexData(VertexDeclaration* dcl, VertexBufferBinding* bind);
         ~VertexData();
 
-        /** Declaration of the the format of the vertex input.
-        Note that this is created for you on construction.
+        /** Declaration of the vertex to be used in this operation. 
+        @remarks Note that this is created for you on construction.
         */
         VertexDeclaration* vertexDeclaration;
-        /** Defines which vertex buffers are bound to which sources.
-        Note that this is created for you on construction.
+        /** The vertex buffer bindings to be used. 
+        @remarks Note that this is created for you on construction.
         */
         VertexBufferBinding* vertexBufferBinding;
         /// Whether this class should delete the declaration and binding
         bool mDeleteDclBinding;
-        /// The position in the bound buffers to start reading vertex data from. This allows you to use a single buffer for many different renderables.
+        /// The base vertex index to start from
         size_t vertexStart;
-        /// The number of vertices to process in this particular rendering group
+        /// The number of vertices used in this operation
         size_t vertexCount;
 
 
@@ -106,7 +97,7 @@ namespace Ogre {
             unsigned short targetBufferIndex;
             Real parametric;
         };
-        typedef std::vector<HardwareAnimationData> HardwareAnimationDataList;
+        typedef vector<HardwareAnimationData>::type HardwareAnimationDataList;
         /// VertexElements used for hardware morph / pose animation
         HardwareAnimationDataList hwAnimationDataList;
         /// Number of hardware animation data items used
@@ -117,7 +108,7 @@ namespace Ogre {
         @param mgr If supplied, the buffer manager through which copies should be made
         @remarks The caller is expected to delete the returned pointer when ready
         */
-        VertexData* clone(bool copyData = true, HardwareBufferManagerBase* mgr = 0) const OGRE_NODISCARD;
+        VertexData* clone(bool copyData = true, HardwareBufferManagerBase* mgr = 0) const;
 
         /** Modifies the vertex data to be suitable for use for rendering shadow geometry.
         @remarks
@@ -244,7 +235,52 @@ namespace Ogre {
         */
         ushort allocateHardwareAnimationElements(ushort count, bool animateNormals);
 
+        struct ReadRequests
+        {
+            VertexElementSemantic semantic;
+            VertexElementType type;
+            /// Data is already offseted. To get the vertex location, perform (data - offset);
+            char *data;
+            size_t offset;
+            HardwareVertexBuffer *vertexBuffer;
 
+            ReadRequests( VertexElementSemantic _semantic ) :
+                semantic( _semantic ), type(VET_FLOAT1), data( 0 ), offset( 0 ), vertexBuffer( 0 ) {}
+        };
+
+        typedef FastArray<ReadRequests> ReadRequestsArray;
+        /** Utility to get multiple pointers & read specific elements of the vertex,
+            even if they're in separate buffers.
+            When two elements share the same buffer, the buffer is locked once.
+
+            Example usage:
+                VertexData::ReadRequestsArray requests;
+                requests.push_back( VertexData::ReadRequests( VES_POSITION ) );
+                requests.push_back( VertexData::ReadRequests( VES_NORMALS ) );
+                vao->lockMultipleElements( requests );
+
+                for( size_t i=0; i<numVertices; ++i )
+                {
+                    float const *position = reinterpret_cast<const float*>( requests[0].data );
+                    float const *normals  = reinterpret_cast<const float*>( requests[1].data );
+
+                    requests[0].data += requests[0].vertexBuffer->getVertexSize();
+                    requests[1].data += requests[1].vertexBuffer->getVertexSize();
+                }
+
+                vao->unlockMultipleElements( requests );
+        @remarks
+            Throws if an element couldn't be found.
+            See VertexArrayObject::readRequests
+        @param requests [in/out]
+            Array filled with the semantic.
+        */
+        void lockMultipleElements( ReadRequestsArray &requests,
+                                   HardwareBuffer::LockOptions lockOptions );
+        void unlockMultipleElements( ReadRequestsArray &requests );
+
+
+        HardwareBufferManagerBase* _getHardwareBufferManager(void) const    { return mMgr; }
 
     };
 
@@ -284,7 +320,6 @@ namespace Ogre {
             in any case.
         */
         void optimiseVertexCacheTriList(void);
-    
     };
 
     /** Vertex cache profiler.
@@ -324,6 +359,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

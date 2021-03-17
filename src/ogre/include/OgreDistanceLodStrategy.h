@@ -41,6 +41,10 @@ namespace Ogre {
     *  @{
     */
 
+    class DistanceLodBoxStrategy;
+    /// Backward compatible name for Distance_Box strategy.
+    typedef DistanceLodBoxStrategy DistanceLodStrategy;
+
     /** Level of detail strategy based on distance from camera. This is an abstract base class for DistanceLodBoxStrategy and DistanceLodSphereStrategy.
         @remarks
             The purpose of the reference view is to ensure a consistent experience for all users. Monitors of different resolutions and aspect ratios will each have different results for the distance queries.
@@ -70,20 +74,11 @@ namespace Ogre {
         /// @copydoc LodStrategy::transformUserValue
         virtual Real transformUserValue(Real userValue) const;
 
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Material::LodValueList& materialLodValueList) const;
-
-        /// @copydoc LodStrategy::sort
-        virtual void sort(Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::isSorted
-        virtual bool isSorted(const Mesh::LodValueList& values) const;
-
-        /** Get the squared distance between the camera and the LOD object */
+        /** Get the squared depth from camera to the LOD object */
         virtual Real getSquaredDepth(const MovableObject *movableObject, const Ogre::Camera *camera) const = 0;
+
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const;
 
         /** Sets the reference view upon which the distances were based.
         @note
@@ -133,11 +128,40 @@ namespace Ogre {
         /** Default constructor. */
         DistanceLodSphereStrategy();
 
+        /// @copydoc DistanceLodStrategy::getSquaredDepth
         Real getSquaredDepth(const MovableObject *movableObject, const Ogre::Camera *camera) const;
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DistanceLodSphereStrategy& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DistanceLodSphereStrategy* getSingletonPtr(void);
     };
     /** @} */
@@ -166,11 +190,40 @@ namespace Ogre {
         /** Default constructor. */
         DistanceLodBoxStrategy();
 
+        /// @copydoc DistanceLodStrategy::getSquaredDepth
         Real getSquaredDepth(const MovableObject *movableObject, const Ogre::Camera *camera) const;
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DistanceLodBoxStrategy& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static DistanceLodBoxStrategy* getSingletonPtr(void);
     };
 

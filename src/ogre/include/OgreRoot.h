@@ -30,10 +30,16 @@ THE SOFTWARE.
 
 // Precompiler options
 #include "OgrePrerequisites.h"
+
 #include "OgreSceneManagerEnumerator.h"
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+#include "Android/OgreAndroidLogListener.h"
+#endif
+
+#include "ogrestd/deque.h"
+
 #include <exception>
-#include "OgreHeaderPrefix.h"
 
 namespace Ogre
 {
@@ -44,11 +50,9 @@ namespace Ogre
     *  @{
     */
 
-    class AndroidLogListener;
-    class ShadowTextureManager;
+    class FrameStats;
+    typedef vector<RenderSystem*>::type RenderSystemList;
 
-    typedef std::vector<RenderSystem*> RenderSystemList;
-    
     /** The root class of the Ogre system.
         @remarks
             The Ogre::Root class represents a starting point for the client
@@ -67,84 +71,93 @@ namespace Ogre
         // To allow update of active renderer if
         // RenderSystem::initialise is used directly
         friend class RenderSystem;
-    public:
-        typedef std::map<String, MovableObjectFactory*> MovableObjectFactoryMap;
-        typedef std::vector<DynLib*> PluginLibList;
-        typedef std::vector<Plugin*> PluginInstanceList;
     protected:
         RenderSystemList mRenderers;
         RenderSystem* mActiveRenderer;
         String mVersion;
+        String mAppName;
         String mConfigFileName;
         bool mQueuedEnd;
-        // In case multiple render windows are created, only once are the resources loaded.
+        /// In case multiple render windows are created, only once are the resources loaded.
         bool mFirstTimePostWindowInit;
 
-        // ordered in reverse destruction sequence
-        std::unique_ptr<LogManager> mLogManager;
+        // Singletons
+        LogManager* mLogManager;
+        ControllerManager* mControllerManager;
+        SceneManagerEnumerator* mSceneManagerEnum;
+        typedef deque<SceneManager*>::type SceneManagerStack;
+        SceneManagerStack mSceneManagerStack;
+        DynLibManager* mDynLibManager;
+        ArchiveManager* mArchiveManager;
+        MaterialManager* mMaterialManager;
+        v1::MeshManager* mMeshManagerV1;
+        MeshManager* mMeshManager;
+        ParticleSystemManager* mParticleManager;
+        v1::OldSkeletonManager* mOldSkeletonManager;
+        SkeletonManager* mSkeletonManager;
+        
+        ArchiveFactory *mZipArchiveFactory;
+        ArchiveFactory *mEmbeddedZipArchiveFactory;
+        ArchiveFactory *mFileSystemArchiveFactory;
+        
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
-        std::unique_ptr<AndroidLogListener> mAndroidLogger;
+        AndroidLogListener* mAndroidLogger;
 #endif
-        std::unique_ptr<ScriptCompilerManager> mCompilerManager;
-        std::unique_ptr<DynLibManager> mDynLibManager;
-        std::unique_ptr<Timer> mTimer;
-        std::unique_ptr<WorkQueue> mWorkQueue;
-        std::unique_ptr<ResourceGroupManager> mResourceGroupManager;
-        std::unique_ptr<ResourceBackgroundQueue> mResourceBackgroundQueue;
-        std::unique_ptr<MaterialManager> mMaterialManager;
-        std::unique_ptr<HighLevelGpuProgramManager> mHighLevelGpuProgramManager;
-        std::unique_ptr<ControllerManager> mControllerManager;
-        std::unique_ptr<MeshManager> mMeshManager;
-        std::unique_ptr<SkeletonManager> mSkeletonManager;
+        
+        ResourceGroupManager* mResourceGroupManager;
+        ResourceBackgroundQueue* mResourceBackgroundQueue;
+        RenderSystemCapabilitiesManager* mRenderSystemCapabilitiesManager;
+        ScriptCompilerManager *mCompilerManager;
+        LodStrategyManager *mLodStrategyManager;
 
-        std::unique_ptr<ArchiveFactory> mFileSystemArchiveFactory;
-        std::unique_ptr<ArchiveFactory> mEmbeddedZipArchiveFactory;
-        std::unique_ptr<ArchiveFactory> mZipArchiveFactory;
-        std::unique_ptr<ArchiveManager> mArchiveManager;
-
-        MovableObjectFactoryMap mMovableObjectFactoryMap;
-        std::unique_ptr<MovableObjectFactory> mRibbonTrailFactory;
-        std::unique_ptr<MovableObjectFactory> mBillboardChainFactory;
-        std::unique_ptr<MovableObjectFactory> mManualObjectFactory;
-        std::unique_ptr<MovableObjectFactory> mBillboardSetFactory;
-        std::unique_ptr<MovableObjectFactory> mLightFactory;
-        std::unique_ptr<MovableObjectFactory> mEntityFactory;
-
-        std::unique_ptr<ParticleSystemManager> mParticleManager;
-        std::unique_ptr<LodStrategyManager> mLodStrategyManager;
-        std::unique_ptr<Profiler> mProfiler;
-
-        std::unique_ptr<ExternalTextureSourceManager> mExternalTextureSourceManager;
-        std::unique_ptr<CompositorManager> mCompositorManager;
-        std::unique_ptr<RenderSystemCapabilitiesManager> mRenderSystemCapabilitiesManager;
-
-        std::unique_ptr<SceneManagerEnumerator> mSceneManagerEnum;
-        SceneManager* mCurrentSceneManager;
-
-        std::unique_ptr<ShadowTextureManager> mShadowTextureManager;
-
-        std::unique_ptr<SceneLoaderManager> mSceneLoaderManager;
-
-        RenderWindow* mAutoWindow;
-
+        FrameStats* mFrameStats;
+        Timer* mTimer;
+        Window* mAutoWindow;
+        Profiler* mProfiler;
+        HighLevelGpuProgramManager* mHighLevelGpuProgramManager;
+        ExternalTextureSourceManager* mExternalTextureSourceManager;
+        HlmsManager         *mHlmsManager;
+        HlmsLowLevel        *mHlmsLowLevelProxy;
+        HlmsCompute         *mHlmsCompute;
+        CompositorManager2 *mCompositorManager2;
         unsigned long mNextFrame;
         Real mFrameSmoothingTime;
         bool mRemoveQueueStructuresOnClear;
         Real mDefaultMinPixelSize;
+        float mLightProfilesInvHeight;
 
+    public:
+        typedef vector<DynLib*>::type PluginLibList;
+        typedef vector<Plugin*>::type PluginInstanceList;
     protected:
         /// List of plugin DLLs loaded
         PluginLibList mPluginLibs;
         /// List of Plugin instances registered
         PluginInstanceList mPlugins;
 
+        typedef map<String, MovableObjectFactory*>::type MovableObjectFactoryMap;
+        MovableObjectFactoryMap mMovableObjectFactoryMap;
         uint32 mNextMovableObjectTypeFlag;
-
-        typedef std::map<String, RenderQueueInvocationSequence*> RenderQueueInvocationSequenceMap;
-        RenderQueueInvocationSequenceMap mRQSequenceMap;
+        // stock movable factories
+        MovableObjectFactory* mDecalFactory;
+        MovableObjectFactory* mCubemapProbeFactory;
+        MovableObjectFactory* mEntityFactory;
+        MovableObjectFactory* mItemFactory;
+        MovableObjectFactory* mLightFactory;
+        MovableObjectFactory* mRectangle2DFactory;
+        MovableObjectFactory* mBillboardSetFactory;
+        MovableObjectFactory* mManualObjectFactory;
+        MovableObjectFactory* mBillboardChainFactory;
+        MovableObjectFactory* mRibbonTrailFactory;
+        MovableObjectFactory* mWireAabbFactory;
 
         /// Are we initialised yet?
         bool mIsInitialised;
+
+        WorkQueue* mWorkQueue;
+
+        bool mFrameStarted;
+
         ///Tells whether blend indices information needs to be passed to the GPU
         bool mIsBlendIndicesGpuRedundant;
         ///Tells whether blend weights information needs to be passed to the GPU
@@ -154,8 +167,10 @@ namespace Ogre
             plugins.
             @param
                 pluginsfile The file that contains plugins information.
+                Defaults to "plugins.cfg" in release and to "plugins_d.cfg"
+                in debug build.
         */
-        void loadPlugins(const String& pluginsfile = "plugins.cfg");
+        void loadPlugins(const String& pluginsfile = "plugins" OGRE_BUILD_SUFFIX ".cfg");
         /** Initialise all loaded plugins - allows plugins to perform actions
             once the renderer is initialised.
         */
@@ -173,11 +188,11 @@ namespace Ogre
         void oneTimePostWindowInit(void);
 
         /** Set of registered frame listeners */
-        std::set<FrameListener*> mFrameListeners;
+        set<FrameListener*>::type mFrameListeners;
 
         /** Set of frame listeners marked for removal and addition*/
-        std::set<FrameListener*> mRemovedFrameListeners;
-        std::set<FrameListener*> mAddedFrameListeners;
+        set<FrameListener*>::type mRemovedFrameListeners;
+        set<FrameListener*>::type mAddedFrameListeners;
         void _syncAddedRemovedFrameListeners();
 
         /** Indicates the type of event to be considered by calculateEventTime(). */
@@ -190,7 +205,7 @@ namespace Ogre
         };
 
         /// Contains the times of recently fired events
-        typedef std::deque<unsigned long> EventTimesQueue;
+        typedef deque<unsigned long>::type EventTimesQueue;
         EventTimesQueue mEventTimes[FETT_COUNT];
 
         /** Internal method for calculating the average time between recently fired events.
@@ -206,15 +221,19 @@ namespace Ogre
 
         /** Constructor
         @param pluginFileName The file that contains plugins information.
-            May be left blank to ignore.
+            Defaults to "plugins.cfg" in release build and to "plugins_d.cfg"
+            in debug build. May be left blank to ignore.
         @param configFileName The file that contains the configuration to be loaded.
             Defaults to "ogre.cfg", may be left blank to load nothing.
         @param logFileName The logfile to create, defaults to Ogre.log, may be 
             left blank if you've already set up LogManager & Log yourself
+        @param appName
+            Name for this app. Use this string so driver vendors can create custom driver profiles
+            (e.g. through NVIDIA's or AMD's control panel)
         */
-        Root(const String& pluginFileName = "plugins.cfg",
-            const String& configFileName = "ogre.cfg", 
-            const String& logFileName = "Ogre.log");
+        Root( const String &pluginFileName = "plugins" OGRE_BUILD_SUFFIX ".cfg",
+              const String &configFileName = "ogre.cfg", const String &logFileName = "Ogre.log",
+              const String &appName = "" );
         ~Root();
 
         /** Saves the details of the current configuration
@@ -239,6 +258,8 @@ namespace Ogre
         bool restoreConfig(void);
 
         /** Displays a dialog asking the user to choose system settings.
+            @param aCustomDialog If left null ogre will use the default config
+                dialog. Otherwise it will use the one provided.
             @remarks
                 This method displays the default dialog allowing the user to
                 choose the rendering system, video mode etc. If there is are
@@ -248,16 +269,13 @@ namespace Ogre
                 RenderSystem::setConfigOption and Root::saveConfig with the
                 user's choices. This is the easiest way to get the system
                 configured.
-            @param dialog ConfigDialog implementation to use.
-                If NULL, the first available render system with the default options
-                will be selected.
             @return
                 If the user clicked 'Ok', <b>true</b> is returned.
             @par
                 If they clicked 'Cancel' (in which case the app should
                 strongly consider terminating), <b>false</b> is returned.
          */
-        bool showConfigDialog(ConfigDialog* dialog);
+        bool showConfigDialog( ConfigDialog* aCustomDialog = 0 );
 
         /** Adds a new rendering subsystem to the list of available renderers.
             @remarks
@@ -311,6 +329,13 @@ namespace Ogre
         */
         RenderSystem* getRenderSystem(void);
 
+        const String &getAppName( void ) const { return mAppName; }
+
+        /// Gets the HlmsManager, which is needed to register generators at startup.
+        HlmsManager* getHlmsManager(void) const                     { return mHlmsManager; }
+
+        CompositorManager2* getCompositorManager2() const           { return mCompositorManager2; }
+
         /** Initialises the renderer.
             @remarks
                 This method can only be called after a renderer has been
@@ -322,17 +347,15 @@ namespace Ogre
                 Root::createRenderWindow). The window will be
                 created based on the options currently set on the render
                 system.
-            @param windowTitle
-            @param customCapabilitiesConfig see #useCustomRenderSystemCapabilities
             @return
                 A pointer to the automatically created window, if
                 requested, otherwise <b>NULL</b>.
         */
-        RenderWindow* initialise(bool autoCreateWindow, const String& windowTitle = "OGRE Render Window",
-                                    const String& customCapabilitiesConfig = BLANKSTRING);
+        Window* initialise( bool autoCreateWindow, const String& windowTitle = "OGRE Render Window",
+                            const String& customCapabilitiesConfig = BLANKSTRING );
 
-        /** Returns whether the system is initialised or not. */
-        bool isInitialised(void) const { return mIsInitialised; }
+		/** Returns whether the system is initialised or not. */
+		bool isInitialised(void) const { return mIsInitialised; }
 
         /** Requests active RenderSystem to use custom RenderSystemCapabilities
         @remarks
@@ -358,70 +381,99 @@ namespace Ogre
         */
         void addSceneManagerFactory(SceneManagerFactory* fact);
 
-        /// @copydoc SceneManagerEnumerator::addFactory
+        /** Unregister a SceneManagerFactory.
+        */
         void removeSceneManagerFactory(SceneManagerFactory* fact);
 
-        /// @copydoc SceneManagerEnumerator::getMetaData(const String& )const
+        /** Get more information about a given type of SceneManager.
+        @remarks
+            The metadata returned tells you a few things about a given type 
+            of SceneManager, which can be created using a factory that has been
+            registered already. 
+        @param typeName The type name of the SceneManager you want to enquire on.
+            If you don't know the typeName already, you can iterate over the 
+            metadata for all types using getMetaDataIterator.
+        */
         const SceneManagerMetaData* getSceneManagerMetaData(const String& typeName) const;
 
-        /// @copydoc SceneManagerEnumerator::getMetaData()const
-        const SceneManagerEnumerator::MetaDataList& getSceneManagerMetaData() const;
+        /** Iterate over all types of SceneManager available for construction, 
+            providing some information about each one.
+        */
+        SceneManagerEnumerator::MetaDataIterator getSceneManagerMetaDataIterator(void) const;
 
-        /// @copydoc SceneManagerEnumerator::getMetaDataIterator
-        OGRE_DEPRECATED SceneManagerEnumerator::MetaDataIterator getSceneManagerMetaDataIterator(void) const;
+        /** Create a SceneManager instance of a given type.
+        @remarks
+            You can use this method to create a SceneManager instance of a 
+            given specific type. You may know this type already, or you may
+            have discovered it by looking at the results from getMetaDataIterator.
+        @note
+            This method throws an exception if the named type is not found.
+        @param typeName String identifying a unique SceneManager type
+        @param instanceName Optional name to given the new instance that is
+            created. If you leave this blank, an auto name will be assigned.
+        @param numWorkerThreads
+            Number of worker threads.
+            You should not oversubscribe the system. I.e. if the system has 4 cores
+            and you intend to run your logic 100% in one of the cores,
+            set this value to 3. If you intend to fully use 2 cores for your own stuff,
+            set this value to 2.
 
-        /// create a default scene manager
-        SceneManager* createSceneManager()
-        {
-            return createSceneManager(DefaultSceneManagerFactory::FACTORY_TYPE_NAME);
-        }
+            A value of 0 means there will be no worker threads, and all tasks will
+            run in the main thread. Use this value on platforms that do not support it
+            (i.e. Emscripten) or to troubleshoot very specific issues (e.g. some
+            Debuggers don't work correctly when threads are involved)
+        */
+        SceneManager* createSceneManager( const String& typeName, size_t numWorkerThreads,
+                                          const String& instanceName = BLANKSTRING );
 
-        /// @copydoc SceneManagerEnumerator::createSceneManager(const String&, const String&)
-        SceneManager* createSceneManager(const String& typeName, 
-            const String& instanceName = BLANKSTRING);
+        /** Create a SceneManager instance based on scene type support.
+        @remarks
+            Creates an instance of a SceneManager which supports the scene types
+            identified in the parameter. If more than one type of SceneManager 
+            has been registered as handling that combination of scene types, 
+            in instance of the last one registered is returned.
+        @note This method always succeeds, if a specific scene manager is not
+            found, the default implementation is always returned.
+        @param typeMask A mask containing one or more SceneType flags
+        @param instanceName Optional name to given the new instance that is
+            created. If you leave this blank, an auto name will be assigned.
+        @param numWorkerThreads
+            Number of worker threads. Must be greater than 0; you should not
+            oversubscribe the system. I.e. if the system has 4 cores
+            and you intend to run your logic 100% in one of the cores,
+            set this value to 3. If you intend to fully use 2 cores for your own stuff,
+            set this value to 2.
+        */
+        SceneManager* createSceneManager(SceneTypeMask typeMask, size_t numWorkerThreads,
+                                         const String& instanceName = BLANKSTRING);
 
-        /// @copydoc SceneManagerEnumerator::createSceneManager(SceneTypeMask, const String&)
-        OGRE_DEPRECATED SceneManager* createSceneManager(SceneTypeMask typeMask,
-            const String& instanceName = BLANKSTRING)
-        { return createSceneManager(DefaultSceneManagerFactory::FACTORY_TYPE_NAME, instanceName); }
-
-        /// @copydoc SceneManagerEnumerator::destroySceneManager
+        /** Destroy an instance of a SceneManager. */
         void destroySceneManager(SceneManager* sm);
 
-        /// @copydoc SceneManagerEnumerator::getSceneManager
+        /** Get an existing SceneManager instance that has already been created,
+            identified by the instance name.
+        @param instanceName The name of the instance to retrieve.
+        */
         SceneManager* getSceneManager(const String& instanceName) const;
 
-        /// @copydoc SceneManagerEnumerator::hasSceneManager
-        bool hasSceneManager(const String& instanceName) const;
-        /// @copydoc SceneManagerEnumerator::getSceneManagerIterator
-        OGRE_DEPRECATED SceneManagerEnumerator::SceneManagerIterator getSceneManagerIterator(void);
-
-        /// @copydoc SceneManagerEnumerator::getSceneManagers
-        const SceneManagerEnumerator::Instances& getSceneManagers(void) const;
-
-        /** Retrieves a reference to the current TextureManager.
-            @remarks
-                This performs the same function as
-                TextureManager::getSingleton, but is provided for convenience
-                particularly to scripting engines.
-            @par
-                Note that a TextureManager will NOT be available until the
-                Ogre system has been initialised by selecting a RenderSystem,
-                calling Root::initialise and a window having been created
-                (this may have been done by initialise if required). This is
-                because the exact runtime subclass which will be implementing
-                the calls will differ depending on the rendering engine
-                selected, and these typically require a window upon which to
-                base texture format decisions.
+        /** Determines if a given SceneManager already exists
+        @param instanceName The name of the instance to retrieve.
         */
-        TextureManager* getTextureManager(void);
+        bool hasSceneManager(const String& instanceName) const;
+        /** Get an iterator over all the existing SceneManager instances. */
+        SceneManagerEnumerator::SceneManagerIterator getSceneManagerIterator(void);
 
         /** Retrieves a reference to the current MeshManager.
             @remarks
                 This performs the same function as MeshManager::getSingleton
                 and is provided for convenience to scripting engines.
         */
-        MeshManager* getMeshManager(void);
+        v1::MeshManager* getMeshManagerV1(void);
+
+        /** Utility function for getting a better description of an error
+            code.
+        */
+        String getErrorDescription(long errorNumber);
 
         /** Registers a FrameListener which will be called back every frame.
             @remarks
@@ -465,6 +517,8 @@ namespace Ogre
         */
         bool endRenderingQueued(void);
 
+        const FrameStats* getFrameStats(void) const             { return mFrameStats; }
+
         /** Starts / restarts the automatic rendering cycle.
             @remarks
                 This method begins the automatic rendering of the scene. It
@@ -494,16 +548,14 @@ namespace Ogre
         */
         void startRendering(void);
 
-        /** Updates all the render targets automatically
-
-            Raises frame events before and after.
-
-            Overview of the render cycle
-            ![](renderOneFrame.svg)
+        /** Render one frame. 
+        @remarks
+            Updates all the render targets automatically and then returns,
+            raising frame events before and after.
         */
         bool renderOneFrame(void);
 
-        /** Updates all the render targets with custom frame time information
+        /** Render one frame, with custom frame time information. 
         @remarks
         Updates all the render targets automatically and then returns,
         raising frame events before and after - all per-frame times are based on
@@ -519,6 +571,65 @@ namespace Ogre
                 for systems which need to shut down Ogre on demand.
         */
         void shutdown(void);
+
+        /** Adds a location to the list of searchable locations for a
+            Resource type.
+            @remarks
+                Resource files (textures, models etc) need to be loaded from
+                specific locations. By calling this method, you add another 
+                search location to the list. Locations added first are preferred
+                over locations added later.
+            @par
+                Locations can be folders, compressed archives, even perhaps
+                remote locations. Facilities for loading from different
+                locations are provided by plugins which provide
+                implementations of the Archive class.
+                All the application user has to do is specify a 'loctype'
+                string in order to indicate the type of location, which
+                should map onto one of the provided plugins. Ogre comes
+                configured with the 'FileSystem' (folders) and 'Zip' (archive
+                compressed with the pkzip / WinZip etc utilities) types.
+            @par
+                You can also supply the name of a resource group which should
+                have this location applied to it. The 
+                ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME group is the
+                default, and one resource group which will always exist. You
+                should consider defining resource groups for your more specific
+                resources (e.g. per level) so that you can control loading /
+                unloading better.
+            @param
+                name The name of the location, e.g. './data' or
+                '/compressed/gamedata.zip'
+            @param
+                locType A string identifying the location type, e.g.
+                'FileSystem' (for folders), 'Zip' etc. Must map to a
+                registered plugin which deals with this type (FileSystem and
+                Zip should always be available)
+            @param
+                groupName Type of name of the resource group which this location
+                should apply to; defaults to the General group which applies to
+                all non-specific resources.
+            @param
+                recursive If the resource location has a concept of recursive
+                directory traversal, enabling this option will mean you can load
+                resources in subdirectories using only their unqualified name.
+                The default is to disable this so that resources in subdirectories
+                with the same name are still unique.
+            @see
+                Archive
+        */
+        void addResourceLocation(const String& name, const String& locType, 
+            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+            bool recursive = false);
+
+        /** Removes a resource location from the list.
+        @see addResourceLocation
+        @param name The name of the resource location as specified in addResourceLocation
+        @param groupName The name of the resource group to which this location 
+            was assigned.
+        */
+        void removeResourceLocation(const String& name, 
+            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
         /** Helper method to assist you in creating writeable file streams.
         @remarks
@@ -541,9 +652,8 @@ namespace Ogre
             only locations which match that pattern (as determined by StringUtil::match)
             will be considered candidates for creation.
         */
-        static DataStreamPtr createFileStream(const String& filename,
-                const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-                bool overwrite = false, const String& locationPattern = BLANKSTRING);
+        DataStreamPtr createFileStream(const String& filename, const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+            bool overwrite = false, const String& locationPattern = BLANKSTRING);
 
         /** Helper method to assist you in accessing readable file streams.
         @remarks
@@ -553,12 +663,24 @@ namespace Ogre
         @param filename The name of the file to open. 
         @param groupName The name of the group in which to create the file, if the 
             resource system is used
+        @param locationPattern If the resource group contains multiple locations, 
+            then usually the file will be created in the first writable location. If you 
+            want to be more specific, you can include a location pattern here and 
+            only locations which match that pattern (as determined by StringUtil::match)
+            will be considered candidates for creation.
         */      
-        static DataStreamPtr openFileStream(const String& filename,
-                const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+        DataStreamPtr openFileStream(const String& filename, const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, 
+            const String& locationPattern = BLANKSTRING);
 
-        /// @deprecated use ColourValue::getAsBYTE()
-        OGRE_DEPRECATED void convertColourValue(const ColourValue& colour, uint32* pDest);
+        /** Generates a packed data version of the passed in ColourValue suitable for
+            use with the current RenderSystem.
+        @remarks
+            Since different render systems have different colour data formats (eg
+            RGBA for GL, ARGB for D3D) this method allows you to use 1 method for all.
+        @param colour The colour to convert
+        @param pDest Pointer to location to put the result.
+        */
+        void convertColourValue(const ColourValue& colour, uint32* pDest);
 
         /** Retrieves a pointer to the window that was created automatically
             @remarks
@@ -568,49 +690,17 @@ namespace Ogre
                 returns a null pointer when Root has not been initialised with
                 the option of creating a window.
         */
-        RenderWindow* getAutoCreatedWindow(void);
+        Window* getAutoCreatedWindow(void);
 
         /** @copydoc RenderSystem::_createRenderWindow
         */
-        RenderWindow* createRenderWindow(const String &name, unsigned int width, unsigned int height, 
-            bool fullScreen, const NameValuePairList *miscParams = 0) ;
+        Window* createRenderWindow( const String &name, uint32 width, uint32 height,
+                                    bool fullScreen, const NameValuePairList *miscParams = 0);
 
-        /// @overload
-        RenderWindow* createRenderWindow(const RenderWindowDescription& desc)
-        {
-            return createRenderWindow(desc.name, desc.width, desc.height,
-                                      desc.useFullScreen, &desc.miscParams);
-        }
-
-        /// @deprecated call createRenderWindow multiple times
-        OGRE_DEPRECATED bool createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
-            RenderWindowList& createdWindows);
-    
-        /** Detaches a RenderTarget from the active render system
-        and returns a pointer to it.
-        @note
-        If the render target cannot be found, NULL is returned.
+        /** @copydoc RenderSystem::_createRenderWindows
         */
-        RenderTarget* detachRenderTarget( RenderTarget* pWin );
-
-        /** Detaches a named RenderTarget from the active render system
-        and returns a pointer to it.
-        @note
-        If the render target cannot be found, NULL is returned.
-        */
-        RenderTarget* detachRenderTarget( const String & name );
-
-        /** Destroys the given RenderTarget.
-        */
-        void destroyRenderTarget(RenderTarget* target);
-
-        /** Destroys the given named RenderTarget.
-        */
-        void destroyRenderTarget(const String &name);
-
-        /** Retrieves a pointer to a named render target.
-        */
-        RenderTarget * getRenderTarget(const String &name);
+        bool createRenderWindows(const RenderWindowDescriptionList& renderWindowDescriptions,
+            WindowList &createdWindows);
 
         /** Manually load a Plugin contained in a DLL / DSO.
          @remarks
@@ -771,17 +861,17 @@ namespace Ogre
             This is only intended for internal use; it is only valid during the
             rendering of a frame.
         */
-        SceneManager* _getCurrentSceneManager(void) const { return mCurrentSceneManager; }
-        /** Sets the scene manager currently being used to render.
+        SceneManager* _getCurrentSceneManager(void) const;
+        /** Pushes the scene manager currently being used to render.
         @remarks
             This is only intended for internal use.
         */
-        void _setCurrentSceneManager(SceneManager* sm) { mCurrentSceneManager = sm; }
-
-        /// @deprecated do not use
-        OGRE_DEPRECATED void _pushCurrentSceneManager(SceneManager* sm) {}
-        /// @deprecated do not use
-        OGRE_DEPRECATED void _popCurrentSceneManager(SceneManager* sm) {}
+        void _pushCurrentSceneManager(SceneManager* sm);
+        /** Pops the scene manager currently being used to render.
+        @remarks
+        This is only intended for internal use.
+        */
+        void _popCurrentSceneManager(SceneManager* sm);
 
         /** Internal method used for updating all RenderTarget objects (windows, 
             renderable textures etc) which are set to auto-update.
@@ -808,36 +898,40 @@ namespace Ogre
         */
         bool _updateAllRenderTargets(FrameEvent& evt);
 
-        /** Create a new RenderQueueInvocationSequence, useful for linking to
-            Viewport instances to perform custom rendering.
-        @param name The name to give the new sequence
-        */
-        RenderQueueInvocationSequence* createRenderQueueInvocationSequence(
-            const String& name);
+        void _renderingFrameEnded( void );
+        void _notifyRenderingFrameStarted( void );
 
-        /** Get a RenderQueueInvocationSequence. 
-        @param name The name to identify the sequence
+        /** Override standard Singleton retrieval.
+            @remarks
+                Why do we do this? Well, it's because the Singleton
+                implementation is in a .h file, which means it gets compiled
+                into anybody who includes it. This is needed for the
+                Singleton template to work, but we actually only want it
+                compiled into the implementation of the class based on the
+                Singleton, not all of them. If we don't change this, we get
+                link errors when trying to use the Singleton-based class from
+                an outside dll.
+            @par
+                This method just delegates to the template version anyway,
+                but the implementation stays in this single compilation unit,
+                preventing link errors.
         */
-        RenderQueueInvocationSequence* getRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy a RenderQueueInvocationSequence. 
-        @remarks
-            You must ensure that no Viewports are using this sequence.
-        @param name The name to identify the sequence
-        */
-        void destroyRenderQueueInvocationSequence(
-            const String& name);
-
-        /** Destroy all RenderQueueInvocationSequences. 
-        @remarks
-            You must ensure that no Viewports are using custom sequences.
-        */
-        void destroyAllRenderQueueInvocationSequences(void);
-
-        /// @copydoc Singleton::getSingleton()
         static Root& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+            @remarks
+                Why do we do this? Well, it's because the Singleton
+                implementation is in a .h file, which means it gets compiled
+                into anybody who includes it. This is needed for the
+                Singleton template to work, but we actually only want it
+                compiled into the implementation of the class based on the
+                Singleton, not all of them. If we don't change this, we get
+                link errors when trying to use the Singleton-based class from
+                an outside dll.
+            @par
+                This method just delegates to the template version anyway,
+                but the implementation stays in this single compilation unit,
+                preventing link errors.
+        */
         static Root* getSingletonPtr(void);
 
         /** Clears the history of all event times. 
@@ -892,27 +986,17 @@ namespace Ogre
         bool hasMovableObjectFactory(const String& typeName) const;
         /// Get a MovableObjectFactory for the given type
         MovableObjectFactory* getMovableObjectFactory(const String& typeName);
-        /** Allocate the next MovableObject type flag.
-        @remarks
-            This is done automatically if MovableObjectFactory::requestTypeFlags
-            returns true; don't call this manually unless you're sure you need to.
-        */
-        uint32 _allocateNextMovableObjectTypeFlag(void);
 
         typedef ConstMapIterator<MovableObjectFactoryMap> MovableObjectFactoryIterator;
         /** Return an iterator over all the MovableObjectFactory instances currently
             registered.
         */
-        const MovableObjectFactoryMap& getMovableObjectFactories() const
-        {
-            return mMovableObjectFactoryMap;
-        }
+        MovableObjectFactoryIterator getMovableObjectFactoryIterator(void) const;
 
-        /// @deprecated use getMovableObjectFactories
-        OGRE_DEPRECATED MovableObjectFactoryIterator getMovableObjectFactoryIterator(void) const;
-
-        /// @deprecated do not use
-        OGRE_DEPRECATED unsigned int getDisplayMonitorCount() const;
+        /**
+        * Gets the number of display monitors.
+        */
+        unsigned int getDisplayMonitorCount() const;
 
         /** Get the WorkQueue for processing background tasks.
             You are free to add new requests and handlers to this queue to
@@ -920,7 +1004,7 @@ namespace Ogre
             However, you must remember to assign yourself a new channel through 
             which to process your tasks.
         */
-        WorkQueue* getWorkQueue() const { return mWorkQueue.get(); }
+        WorkQueue* getWorkQueue() const { return mWorkQueue; }
 
         /** Replace the current work queue with an alternative. 
             You can use this method to replace the internal implementation of
@@ -965,11 +1049,11 @@ namespace Ogre
         /** Get the default minimum pixel size for object to be rendered by
         */
         Real getDefaultMinPixelSize() { return mDefaultMinPixelSize; }
+
+        void _setLightProfilesInvHeight( float invHeight ) { mLightProfilesInvHeight = invHeight; }
+        float getLightProfilesInvHeight( void ) const { return mLightProfilesInvHeight; }
     };
     /** @} */
     /** @} */
 } // Namespace Ogre
-
-#include "OgreHeaderSuffix.h"
-
 #endif

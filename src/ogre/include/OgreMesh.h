@@ -41,6 +41,8 @@ THE SOFTWARE.
 
 namespace Ogre {
 
+    class LodStrategy;
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -50,7 +52,6 @@ namespace Ogre {
     */
 
     struct MeshLodUsage;
-    class LodStrategy;
 
     /** Resource holding data about 3D mesh.
     @remarks
@@ -88,6 +89,7 @@ namespace Ogre {
     {
         friend class SubMesh;
         friend class MeshSerializerImpl;
+        friend class MeshSerializerImpl_v1_10;
         friend class MeshSerializerImpl_v1_8;
         friend class MeshSerializerImpl_v1_4;
         friend class MeshSerializerImpl_v1_3;
@@ -95,13 +97,13 @@ namespace Ogre {
         friend class MeshSerializerImpl_v1_1;
 
     public:
-        typedef std::vector<Real> LodValueList;
-        typedef std::vector<MeshLodUsage> MeshLodUsageList;
+        typedef FastArray<Real> LodValueArray;
+        typedef vector<MeshLodUsage>::type MeshLodUsageList;
         /// Multimap of vertex bone assignments (orders by vertex index).
-        typedef std::multimap<size_t, VertexBoneAssignment> VertexBoneAssignmentList;
+        typedef multimap<size_t, VertexBoneAssignment>::type VertexBoneAssignmentList;
         typedef MapIterator<VertexBoneAssignmentList> BoneAssignmentIterator;
-        typedef std::vector<SubMesh*> SubMeshList;
-        typedef std::vector<unsigned short> IndexMap;
+        typedef vector<SubMesh*>::type SubMeshList;
+        typedef FastArray<unsigned short> IndexMap;
 
     protected:
         /** A list of submeshes which make up this mesh.
@@ -121,7 +123,7 @@ namespace Ogre {
         /** A hashmap used to store optional SubMesh names.
             Translates a name into SubMesh index.
         */
-        typedef std::unordered_map<String, ushort> SubMeshNameMap ;
+        typedef unordered_map<String, ushort>::type SubMeshNameMap ;
 
         
     protected:
@@ -139,7 +141,8 @@ namespace Ogre {
 
         /// Optional linked skeleton.
         String mSkeletonName;
-        SkeletonPtr mSkeleton;
+        SkeletonPtr mOldSkeleton;
+        SkeletonDefPtr mSkeleton;
 
        
         VertexBoneAssignmentList mBoneAssignments;
@@ -155,30 +158,25 @@ namespace Ogre {
             unsigned short numBlendWeightsPerVertex, 
             IndexMap& blendIndexToBoneIndexMap,
             VertexData* targetVertexData);
-#if !OGRE_NO_MESHLOD
-        const LodStrategy *mLodStrategy;
+
+        String mLodStrategyName;
         bool mHasManualLodLevel;
         ushort mNumLods;
-        MeshLodUsageList mMeshLodUsageList;
-#else
-        const LodStrategy *mLodStrategy;
-        const bool mHasManualLodLevel;
-        const ushort mNumLods;
-        MeshLodUsageList mMeshLodUsageList;
-#endif
+        MeshLodUsageList    mMeshLodUsageList;
+        LodValueArray       mLodValues;
+
         HardwareBufferManagerBase* mBufferManager;
         HardwareBuffer::Usage mVertexBufferUsage;
         HardwareBuffer::Usage mIndexBufferUsage;
         bool mVertexBufferShadowBuffer;
         bool mIndexBufferShadowBuffer;
 
-
         bool mPreparedForShadowVolumes;
         bool mEdgeListsBuilt;
         bool mAutoBuildEdgeLists;
 
         /// Storage of morph animations, lookup by name
-        typedef std::map<String, Animation*> AnimationList;
+        typedef map<String, Animation*>::type AnimationList;
         AnimationList mAnimationsList;
         /// The vertex animation type associated with the shared vertex data
         mutable VertexAnimationType mSharedVertexDataAnimationType;
@@ -212,7 +210,6 @@ namespace Ogre {
 
         void mergeAdjacentTexcoords( unsigned short finalTexCoordSet,
                                      unsigned short texCoordSetToDestroy, VertexData *vertexData );
-
 
     public:
         /** Default constructor - used by MeshManager
@@ -254,18 +251,12 @@ namespace Ogre {
         ushort _getSubMeshIndex(const String& name) const;
 
         /** Gets the number of sub meshes which comprise this mesh.
-        *  @deprecated use getSubMeshes() instead
         */
-        size_t getNumSubMeshes(void) const {
-            return mSubMeshList.size();
-        }
+        unsigned short getNumSubMeshes(void) const;
 
         /** Gets a pointer to the submesh indicated by the index.
-        *  @deprecated use getSubMeshes() instead
         */
-        SubMesh* getSubMesh(size_t index) const {
-            return mSubMeshList[index];
-        }
+        SubMesh* getSubMesh(unsigned short index) const;
 
         /** Gets a SubMesh by name
         */
@@ -289,15 +280,45 @@ namespace Ogre {
         
         typedef VectorIterator<SubMeshList> SubMeshIterator;
         /// Gets an iterator over the available submeshes
-        /// @deprecated use getSubMeshes() instead
-        OGRE_DEPRECATED SubMeshIterator getSubMeshIterator(void)
+        SubMeshIterator getSubMeshIterator(void)
         { return SubMeshIterator(mSubMeshList.begin(), mSubMeshList.end()); }
-      
-        /// Gets the available submeshes
-        const SubMeshList& getSubMeshes() const {
-            return mSubMeshList;
-        }
 
+        /// Converts a v2 mesh back to v1.
+        void importV2( Ogre::Mesh *mesh );
+
+        /** Rearranges the buffers in this Mesh so that they are more efficient for
+            rendering with shaders. It's not recommended to use this option if
+            you plan on using SW skinning or pose/morph animations.
+        @remarks
+            Multiple buffer streams will be merged into one, making an interleaved format.
+            Shared vertices with submeshes will be unshared.
+        @param halfPos
+            True if you want to convert the position data to VET_HALF4 format.
+            Recommended on desktop to reduce memory and bandwidth requirements.
+            Rarely the extra precision is needed.
+
+            Unfortuntately on mobile, not all ES2 devices support VET_HALF4.
+            Do NOT use this flag if you intend to run the mesh in GLES2 devices which
+            don't have the GL_OES_VERTEX_HALF_FLOAT extension (many iOS, some Android).
+        @param halfTexCoords
+            True if you want to convert the position data to VET_HALF2 or VET_HALF4 format.
+            Same recommendations as halfPos.
+        @param qTangents
+            True if you want to generate tangent and reflection information (modifying
+            the original v1 mesh) and convert this data to a QTangent, requiring
+            VET_SHORT4_SNORM (8 bytes vs 28 bytes to store normals, tangents and
+            reflection). Needs much less space, trading for more ALU ops in the
+            vertex shader for decoding the QTangent.
+            Highly recommended on both desktop and mobile if you need tangents (i.e.
+            normal mapping).
+        */
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents );
+
+        /// Reverts the effects from arrangeEfficient by converting all 16-bit half float back
+        /// to 32-bit float; and QTangents to Normal, Tangent + Reflection representation,
+        /// which are more compatible for doing certain operations vertex operations in the CPU.
+        void dearrangeToInefficient(void);
+      
         /** Shared vertex data.
         @remarks
             This vertex data can be shared among multiple submeshes. SubMeshes may not have
@@ -306,7 +327,7 @@ namespace Ogre {
             The use of shared or non-shared buffers is determined when
             model data is converted to the OGRE .mesh format.
         */
-        VertexData *sharedVertexData;
+        VertexData *sharedVertexData[NumVertexPass];
 
         /** Shared index map for translating blend index to bone index.
         @remarks
@@ -362,7 +383,6 @@ namespace Ogre {
             update the bounds for you, because it cannot necessarily read vertex data back from 
             the vertex buffers which this mesh uses (they very well might be write-only, and even
             if they are not, reading data from a hardware buffer is a bottleneck).
-            @param bounds The axis-aligned bounding box for this mesh
             @param pad If true, a certain padding will be added to the bounding box to separate it from the mesh
         */
         void _setBounds(const AxisAlignedBox& bounds, bool pad = true);
@@ -429,7 +449,8 @@ namespace Ogre {
         @return
             Weak reference to the skeleton - copy this if you want to hold a strong pointer.
         */
-        const SkeletonPtr& getSkeleton(void) const;
+        const SkeletonPtr& getOldSkeleton(void) const;
+        const SkeletonDefPtr& getSkeleton(void) const                   { return mSkeleton; }
 
         /** Gets the name of any linked Skeleton */
         const String& getSkeletonName(void) const;
@@ -474,18 +495,24 @@ namespace Ogre {
         void _notifySkeleton(SkeletonPtr& pSkel);
 
 
-        /// @deprecated use getBoneAssignments
-        OGRE_DEPRECATED BoneAssignmentIterator getBoneAssignmentIterator(void);
+        /** Gets an iterator for access all bone assignments. 
+        */
+        BoneAssignmentIterator getBoneAssignmentIterator(void);
 
         /** Gets a const reference to the list of bone assignments
         */
         const VertexBoneAssignmentList& getBoneAssignments() const { return mBoneAssignments; }
 
+        void setLodStrategyName( const String &name )               { mLodStrategyName = name; }
+
+        /// Returns the name of the Lod strategy the user lod values have been calibrated for
+        const String& getLodStrategyName(void) const                { return mLodStrategyName; }
+
         /** Returns the number of levels of detail that this mesh supports. 
         @remarks
             This number includes the original model.
         */
-        ushort getNumLodLevels(void) const { return mNumLods; }
+        ushort getNumLodLevels(void) const;
         /** Gets details of the numbered level of detail entry. */
         const MeshLodUsage& getLodLevel(ushort index) const;
 
@@ -503,7 +530,7 @@ namespace Ogre {
             meshes as provided by an artist.
         */
         bool hasManualLodLevel(void) const { return mHasManualLodLevel; }
-#if !OGRE_NO_MESHLOD
+
         /** Changes the alternate mesh to use as a manual LOD at the given index.
         @remarks
             Note that the index of a LOD may change if you insert other LODs. If in doubt,
@@ -520,11 +547,10 @@ namespace Ogre {
         /** Internal methods for loading LOD, do not use. */
         void _setLodUsage(unsigned short level, const MeshLodUsage& usage);
         /** Internal methods for loading LOD, do not use. */
-        void _setSubMeshLodFaceList(unsigned short subIdx, unsigned short level, IndexData* facedata);
-#endif
+        void _setSubMeshLodFaceList( unsigned short subIdx, unsigned short level, IndexData* facedata,
+                                     bool casterPass );
         /** Internal methods for loading LOD, do not use. */
         bool _isManualLodLevel(unsigned short level) const;
-
 
         /** Removes all LOD data from this Mesh. */
         void removeLodLevels(void);
@@ -663,6 +689,20 @@ namespace Ogre {
         */
         void mergeAdjacentTexcoords( unsigned short finalTexCoordSet, unsigned short texCoordSetToDestroy );
 
+        /// @copydoc Mesh::msOptimizeForShadowMapping
+        static bool msOptimizeForShadowMapping;
+
+        void prepareForShadowMapping( bool forceSameBuffers );
+        void destroyShadowMappingGeom(void);
+
+        /// Returns true if the mesh is ready for rendering with valid shadow mapping buffers
+        /// Otherwise prepareForShadowMapping must be called on this mesh.
+        bool hasValidShadowMappingBuffers(void) const;
+
+        /// Returns true if the shadow mapping buffers do not just reference the real buffers,
+        /// but are rather their own separate set of optimized geometry.
+        bool hasIndependentShadowMappingBuffers(void) const;
+
         /** This method builds a set of tangent vectors for a given mesh into a 3D texture coordinate buffer.
         @remarks
             Tangent vectors are vectors representing the local 'X' axis for a given vertex based
@@ -789,8 +829,8 @@ namespace Ogre {
         @param indexMap
             The index map used to translate blend index to bone index.
         */
-        static void prepareMatricesForVertexBlend(const Affine3** blendMatrices,
-            const Affine3* boneMatrices, const IndexMap& indexMap);
+        static void prepareMatricesForVertexBlend(const Matrix4** blendMatrices,
+            const Matrix4* boneMatrices, const IndexMap& indexMap);
 
         /** Performs a software indexed vertex blend, of the kind used for
             skeletal animation although it can be used for other purposes. 
@@ -817,7 +857,7 @@ namespace Ogre {
         */
         static void softwareVertexBlend(const VertexData* sourceVertexData, 
             const VertexData* targetVertexData,
-            const Affine3* const* blendMatrices, size_t numMatrices,
+            const Matrix4* const* blendMatrices, size_t numMatrices,
             bool blendNormals);
 
         /** Performs a software vertex morph, of the kind used for
@@ -861,8 +901,8 @@ namespace Ogre {
             number in start and end.
         */
         static void softwareVertexPoseBlend(Real weight, 
-            const std::map<size_t, Vector3>& vertexOffsetMap,
-            const std::map<size_t, Vector3>& normalsMap,
+            const map<size_t, Vector3>::type& vertexOffsetMap,
+            const map<size_t, Vector3>::type& normalsMap,
             VertexData* targetVertexData);
         /** Gets a reference to the optional name assignments of the SubMeshes. */
         const SubMeshNameMap& getSubMeshNameMap(void) const { return mSubMeshNameMap; }
@@ -964,12 +1004,10 @@ namespace Ogre {
             A new Pose ready for population.
         */
         Pose* createPose(ushort target, const String& name = BLANKSTRING);
-        /** Get the number of poses.
-         * @deprecated use getPoseList() */
-        OGRE_DEPRECATED size_t getPoseCount(void) const { return mPoseList.size(); }
-        /** Retrieve an existing Pose by index.
-         * @deprecated use getPoseList() */
-        OGRE_DEPRECATED Pose* getPose(ushort index);
+        /** Get the number of poses.*/
+        size_t getPoseCount(void) const { return mPoseList.size(); }
+        /** Retrieve an existing Pose by index.*/
+        Pose* getPose(ushort index);
         /** Retrieve an existing Pose by name.*/
         Pose* getPose(const String& name);
         /** Destroy a pose by index.
@@ -988,21 +1026,17 @@ namespace Ogre {
         typedef VectorIterator<PoseList> PoseIterator;
         typedef ConstVectorIterator<PoseList> ConstPoseIterator;
 
-        /** Get an iterator over all the poses defined.
-         * @deprecated use getPoseList() */
-        OGRE_DEPRECATED PoseIterator getPoseIterator(void);
-        /** Get an iterator over all the poses defined.
-         * @deprecated use getPoseList()  */
-        OGRE_DEPRECATED ConstPoseIterator getPoseIterator(void) const;
+        /** Get an iterator over all the poses defined. */
+        PoseIterator getPoseIterator(void);
+        /** Get an iterator over all the poses defined. */
+        ConstPoseIterator getPoseIterator(void) const;
         /** Get pose list. */
         const PoseList& getPoseList(void) const;
 
-        /** Get LOD strategy used by this mesh. */
-        const LodStrategy *getLodStrategy() const;
-#if !OGRE_NO_MESHLOD
-        /** Set the lod strategy used by this mesh. */
-        void setLodStrategy(LodStrategy *lodStrategy);
-#endif
+        const LodValueArray* _getLodValueArray(void) const                      { return &mLodValues; }
+
+        void createAzdoBuffers(void);
+
     };
 
     /** A way of recording the way each LODs is recorded this Mesh. */
@@ -1016,7 +1050,7 @@ namespace Ogre {
 
         /** Value used by to determine when this LOD applies.
         @remarks
-            May be interpreted differently by different strategies.
+            May be interpretted differently by different strategies.
             Transformed from user-supplied values with LodStrategy::transformUserValue.
         */
         Real value;
@@ -1035,7 +1069,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
-
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

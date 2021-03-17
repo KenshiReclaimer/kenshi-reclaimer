@@ -33,12 +33,15 @@ THE SOFTWARE.
 
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
+#include "OgreHardwareVertexBuffer.h"
 #include "OgreRadixSort.h"
 #include "OgreCommon.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreRenderQueue.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -48,11 +51,8 @@ namespace Ogre {
 
     /** Enum covering what exactly a billboard's position means (center,
         top-left etc).
-
-        This setting controls the fine tuning of where a billboard appears in relation to it's
-        position. It could be that a billboard's position represents it's center (e.g. for fireballs),
-        it could mean the center of the bottom edge (e.g. a tree which is positioned on the ground),
-        the top-left corner (e.g. a cursor).
+    @see
+        BillboardSet::setBillboardOrigin
     */
     enum BillboardOrigin
     {
@@ -66,13 +66,7 @@ namespace Ogre {
         BBO_BOTTOM_CENTER,
         BBO_BOTTOM_RIGHT
     };
-    /** The rotation type of billboard.
-     *
-     * By default, billboard particles will rotate the texture coordinates to according with particle
-     * rotation. But rotate texture coordinates has some disadvantage, e.g. the corners of the texture will
-     * lost after rotate, and the corners of the billboard will fill with unwanted texture area when using
-     * wrap address mode or sub-texture sampling. This settings allow you specifying other rotation type.
-     */
+    /** The rotation type of billboard. */
     enum BillboardRotationType
     {
         /// Rotate the billboard's vertices around their facing direction
@@ -119,29 +113,21 @@ namespace Ogre {
     class _OgreExport BillboardSet : public MovableObject, public Renderable
     {
     protected:
-        /** Private constructor (instances cannot be created directly).
-        */
-        BillboardSet();
-
-        bool getCastsShadows(void) const override { return getCastShadows(); }
-
-        /// Bounds of all billboards in this set
-        AxisAlignedBox mAABB;
-        /// Bounding radius
-        Real mBoundingRadius;
-
         /// Origin of each billboard
         BillboardOrigin mOriginType;
         /// Rotation type of each billboard
         BillboardRotationType mRotationType;
+
+        String  mMaterialName;
+        String  mMaterialGroup;
 
         /// Default width of each billboard
         Real mDefaultWidth;
         /// Default height of each billboard
         Real mDefaultHeight;
 
-        /// Pointer to the material to use
-        MaterialPtr mMaterial;
+        /// True if no billboards in this set have been resized - greater efficiency.
+        bool mAllDefaultSize;
 
         /// Flag indicating whether to autoextend pool
         bool mAutoExtendPool;
@@ -152,36 +138,55 @@ namespace Ogre {
         /// Use 'true' billboard to cam position facing, rather than camera direcion
         bool mAccurateFacing;
 
+        bool mAllDefaultRotation;
         bool mWorldSpace;
 
-        typedef std::vector<Billboard*> BillboardPool;
+        typedef list<Billboard*>::type ActiveBillboardList;
+        typedef list<Billboard*>::type FreeBillboardList;
+        typedef vector<Billboard*>::type BillboardPool;
 
-        /** Active billboard count.
-
-            This allows very fast activation / deactivation of billboards
+        /** Active billboard list.
+        @remarks
+            This is a linked list of pointers to billboards in the billboard pool.
+        @par
+            This allows very fast insertions and deletions from anywhere in the list to activate / deactivate billboards
             (required for particle systems etc.) as well as reuse of Billboard instances in the pool
             without construction & destruction which avoids memory thrashing.
         */
-        size_t mActiveBillboards;
+        ActiveBillboardList mActiveBillboards;
 
-        /** Pool of billboard instances for use and reuse.
+        /** Free billboard queue.
+        @remarks
+            This contains a list of the billboards free for use as new instances
+            as required by the set. Billboard instances are preconstructed up to the estimated size in the
+            mBillboardPool vector and are referenced on this deque at startup. As they get used this deque
+            reduces, as they get released back to to the set they get added back to the deque.
+        */
+        FreeBillboardList mFreeBillboards;
+
+        /** Pool of billboard instances for use and reuse in the active billboard list.
         @remarks
             This vector will be preallocated with the estimated size of the set,and will extend as required.
         */
         BillboardPool mBillboardPool;
 
         /// The vertex position data for all billboards in this set.
-        std::unique_ptr<VertexData> mVertexData;
-        /// Shortcut to main buffer (positions, colours, texture coords)
+        VertexData* mVertexData;
+        /// Shortcut to current main buffer (positions, colours, texture coords)
         HardwareVertexBufferSharedPtr mMainBuf;
+        typedef vector<HardwareVertexBufferSharedPtr>::type HardwareVertexBufferSharedPtrVec;
+        typedef vector<HardwareVertexBufferSharedPtrVec>::type HardwareVertexBufferSharedPtrVecVec;
+        HardwareVertexBufferSharedPtrVecVec mMainBuffers;
+        uint32 mLastLockedBuffer;
+        /// Frame number in which we did the last lock. We use it to know which buffer to
+        /// lock (we can't lock the same buffer twice with HBL_NO_OVERWRITE in the same frame)
+        uint32 mLastLockedFrame;
         /// Locked pointer to buffer
         float* mLockPtr;
         /// Boundary offsets based on origin and camera orientation
         /// Vector3 vLeftOff, vRightOff, vTopOff, vBottomOff;
         /// Final vertex offsets, used where sizes all default to save calcs
         Vector3 mVOffset[4];
-        /// Current camera
-        Camera* mCurrentCamera;
         /// Parametric offsets of origin
         Real mLeftOff, mRightOff, mTopOff, mBottomOff;
         /// Camera axes in billboard space
@@ -194,12 +199,12 @@ namespace Ogre {
         Vector3 mCamPos;
 
         /// The vertex index data for all billboards in this set (1 set only)
-        std::unique_ptr<IndexData> mIndexData;
+        IndexData* mIndexData;
 
         /// Flag indicating whether each billboard should be culled separately (default: false)
         bool mCullIndividual;
 
-        typedef std::vector< Ogre::FloatRect > TextureCoordSets;
+        typedef vector< Ogre::FloatRect >::type TextureCoordSets;
         TextureCoordSets mTextureCoords;
 
         /// The type of billboard to render
@@ -210,8 +215,12 @@ namespace Ogre {
         /// Common up-vector for billboards of type BBT_PERPENDICULAR_SELF and BBT_PERPENDICULAR_COMMON
         Vector3 mCommonUpVector;
 
+        /// Ugly dependency from a v1 object to a v2 object. The VaoManager is used to properly
+        /// synchronize HBU_NO_OVERWRITE and avoid expensive stalls (specially on GL)
+        VaoManager *mVaoManager;
+
         /// Internal method for culling individual billboards
-        inline bool billboardVisible(Camera* cam, const Billboard& bill);
+        inline bool billboardVisible(const Camera* cam, const Billboard& bill);
 
         /// Number of visible billboards (will be == getNumBillboards if mCullIndividual == false)
         unsigned short mNumVisibleBillboards;
@@ -240,9 +249,7 @@ namespace Ogre {
         @param offsets Array of 4 Vector3 offsets
         @param pBillboard Reference to billboard
         */
-        void genQuadVertices(const Vector3* const offsets, const Billboard& pBillboard);
-
-        void genPointVertices(const Billboard& pBillboard);
+        void genVertices(const Vector3* const offsets, const Billboard& pBillboard);
 
         /** Internal method generates vertex offsets.
         @remarks
@@ -251,7 +258,7 @@ namespace Ogre {
             Fills output array of 4 vectors with vector offsets
             from origin for left-top, right-top, left-bottom, right-bottom corners.
         */
-        static void genVertOffsets(Real inleft, Real inright, Real intop, Real inbottom,
+        void genVertOffsets(Real inleft, Real inright, Real intop, Real inbottom,
             Real width, Real height,
             const Vector3& x, const Vector3& y, Vector3* pDestVec);
 
@@ -276,7 +283,7 @@ namespace Ogre {
             float operator()(Billboard* bill) const;
         };
 
-        static RadixSort<BillboardPool, Billboard*, float> mRadixSorter;
+        static RadixSort<ActiveBillboardList, Billboard*, float> mRadixSorter;
 
         /// Use point rendering?
         bool mPointRendering;
@@ -294,6 +301,8 @@ namespace Ogre {
         bool mAutoUpdate;
         /// True if the billboard data changed. Will cause vertex buffer update.
         bool mBillboardDataChanged;
+
+        void createExtraVertexBuffer( size_t vertexSize );
 
         /** Internal method creates vertex and index buffers.
         */
@@ -323,8 +332,9 @@ namespace Ogre {
         @see
             BillboardSet::setAutoextend
         */
-        BillboardSet( const String& name, unsigned int poolSize = 20, 
-            bool externalDataSource = false);
+        BillboardSet( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      unsigned int poolSize = 20, bool externalDataSource = false,
+                      uint8 renderQueueId=110u );
 
         virtual ~BillboardSet();
 
@@ -349,15 +359,34 @@ namespace Ogre {
             const Vector3& position,
             const ColourValue& colour = ColourValue::White );
 
-        /// @overload
-        Billboard* createBillboard(Real x, Real y, Real z, const ColourValue& colour = ColourValue::White)
-        {
-            return createBillboard(Vector3(x, y, z), colour);
-        }
+        /** Creates a new billboard and adds it to this set.
+        @remarks
+            Behaviour once the billboard pool has been exhausted depends on the
+            BillboardSet::setAutoextend option.
+        @param x
+            The @c x position of the new billboard relative to the center of the set
+        @param y
+            The @c y position of the new billboard relative to the center of the set
+        @param z
+            The @c z position of the new billboard relative to the center of the set
+        @param colour
+            Optional base colour of the billboard.
+        @return
+            On success, a pointer to a newly created Billboard is
+            returned.
+        @par
+            On failure (i.e. no more space and can't autoextend),
+            @c NULL is returned.
+        @see
+            BillboardSet::setAutoextend
+        */
+        Billboard* createBillboard(
+            Real x, Real y, Real z,
+            const ColourValue& colour = ColourValue::White );
 
         /** Returns the number of active billboards which currently make up this set.
         */
-        int getNumBillboards(void) const { return static_cast<int>(mActiveBillboards); }
+        virtual int getNumBillboards(void) const;
 
         /** Tells the set whether to allow automatic extension of the pool of billboards.
         @remarks
@@ -374,24 +403,24 @@ namespace Ogre {
         @param autoextend
             @c true to double the pool every time it runs out, @c false to fail silently.
         */
-        void setAutoextend(bool autoextend) { mAutoExtendPool = autoextend; }
+        virtual void setAutoextend(bool autoextend);
 
         /** Returns true if the billboard pool automatically extends.
         @see
             BillboardSet::setAutoextend
         */
-        bool getAutoextend(void) const { return mAutoExtendPool; }
+        virtual bool getAutoextend(void) const;
 
         /** Enables sorting for this BillboardSet. (default: off)
         @param sortenable true to sort the billboards according to their distance to the camera
         */
-        void setSortingEnabled(bool sortenable) { mSortingEnabled = sortenable; }
+        virtual void setSortingEnabled(bool sortenable);
 
         /** Returns true if sorting of billboards is enabled based on their distance from the camera
         @see
             BillboardSet::setSortingEnabled
         */
-        bool getSortingEnabled(void) const { return mSortingEnabled; }
+        virtual bool getSortingEnabled(void) const;
 
         /** Adjusts the size of the pool of billboards available in this set.
         @remarks
@@ -411,14 +440,16 @@ namespace Ogre {
         @see
             BillboardSet::setAutoextend
         */
-        unsigned int getPoolSize() const { return static_cast<unsigned int>(mBillboardPool.size()); }
+        virtual unsigned int getPoolSize(void) const;
+
 
         /** Empties this set of all billboards.
         */
         virtual void clear();
 
         /** Returns a pointer to the billboard at the supplied index.
-
+        @note
+            This method requires linear time since the billboard list is a linked list.
         @param index
             The index of the billboard that is requested.
         @return
@@ -430,50 +461,52 @@ namespace Ogre {
         virtual Billboard* getBillboard(unsigned int index) const;
 
         /** Removes the billboard at the supplied index.
+        @note
+            This method requires linear time since the billboard list is a linked list.
         */
         virtual void removeBillboard(unsigned int index);
 
         /** Removes a billboard from the set.
+        @note
+            This version is more efficient than removing by index.
         */
         virtual void removeBillboard(Billboard* pBill);
 
-        /// @name Billboard positioning
-        /// @{
         /** Sets the point which acts as the origin point for all billboards in this set.
-
+        @remarks
             This setting controls the fine tuning of where a billboard appears in relation to it's
             position. It could be that a billboard's position represents it's center (e.g. for fireballs),
             it could mean the center of the bottom edge (e.g. a tree which is positioned on the ground),
             the top-left corner (e.g. a cursor).
-
-            The default setting is #BBO_CENTER.
+        @par
+            The default setting is BBO_CENTER.
         @param origin
             A member of the BillboardOrigin enum specifying the origin for all the billboards in this set.
         */
-        void setBillboardOrigin(BillboardOrigin origin) { mOriginType = origin; }
+        virtual void setBillboardOrigin(BillboardOrigin origin);
 
         /** Gets the point which acts as the origin point for all billboards in this set.
         @return
             A member of the BillboardOrigin enum specifying the origin for all the billboards in this set.
         */
-        BillboardOrigin getBillboardOrigin(void) const { return mOriginType; }
+        virtual BillboardOrigin getBillboardOrigin(void) const;
 
         /** Sets billboard rotation type.
-
+        @remarks
             This setting controls the billboard rotation type, you can deciding rotate the billboard's vertices
             around their facing direction or rotate the billboard's texture coordinates.
-
-            The default settings is #BBR_TEXCOORD.
+        @par
+            The default settings is BBR_TEXCOORD.
         @param rotationType
             A member of the BillboardRotationType enum specifying the rotation type for all the billboards in this set.
         */
-        void setBillboardRotationType(BillboardRotationType rotationType) { mRotationType = rotationType; }
+        virtual void setBillboardRotationType(BillboardRotationType rotationType);
 
         /** Sets billboard rotation type.
         @return
             A member of the BillboardRotationType enum specifying the rotation type for all the billboards in this set.
         */
-        BillboardRotationType getBillboardRotationType(void) const { return mRotationType; }
+        virtual BillboardRotationType getBillboardRotationType(void) const;
 
         /** Sets the default dimensions of the billboards in this set.
         @remarks
@@ -485,32 +518,25 @@ namespace Ogre {
         @param height
             The new default height for the billboards in this set.
         */
-        void setDefaultDimensions(Real width, Real height)
-        {
-            mDefaultWidth = width;
-            mDefaultHeight = height;
-        }
+        virtual void setDefaultDimensions(Real width, Real height);
 
         /** See setDefaultDimensions - this sets 1 component individually. */
-        void setDefaultWidth(Real width) { mDefaultWidth = width; }
+        virtual void setDefaultWidth(Real width);
         /** See setDefaultDimensions - this gets 1 component individually. */
-        Real getDefaultWidth(void) const { return mDefaultWidth; }
+        virtual Real getDefaultWidth(void) const;
         /** See setDefaultDimensions - this sets 1 component individually. */
-        void setDefaultHeight(Real height) { mDefaultHeight = height; }
+        virtual void setDefaultHeight(Real height);
         /** See setDefaultDimensions - this gets 1 component individually. */
-        Real getDefaultHeight(void) const { return mDefaultHeight; }
-        /// @}
+        virtual Real getDefaultHeight(void) const;
 
-        /** Sets the name of the material to be used for this billboard set.
+        /// Overriden from Renderable
+        virtual bool getUseIdentityWorldMatrix(void) const;
+
+        /** Overridden from MovableObject
+        @see
+            MovableObject
         */
-        virtual void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
-
-        /** Sets the name of the material to be used for this billboard set.
-        @return The name of the material that is used for this set.
-        */
-        const String& getMaterialName(void) const { return mMaterial->getName(); }
-
-        virtual void _notifyCurrentCamera(Camera* cam) override;
+        virtual void _notifyCurrentCamera( const Camera* camera, const Camera* lodCamera );
 
         /** Begin injection of billboard data; applicable when 
             constructing the BillboardSet for external data use.
@@ -519,7 +545,7 @@ namespace Ogre {
         */
         void beginBillboards(size_t numBillboards = 0);
         /** Define a billboard. */
-        void injectBillboard(const Billboard& bb);
+        void injectBillboard(const Billboard& bb, const Camera *camera);
         /** Finish defining billboards. */
         void endBillboards(void);
         /** Set the bounds of the BillboardSet.
@@ -527,30 +553,39 @@ namespace Ogre {
             You may need to call this if you're injecting billboards manually, 
             and you're relying on the BillboardSet to determine culling.
         */
-        void setBounds(const AxisAlignedBox& box, Real radius);
+        void setBounds(const Aabb& aabb, Real radius);
 
-        const AxisAlignedBox& getBoundingBox(void) const override { return mAABB; }
-        Real getBoundingRadius(void) const override { return mBoundingRadius; }
-        virtual void _updateRenderQueue(RenderQueue* queue) override;
-        const MaterialPtr& getMaterial(void) const override { return mMaterial; }
+        /** Overridden from MovableObject
+        @see
+            MovableObject
+        */
+        virtual void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
-        /** Sets the name of the material to be used for this billboard set.
-        @param material
-            The new material to use for this set.
-         */
-        virtual void setMaterial( const MaterialPtr& material );
+        /// Internal version that does not call _notifyCurrentCamera (i.e. you've already done it)
+        void _updateRenderQueueImpl(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
 
+        /** Overridden from MovableObject
+        @see
+            MovableObject
+        */
+        virtual void getRenderOperation(RenderOperation& op, bool casterPass);
 
-        virtual void getRenderOperation(RenderOperation& op) override;
-        virtual void getWorldTransforms(Matrix4* xform) const override;
+        /** Overridden from MovableObject
+        @see
+            MovableObject
+        */
+        virtual void getWorldTransforms(Matrix4* xform) const;
 
-        /// @deprecated do not use
-        OGRE_DEPRECATED void _notifyBillboardResized() {}
-        /// @deprecated do not use
-        OGRE_DEPRECATED void _notifyBillboardRotated() {}
+        /** Internal callback used by Billboards to notify their parent that they have been resized.
+        */
+        virtual void _notifyBillboardResized(void);
+
+        /** Internal callback used by Billboards to notify their parent that they have been rotated.
+        */
+        virtual void _notifyBillboardRotated(void);
 
         /** Returns whether or not billboards in this are tested individually for culling. */
-        bool getCullIndividually(void) const { return mCullIndividual; }
+        virtual bool getCullIndividually(void) const;
         /** Sets whether culling tests billboards in this individually as well as in a group.
         @remarks
             Billboard sets are always culled as a whole group, based on a bounding box which 
@@ -571,75 +606,75 @@ namespace Ogre {
         @param cullIndividual If true, each billboard is tested before being sent to the pipeline as well 
             as the whole set having to pass the coarse group bounding test.
         */
-        void setCullIndividually(bool cullIndividual) { mCullIndividual = cullIndividual; }
+        virtual void setCullIndividually(bool cullIndividual);
 
-        /// @name Billboard orientation
-        /// @{
-        /** Sets the orientation behaviour of the billboards to render.
-
-            The default sort of billboard (#BBT_POINT), always has both x and y axes parallel to
+        /** Sets the type of billboard to render.
+        @remarks
+            The default sort of billboard (BBT_POINT), always has both x and y axes parallel to 
             the camera's local axes. This is fine for 'point' style billboards (e.g. flares,
             smoke, anything which is symmetrical about a central point) but does not look good for
             billboards which have an orientation (e.g. an elongated raindrop). In this case, the
-            oriented billboards are more suitable (#BBT_ORIENTED_COMMON or #BBT_ORIENTED_SELF) since
+            oriented billboards are more suitable (BBT_ORIENTED_COMMON or BBT_ORIENTED_SELF) since
             they retain an independent Y axis and only the X axis is generated, perpendicular to both
             the local Y and the camera Z.
-
+        @par
             In some case you might want the billboard has fixed Z axis and doesn't need to face to
             camera (e.g. an aureola around the player and parallel to the ground). You can use
-            #BBT_PERPENDICULAR_SELF which the billboard plane perpendicular to the billboard own
-            direction. Or #BBT_PERPENDICULAR_COMMON which the billboard plane perpendicular to the
+            BBT_PERPENDICULAR_SELF which the billboard plane perpendicular to the billboard own
+            direction. Or BBT_PERPENDICULAR_COMMON which the billboard plane perpendicular to the
             common direction.
         @note
-            #BBT_PERPENDICULAR_SELF and #BBT_PERPENDICULAR_COMMON can't guarantee counterclockwise, you might
-            use double-side material (#CULL_NONE) to ensure no billboard are culled.
+            BBT_PERPENDICULAR_SELF and BBT_PERPENDICULAR_COMMON can't guarantee counterclockwise, you might
+            use double-side material (<b>cull_hardware node</b>) to ensure no billboard are culled.
         @param bbt The type of billboard to render
         */
-        void setBillboardType(BillboardType bbt) { mBillboardType = bbt; }
+        virtual void setBillboardType(BillboardType bbt);
 
         /** Returns the billboard type in use. */
-        BillboardType getBillboardType(void) const { return mBillboardType; }
+        virtual BillboardType getBillboardType(void) const;
 
-        /** Use this to specify the common direction given to billboards
-
-            Use #BBT_ORIENTED_COMMON when you want oriented billboards but you know they are always going to
+        /** Use this to specify the common direction given to billboards of type BBT_ORIENTED_COMMON or BBT_PERPENDICULAR_COMMON.
+        @remarks
+            Use BBT_ORIENTED_COMMON when you want oriented billboards but you know they are always going to 
             be oriented the same way (e.g. rain in calm weather). It is faster for the system to calculate
             the billboard vertices if they have a common direction.
-
-            The common direction also use in #BBT_PERPENDICULAR_COMMON, in this case the common direction
+        @par
+            The common direction also use in BBT_PERPENDICULAR_COMMON, in this case the common direction
             treat as Z axis, and an additional common up-vector was use to determine billboard X and Y
             axis.
-
-            @param vec The direction for all billboards. The vector is expected to be unit-length (normalised)
-
             @see setCommonUpVector
+        @param vec The direction for all billboards.
+        @note
+            The direction are use as is, never normalised in internal, user are supposed to normalise it himself.
         */
-        void setCommonDirection(const Vector3& vec) { mCommonDirection = vec; }
+        virtual void setCommonDirection(const Vector3& vec);
 
         /** Gets the common direction for all billboards (BBT_ORIENTED_COMMON) */
-        const Vector3& getCommonDirection(void) const { return mCommonDirection; }
+        virtual const Vector3& getCommonDirection(void) const;
 
-        /** Use this to specify the common up-vector given to billboards
-
-            Use #BBT_PERPENDICULAR_SELF or #BBT_PERPENDICULAR_COMMON when you want oriented billboards
+        /** Use this to specify the common up-vector given to billboards of type BBT_PERPENDICULAR_SELF or BBT_PERPENDICULAR_COMMON.
+        @remarks
+            Use BBT_PERPENDICULAR_SELF or BBT_PERPENDICULAR_COMMON when you want oriented billboards
             perpendicular to specify direction vector (or, Z axis), and doesn't face to camera.
             In this case, we need an additional up-vector to determine the billboard X and Y axis.
             The generated billboard plane and X-axis guarantee perpendicular to specify direction.
-
-            The specify direction is billboard own direction when billboard type is #BBT_PERPENDICULAR_SELF,
-            and it's shared common direction when billboard type is #BBT_PERPENDICULAR_COMMON.
-
-            @param vec The up-vector for all billboards. The vector is expected to be unit-length (normalised)
-
             @see setCommonDirection
+        @par
+            The specify direction is billboard own direction when billboard type is BBT_PERPENDICULAR_SELF,
+            and it's shared common direction when billboard type is BBT_PERPENDICULAR_COMMON.
+        @param vec The up-vector for all billboards.
+        @note
+            The up-vector are use as is, never normalised in internal, user are supposed to normalise it himself.
         */
-        void setCommonUpVector(const Vector3& vec) { mCommonUpVector = vec; }
+        virtual void setCommonUpVector(const Vector3& vec);
 
         /** Gets the common up-vector for all billboards (BBT_PERPENDICULAR_SELF and BBT_PERPENDICULAR_COMMON) */
-        const Vector3& getCommonUpVector(void) const { return mCommonUpVector; }
-
+        virtual const Vector3& getCommonUpVector(void) const;
+        
         /** Sets whether or not billboards should use an 'accurate' facing model
-
+            based on the vector from each billboard to the camera, rather than 
+            an optimised version using just the camera direction.
+        @remarks
             By default, the axes for all billboards are calculated using the 
             camera's view direction, not the vector from the camera position to
             the billboard. The former is faster, and most of the time the difference
@@ -649,29 +684,26 @@ namespace Ogre {
             more expensive, but more accurate version.
         @param acc True to use the slower but more accurate model. Default is false.
         */
-        void setUseAccurateFacing(bool acc) { mAccurateFacing = acc; }
+        virtual void setUseAccurateFacing(bool acc) { mAccurateFacing = acc; }
         /** Gets whether or not billboards use an 'accurate' facing model
-
             based on the vector from each billboard to the camera, rather than 
             an optimised version using just the camera direction.
         */
-        bool getUseAccurateFacing(void) const { return mAccurateFacing; }
-        /// @}
+        virtual bool getUseAccurateFacing(void) const { return mAccurateFacing; }
 
-        virtual const String& getMovableType(void) const override;
-        Real getSquaredViewDepth(const Camera* cam) const override;
+        /** Overridden from MovableObject */
+        virtual const String& getMovableType(void) const;
+
+        /** Overridden, see Renderable */
+        Real getSquaredViewDepth(const Camera* cam) const;
 
         /** Update the bounds of the billboardset */
         virtual void _updateBounds(void);
         /** @copydoc Renderable::getLights */
         const LightList& getLights(void) const;
 
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
-
         /** Sort the billboard set. Only called when enabled via setSortingEnabled */
-        virtual void _sortBillboards( Camera* cam);
+        virtual void _sortBillboards(void);
 
         /** Gets the sort mode of this billboard set */
         virtual SortMode _getSortMode(void) const;
@@ -681,14 +713,12 @@ namespace Ogre {
             This is most useful when you are driving the billboard set from 
             an external data source.
         */
-        void setBillboardsInWorldSpace(bool ws) { mWorldSpace = ws; }
+        virtual void setBillboardsInWorldSpace(bool ws) { mWorldSpace = ws; }
 
         /** Gets whether billboards are treated as being in world space.
          */
         bool getBillboardsInWorldSpace() { return mWorldSpace; }
 
-        /// @name Billboard UV computation
-        /// @{
         /** BillboardSet can use custom texture coordinates for various billboards.
             This is useful for selecting one of many particle images out of a tiled 
             texture sheet, or doing flipbook animation within a single texture.
@@ -706,6 +736,8 @@ namespace Ogre {
 
         @param coords is a vector of texture coordinates (in UV space) to choose 
             from for each billboard created in the set.
+        @param numCoords is how many such coordinate rectangles there are to 
+            choose from.
         @remarks
             Set 'coords' to 0 and/or 'numCoords' to 0 to reset the texture coord 
             rects to the initial set of a single rectangle spanning 0 through 1 in 
@@ -714,33 +746,22 @@ namespace Ogre {
             BillboardSet::setTextureStacksAndSlices()
             Billboard::setTexcoordIndex()
         */
-        void setTextureCoords(const std::vector<FloatRect>& coords);
+        virtual void setTextureCoords( Ogre::FloatRect const * coords, uint16 numCoords );
 
-        /// @deprecated
-        OGRE_DEPRECATED void setTextureCoords(FloatRect const* coords, uint16 numCoords)
-        {
-            setTextureCoords(std::vector<FloatRect>(coords, coords + numCoords));
-        }
-
-        /** Generate texture coordinate rects for a tiled texture sheet
-
-            A texture sheet is a grid of images that can be used to create simple animations.
-            This method will generate the uv coordinates for the individual sub-rectangles.
-
-            These can then be addressed by Ogre::Billboard::setTexcoordIndex().
-
-            If the texture size is 512x512 and 'stacks' is 4 and 'slices' is 8, each sub-rectangle of the texture
+        /** setTextureStacksAndSlices() will generate texture coordinate rects as if the 
+            texture for the billboard set contained 'stacks' rows of 'slices' 
+            images each, all equal size. Thus, if the texture size is 512x512 
+            and 'stacks' is 4 and 'slices' is 8, each sub-rectangle of the texture 
             would be 128 texels tall and 64 texels wide.
-
-            The numbering counts first across, then down, so top-left is 0, the one to the right
+        @remarks
+            This function is short-hand for creating a regular set and calling 
+            setTextureCoords() yourself. The numbering used for Billboard::setTexcoordIndex() 
+            counts first across, then down, so top-left is 0, the one to the right 
             of that is 1, and the lower-right is stacks*slices-1.
-
-            If you need more flexibility, you can use Ogre::BillboardSet::setTextureCoords() instead.
-
-            @param stacks number of vertical tiles (rows)
-            @param slices number of horizontal tiles (columns)
+        @see
+            BillboardSet::setTextureCoords()
         */
-        void setTextureStacksAndSlices( uchar stacks, uchar slices );
+        virtual void setTextureStacksAndSlices( uchar stacks, uchar slices );
 
         /** getTextureCoords() returns the current texture coordinate rects in 
             effect. By default, there is only one texture coordinate rect in the 
@@ -748,15 +769,11 @@ namespace Ogre {
         @see
             BillboardSet::setTextureCoords()
         */
-        const std::vector<FloatRect>& getTextureCoords() const { return mTextureCoords; }
-
-        /// @deprecated
-        OGRE_DEPRECATED Ogre::FloatRect const * getTextureCoords( uint16 * oNumCoords );
-        /// @}
+        virtual Ogre::FloatRect const * getTextureCoords( uint16 * oNumCoords );
 
         /** Set whether or not the BillboardSet will use point rendering
             rather than manually generated quads.
-
+        @remarks
             By default a billboardset is rendered by generating geometry for a
             textured quad in memory, taking into account the size and 
             orientation settings, and uploading it to the video card. 
@@ -764,30 +781,29 @@ namespace Ogre {
             only one position needs to be sent per billboard rather than 4 and
             the hardware sorts out how this is rendered based on the render
             state.
-
+        @par
             Using point rendering is faster than generating quads manually, but
             is more restrictive. The following restrictions apply:
-            - Only the Ogre::BBT_POINT type is supported
-            - Size and appearance of each billboard is controlled by the material
-              - Ogre::Pass::setPointSize
-              - Ogre::Pass::setPointAttenuation
-              - Ogre::Pass::setPointSpritesEnabled
-            - Per-billboard size is not supported (stems from the above)
-            - Per-billboard rotation is not supported, this can only be
+            \li Only the BBT_POINT type is supported
+            \li Size and appearance of each billboard is controlled by the 
+                material (Pass::setPointSize, Pass::setPointSizeAttenuation, 
+                Pass::setPointSpritesEnabled)
+            \li Per-billboard size is not supported (stems from the above)
+            \li Per-billboard rotation is not supported, this can only be 
                 controlled through texture unit rotation
-            - Only Ogre::BBO_CENTER origin is supported
-            - Per-billboard texture coordinates are not supported
+            \li Only BBO_CENTER origin is supported
+            \li Per-billboard texture coordinates are not supported
 
+        @par
             You will almost certainly want to enable in your material pass
-            both point attenuation and point sprites if you use this option.
+            both point attenuation and point sprites if you use this option. 
+        @param enabled True to enable point rendering, false otherwise
         */
         virtual void setPointRenderingEnabled(bool enabled);
 
         /** Returns whether point rendering is enabled. */
-        bool isPointRenderingEnabled(void) const { return mPointRendering; }
-
-        /// Override to return specific type flag
-        uint32 getTypeFlags(void) const;
+        virtual bool isPointRenderingEnabled(void) const
+        { return mPointRendering; }
 
         /** Set the auto update state of this billboard set.
         @remarks
@@ -809,8 +825,12 @@ namespace Ogre {
         */
         void notifyBillboardDataChanged(void) { mBillboardDataChanged = true; }
 
-        /** @copydoc MovableObject::_releaseManualHardwareResources */
+        /** @copydoc MovableObject::_releaseManualHardwareResources. */
         void _releaseManualHardwareResources() { _destroyBuffers(); }
+
+        virtual void setMaterial( const MaterialPtr& material );
+        virtual void setDatablock( HlmsDatablock *datablock );
+        virtual void _setNullDatablock(void);
 
     };
 
@@ -818,7 +838,9 @@ namespace Ogre {
     class _OgreExport BillboardSetFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager* manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         BillboardSetFactory() {}
         ~BillboardSetFactory() {}
@@ -826,10 +848,12 @@ namespace Ogre {
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);  
+
     };
     /** @} */
     /** @} */
-
+}
 } // namespace Ogre
 
 #include "OgreHeaderSuffix.h"

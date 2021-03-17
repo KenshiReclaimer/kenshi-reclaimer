@@ -49,9 +49,6 @@ namespace Ogre {
     /** Abstract base class for level of detail strategy based on pixel count approximations from bounding sphere projection. */
     class _OgreExport PixelCountLodStrategyBase : public LodStrategy
     {
-    protected:
-        Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const override;
-
     public:
         /** Default constructor. */
         PixelCountLodStrategyBase(const String& name);
@@ -62,44 +59,128 @@ namespace Ogre {
         /// @copydoc LodStrategy::transformBias
         virtual Real transformBias(Real factor) const;
 
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::getIndex
-        virtual ushort getIndex(Real value, const Material::LodValueList& materialLodValueList) const;
-
-        /// @copydoc LodStrategy::sort
-        virtual void sort(Mesh::MeshLodUsageList& meshLodUsageList) const;
-
-        /// @copydoc LodStrategy::isSorted
-        virtual bool isSorted(const Mesh::LodValueList& values) const;
+        /** Transform user supplied value to internal value.
+        @remarks
+            Do not throw exceptions for invalid values here, as the LOD strategy
+            may be changed such that the values become valid.
+        */
+        virtual Real transformUserValue(Real userValue) const               { return -userValue; }
     };
+    /** @} */
+    /** @} */
 
-    class _OgreExport AbsolutePixelCountLodStrategy : public PixelCountLodStrategyBase, public Singleton<AbsolutePixelCountLodStrategy>
+    /**
+    @brief The AbsolutePixelCountLodStrategy class
+        LOD strategy that works like ScreenRatioPixelCountLodStrategy,
+        but in range [-width * height;0] instead of [-1.0;0.0]
+
+        Because this strategy heavily depends on target resolution, it is strongly recommended
+        that you use ScreenRatioPixelCountLodStrategy instead.
+    */
+    class _OgreExport AbsolutePixelCountLodStrategy : public PixelCountLodStrategyBase,
+                                                      public Singleton<AbsolutePixelCountLodStrategy>
     {
     public:
         /** Default constructor. */
         AbsolutePixelCountLodStrategy();
-        ~AbsolutePixelCountLodStrategy();
 
-        Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const override;
+        /// @copydoc LodStrategy::getValueImpl
+        Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const;
 
-        /// @copydoc Singleton::getSingleton()
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const;
+
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static AbsolutePixelCountLodStrategy& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static AbsolutePixelCountLodStrategy* getSingletonPtr(void);
     };
+    /** @} */
+    /** @} */
 
-    class _OgreExport ScreenRatioPixelCountLodStrategy : public PixelCountLodStrategyBase, public Singleton<ScreenRatioPixelCountLodStrategy>
+    /**
+    @brief The ScreenRatioPixelCountLodStrategy class
+        Implement a strategy which calculates LOD ratios based on coverage in screen ratios in
+        the range [-1.0; 0.0] where -1.0 means the object is covering the whole screen and 0
+        covering almost nothing in the screen (very tiny).
+
+        Note however that:
+            1. Values beyond -1.0 are possible (it just means the object is bigger than the screen)
+            2. It's an approximation
+    */
+    class _OgreExport ScreenRatioPixelCountLodStrategy
+        : public PixelCountLodStrategyBase,
+          public Singleton<ScreenRatioPixelCountLodStrategy>
     {
     public:
         /** Default constructor. */
         ScreenRatioPixelCountLodStrategy();
-        ~ScreenRatioPixelCountLodStrategy();
 
-        /// @copydoc Singleton::getSingleton()
+        /// @copydoc LodStrategy::getValueImpl
+        Real getValueImpl(const MovableObject *movableObject, const Camera *camera) const;
+
+        virtual void lodUpdateImpl( const size_t numNodes, ObjectData t,
+                                    const Camera *camera, Real bias ) const;
+
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ScreenRatioPixelCountLodStrategy& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ScreenRatioPixelCountLodStrategy* getSingletonPtr(void);
     };
     /** @} */

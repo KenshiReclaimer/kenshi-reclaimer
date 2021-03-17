@@ -30,10 +30,13 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreRenderOperation.h"
-#include "OgreVector.h"
+#include "OgreVector2.h"
+#include "OgreVector3.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
+{
+namespace v1
 {
 
     /** \addtogroup Core
@@ -48,6 +51,7 @@ namespace Ogre
     {
     public:
         TangentSpaceCalc();
+        virtual ~TangentSpaceCalc();
 
         typedef std::pair<size_t, size_t> VertexSplit;
 
@@ -66,9 +70,9 @@ namespace Ogre
         };
         /** List of indexes that were remapped (split vertices).
         */
-        typedef std::list<IndexRemap> IndexRemapList;
+        typedef list<IndexRemap>::type IndexRemapList;
 
-        typedef std::list<VertexSplit> VertexSplits;
+        typedef list<VertexSplit>::type VertexSplits;
 
         /// The result of having built a tangent space basis
         struct Result
@@ -92,7 +96,7 @@ namespace Ogre
         /** Add a set of index data that references the vertex data.
             This might be modified if there are vertex splits.
         */
-        void addIndexData(IndexData* i_in, RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST);
+        void addIndexData(IndexData* i_in, OperationType opType = OT_TRIANGLE_LIST);
 
         /** Sets whether to store tangent space parity in the W of a 4-component tangent or not.
         @remarks
@@ -181,8 +185,8 @@ namespace Ogre
     protected:
 
         VertexData* mVData;
-        typedef std::vector<IndexData*> IndexDataList;
-        typedef std::vector<RenderOperation::OperationType> OpTypeList;
+        typedef vector<IndexData*>::type IndexDataList;
+        typedef vector<OperationType>::type OpTypeList;
         IndexDataList mIDataList;
         OpTypeList mOpTypes;
         bool mSplitMirrored;
@@ -205,7 +209,7 @@ namespace Ogre
             VertexInfo() : tangent(Vector3::ZERO), binormal(Vector3::ZERO), 
                 parity(0), oppositeParityIndex(0) {}
         };
-        typedef std::vector<VertexInfo> VertexInfoArray;
+        typedef vector<VertexInfo>::type VertexInfoArray;
         VertexInfoArray mVertexArray;
 
         void extendBuffers(VertexSplits& splits);
@@ -260,6 +264,7 @@ namespace Ogre
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

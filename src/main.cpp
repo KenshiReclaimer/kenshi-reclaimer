@@ -6,6 +6,9 @@
 #include <OgrePlugin.h>
 #include <OgreRoot.h>
 
+#include <MyGUI.h>
+#include "kenshi/Kenshi.h"
+
 class ReclaimerMain : public Ogre::Plugin
 {
     virtual const Ogre::String& getName() const { return "Reclaimer"; };
@@ -35,6 +38,9 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void initialise() override
     {
         printf("ReclaimerMain::initialise()\n");
+        auto gui = MyGUI::Gui::getInstancePtr();
+        printf("ui_instance=%p\n", gui);
+
     }
 
     /** Perform any tasks the plugin needs to perform when the system is shut down.
@@ -62,6 +68,8 @@ class ReclaimerMain : public Ogre::Plugin
     {
         printf("ReclaimerMain::uninstall()\n");
     }
+
+    MyGUI::WindowPtr m_mywin;
 };
 
 
@@ -84,4 +92,5 @@ extern "C" void __declspec(dllexport) dllStopPlugin(void)
     printf("dllStopPlugin()\n");
     
     Ogre::Root::getSingleton().uninstallPlugin(g_instance);
+    delete g_instance;
 }

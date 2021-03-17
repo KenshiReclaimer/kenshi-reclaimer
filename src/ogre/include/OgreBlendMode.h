@@ -201,24 +201,29 @@ namespace Ogre {
     };
 
     /** Types of blending that you can specify between an object and the existing contents of the scene.
-
-        As opposed to the LayerBlendType, which classifies blends between texture layers, these blending
-        types blend between the output of the texture units and the pixels already in the viewport,
-        allowing for object transparency, glows, etc.
-
-        These types are provided to give quick and easy access to common effects. You can also use
-        the more manual method of supplying source and destination blending factors.
-        See Material::setSceneBlending for more details.
+        @remarks
+            As opposed to the LayerBlendType, which classifies blends between texture layers, these blending
+            types blend between the output of the texture units and the pixels already in the viewport,
+            allowing for object transparency, glows, etc.
+        @par
+            These types are provided to give quick and easy access to common effects. You can also use
+            the more manual method of supplying source and destination blending factors.
+            See Material::setSceneBlending for more details.
         @see
-            Pass::setSceneBlending
+            Material::setSceneBlending
     */
     enum SceneBlendType
     {
-        SBT_TRANSPARENT_ALPHA, //!< The alpha value of the rendering output is used as a mask.
-        SBT_TRANSPARENT_COLOUR, //!< Colour the scene based on the brightness of the input colours, but don’t darken.
-        SBT_ADD, //!< The colour of the rendering output is added to the scene. Good for explosions, flares, lights, ghosts etc. 
-        SBT_MODULATE, //!< The colour of the rendering output is multiplied with the scene contents. Generally colours and darkens the scene, good for smoked glass, semi-transparent objects etc.
-        SBT_REPLACE //!< The default blend mode where source replaces destination
+        /// Make the object transparent based on the final alpha values in the texture
+        SBT_TRANSPARENT_ALPHA,
+        /// Make the object transparent based on the colour values in the texture (brighter = more opaque)
+        SBT_TRANSPARENT_COLOUR,
+        /// Add the texture values to the existing scene content
+        SBT_ADD,
+        /// Multiply the 2 colours together
+        SBT_MODULATE,
+        /// The default blend mode where source replaces destination
+        SBT_REPLACE
         // TODO : more
     };
 
@@ -228,16 +233,17 @@ namespace Ogre {
     */
     enum SceneBlendFactor
     {
-        SBF_ONE, //!< Constant value of 1.0
-        SBF_ZERO, //!< Constant value of 0.0
-        SBF_DEST_COLOUR, //!< The existing pixel colour
-        SBF_SOURCE_COLOUR, //!< The texture pixel (texel) colour
-        SBF_ONE_MINUS_DEST_COLOUR, //!< 1 - SBF_DEST_COLOUR
-        SBF_ONE_MINUS_SOURCE_COLOUR, //!< 1 - SBF_SOURCE_COLOUR
-        SBF_DEST_ALPHA, //!< The existing pixel alpha value
-        SBF_SOURCE_ALPHA, //!< The texel alpha value
-        SBF_ONE_MINUS_DEST_ALPHA, //!< 1 - SBF_DEST_ALPHA
-        SBF_ONE_MINUS_SOURCE_ALPHA //!< 1 - SBF_SOURCE_ALPHA
+        SBF_ONE,
+        SBF_ZERO,
+        SBF_DEST_COLOUR,
+        SBF_SOURCE_COLOUR,
+        SBF_ONE_MINUS_DEST_COLOUR,
+        SBF_ONE_MINUS_SOURCE_COLOUR,
+        SBF_DEST_ALPHA,
+        SBF_SOURCE_ALPHA,
+        SBF_ONE_MINUS_DEST_ALPHA,
+        SBF_ONE_MINUS_SOURCE_ALPHA
+
     };
 
     /** Blending operations controls how objects are blended into the scene. The default operation
@@ -251,58 +257,6 @@ namespace Ogre {
         SBO_REVERSE_SUBTRACT,
         SBO_MIN,
         SBO_MAX
-    };
-
-    /** Describes the global blending factors for combining subsequent renders with the existing frame contents.
-
-    By default the operation is Ogre::SBO_ADD, which creates this equation
-
-    $$final = (passOutput * sourceFactor) + (frameBuffer * destFactor)$$
-
-    Each of the factors is specified as one of Ogre::SceneBlendFactor.
-
-    By setting a different Ogre::SceneBlendOperation you can achieve a different effect.
-    */
-    struct _OgreExport ColourBlendState
-    {
-        /** @name Write Mask
-         * Whether writing is enabled for each of the 4 colour channels */
-        /// @{
-        bool writeR : 1;
-        bool writeG : 1;
-        bool writeB : 1;
-        bool writeA : 1;
-        /// @}
-
-        /** @name Blending factors
-         * used to weight the render colour components and the frame colour components */
-        /// @{
-        SceneBlendFactor sourceFactor;
-        SceneBlendFactor destFactor;
-        SceneBlendFactor sourceFactorAlpha;
-        SceneBlendFactor destFactorAlpha;
-        /// @}
-
-        /** @name Blending operations
-         * The blend operation mode for combining colour values */
-        /// @{
-        SceneBlendOperation operation;
-        SceneBlendOperation alphaOperation;
-        /// @}
-
-        ColourBlendState()
-            : writeR(true), writeG(true), writeB(true), writeA(true), sourceFactor(SBF_ONE),
-              destFactor(SBF_ZERO), sourceFactorAlpha(SBF_ONE), destFactorAlpha(SBF_ZERO),
-              operation(SBO_ADD), alphaOperation(SBO_ADD)
-        {
-        }
-
-        /// can we simply overwrite the existing pixels or do we have to blend
-        bool blendingEnabled() const
-        {
-            return !(sourceFactor == SBF_ONE && destFactor == SBF_ZERO &&
-                     sourceFactorAlpha == SBF_ONE && destFactorAlpha == SBF_ZERO);
-        }
     };
     /** @} */
     /** @} */

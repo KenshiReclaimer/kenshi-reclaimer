@@ -52,15 +52,14 @@ namespace Ogre {
         ~DefaultSceneManagerFactory() {}
         /// Factory type name
         static const String FACTORY_TYPE_NAME;
-        SceneManager* createInstance(const String& instanceName);
+        SceneManager* createInstance( const String& instanceName, size_t numWorkerThreads );
         void destroyInstance(SceneManager* instance);
     };
-
     /// Default scene manager
     class _OgreExport DefaultSceneManager : public SceneManager
     {
     public:
-        DefaultSceneManager(const String& name);
+        DefaultSceneManager( const String& name, size_t numWorkerThreads );
         ~DefaultSceneManager();
         const String& getTypeName(void) const;
     };
@@ -89,12 +88,12 @@ namespace Ogre {
     {
     public:
         /// Scene manager instances, indexed by instance name
-        typedef std::map<String, SceneManager*> Instances;
+        typedef map<String, SceneManager*>::type Instances;
         /// List of available scene manager types as meta data
-        typedef std::vector<const SceneManagerMetaData*> MetaDataList;
+        typedef vector<const SceneManagerMetaData*>::type MetaDataList;
     private:
         /// Scene manager factories
-        typedef std::list<SceneManagerFactory*> Factories;
+        typedef list<SceneManagerFactory*>::type Factories;
         Factories mFactories;
         Instances mInstances;
         /// Stored separately to allow iteration
@@ -132,18 +131,11 @@ namespace Ogre {
         */
         const SceneManagerMetaData* getMetaData(const String& typeName) const;
 
-        /** get all types of SceneManager available for construction
-
-            providing some information about each one.
-        */
-        const MetaDataList& getMetaData() const { return mMetaDataList; }
-
         typedef ConstVectorIterator<MetaDataList> MetaDataIterator;
         /** Iterate over all types of SceneManager available for construction, 
             providing some information about each one.
-            @deprecated use getMetaData()
         */
-        OGRE_DEPRECATED MetaDataIterator getMetaDataIterator(void) const;
+        MetaDataIterator getMetaDataIterator(void) const;
 
         /** Create a SceneManager instance of a given type.
         @remarks
@@ -156,15 +148,23 @@ namespace Ogre {
         @param instanceName Optional name to given the new instance that is
             created. If you leave this blank, an auto name will be assigned.
         */
-        SceneManager* createSceneManager(const String& typeName, 
+        SceneManager* createSceneManager(const String& typeName, size_t numWorkerThreads,
             const String& instanceName = BLANKSTRING);
 
-        /**
-        @deprecated obsolete API - SceneTypeMask leads to arbitrary results
+        /** Create a SceneManager instance based on scene type support.
+        @remarks
+            Creates an instance of a SceneManager which supports the scene types
+            identified in the parameter. If more than one type of SceneManager 
+            has been registered as handling that combination of scene types, 
+            in instance of the last one registered is returned.
+        @note This method always succeeds, if a specific scene manager is not
+            found, the default implementation is always returned.
+        @param typeMask A mask containing one or more SceneType flags
+        @param instanceName Optional name to given the new instance that is
+            created. If you leave this blank, an auto name will be assigned.
         */
-        OGRE_DEPRECATED SceneManager* createSceneManager(SceneTypeMask typeMask,
-            const String& instanceName = BLANKSTRING)
-        { return createSceneManager(DefaultSceneManagerFactory::FACTORY_TYPE_NAME, instanceName); }
+        SceneManager* createSceneManager(SceneTypeMask typeMask, size_t numWorkerThreads,
+            const String& instanceName = BLANKSTRING );
 
         /** Destroy an instance of a SceneManager. */
         void destroySceneManager(SceneManager* sm);
@@ -181,12 +181,8 @@ namespace Ogre {
         bool hasSceneManager(const String& instanceName) const;
 
         typedef MapIterator<Instances> SceneManagerIterator;
-        /** Get an iterator over all the existing SceneManager instances.
-        @deprecated use getSceneManagers() instead */
-        OGRE_DEPRECATED SceneManagerIterator getSceneManagerIterator(void);
-
-        /// Get all the existing SceneManager instances.
-        const Instances& getSceneManagers() const;
+        /** Get an iterator over all the existing SceneManager instances. */
+        SceneManagerIterator getSceneManagerIterator(void);
 
         /** Notifies all SceneManagers of the destination rendering system.
         */
@@ -194,9 +190,37 @@ namespace Ogre {
 
         /// Utility method to control shutdown of the managers
         void shutdownAll(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static SceneManagerEnumerator& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static SceneManagerEnumerator* getSingletonPtr(void);
 
     };

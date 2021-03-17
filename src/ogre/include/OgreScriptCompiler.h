@@ -35,6 +35,9 @@ THE SOFTWARE.
 #include "OgreGpuProgram.h"
 #include "OgreAny.h"
 #include "Threading/OgreThreadHeaders.h"
+
+#include "ogrestd/list.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -42,7 +45,7 @@ namespace Ogre
     /** \addtogroup Core
     *  @{
     */
-    /** \addtogroup Script
+    /** \addtogroup General
     *  @{
     */
     /** These enums hold the types of the concrete parsed nodes */
@@ -61,7 +64,7 @@ namespace Ogre
     /** The ConcreteNode is the struct that holds an un-conditioned sub-tree of parsed input */
     struct ConcreteNode;
     typedef SharedPtr<ConcreteNode> ConcreteNodePtr;
-    typedef std::list<ConcreteNodePtr> ConcreteNodeList;
+    typedef list<ConcreteNodePtr>::type ConcreteNodeList;
     typedef SharedPtr<ConcreteNodeList> ConcreteNodeListPtr;
     struct ConcreteNode : public ScriptCompilerAlloc
     {
@@ -85,7 +88,7 @@ namespace Ogre
     };
     class AbstractNode;
     typedef SharedPtr<AbstractNode> AbstractNodePtr;
-    typedef std::list<AbstractNodePtr> AbstractNodeList;
+    typedef list<AbstractNodePtr>::type AbstractNodeList;
     typedef SharedPtr<AbstractNodeList> AbstractNodeListPtr;
 
     class _OgreExport AbstractNode : public AbstractNodeAlloc
@@ -102,7 +105,7 @@ namespace Ogre
         /// Returns a new AbstractNode which is a replica of this one.
         virtual AbstractNode *clone() const = 0;
         /// Returns a string value depending on the type of the AbstractNode.
-        virtual const String& getValue() const = 0;
+        virtual String getValue() const = 0;
     };
 
     /** This is an abstract node which cannot be broken down further */
@@ -114,17 +117,19 @@ namespace Ogre
     public:
         AtomAbstractNode(AbstractNode *ptr);
         AbstractNode *clone() const;
-        const String& getValue() const { return value; }
+        String getValue() const;
+    private:
+        void parseNumber() const;
     };
 
     /** This specific abstract node represents a script object */
     class _OgreExport ObjectAbstractNode : public AbstractNode
     {
     private:
-        std::map<String,String> mEnv;
+        map<String,String>::type mEnv;
     public:
         String name, cls;
-        std::vector<String> bases;
+        vector<String>::type bases;
         uint32 id;
         bool abstract;
         AbstractNodeList children;
@@ -133,12 +138,12 @@ namespace Ogre
     public:
         ObjectAbstractNode(AbstractNode *ptr);
         AbstractNode *clone() const;
-        const String& getValue() const { return cls; }
+        String getValue() const;
 
         void addVariable(const String &name);
         void setVariable(const String &name, const String &value);
         std::pair<bool,String> getVariable(const String &name) const;
-        const std::map<String,String> &getVariables() const;
+        const map<String,String>::type &getVariables() const;
     };
 
     /** This abstract node represents a script property */
@@ -151,7 +156,7 @@ namespace Ogre
     public:
         PropertyAbstractNode(AbstractNode *ptr);
         AbstractNode *clone() const;
-        const String& getValue() const { return name; }
+        String getValue() const;
     };
 
     /** This abstract node represents an import statement */
@@ -162,7 +167,7 @@ namespace Ogre
     public:
         ImportAbstractNode();
         AbstractNode *clone() const;
-        const String& getValue() const { return target; }
+        String getValue() const;
     };
 
     /** This abstract node represents a variable assignment */
@@ -173,7 +178,7 @@ namespace Ogre
     public:
         VariableAccessAbstractNode(AbstractNode *ptr);
         AbstractNode *clone() const;
-        const String& getValue() const { return name; }
+        String getValue() const;
     };
 
     class ScriptCompilerEvent;
@@ -186,8 +191,18 @@ namespace Ogre
     class _OgreExport ScriptCompiler : public ScriptCompilerAlloc
     {
     public: // Externally accessible types
-        //typedef std::map<String,uint32> IdMap;
-        typedef std::unordered_map<String,uint32> IdMap;
+        //typedef map<String,uint32>::type IdMap;
+        typedef unordered_map<String,uint32>::type IdMap;
+
+        // The container for errors
+        struct Error : public ScriptCompilerAlloc
+        {
+            String file, message;
+            int line;
+            uint32 code;
+        };
+        typedef SharedPtr<Error> ErrorPtr;
+        typedef list<ErrorPtr>::type ErrorList;
 
         // These are the built-in error codes
         enum{
@@ -202,8 +217,8 @@ namespace Ogre
             CE_DUPLICATEOVERRIDE,
             CE_UNEXPECTEDTOKEN,
             CE_OBJECTBASENOTFOUND,
-            CE_REFERENCETOANONEXISTINGOBJECT,
-            CE_DEPRECATEDSYMBOL
+            CE_UNSUPPORTEDBYRENDERSYSTEM,
+            CE_REFERENCETOANONEXISTINGOBJECT
         };
         static String formatErrorCode(uint32 code);
     public:
@@ -219,10 +234,10 @@ namespace Ogre
         bool compile(const String &str, const String &source, const String &group);
         /// Compiles resources from the given concrete node list
         bool compile(const ConcreteNodeListPtr &nodes, const String &group);
-        /// @deprecated
-        OGRE_DEPRECATED AbstractNodeListPtr _generateAST(const String &str, const String &source, bool doImports = false, bool doObjects = false, bool doVariables = false);
-        /// @deprecated
-        OGRE_DEPRECATED bool _compile(AbstractNodeListPtr nodes, const String &group, bool doImports = true, bool doObjects = true, bool doVariables = true);
+        /// Generates the AST from the given string script
+        AbstractNodeListPtr _generateAST(const String &str, const String &source, bool doImports = false, bool doObjects = false, bool doVariables = false);
+        /// Compiles the given abstract syntax tree
+        bool _compile(AbstractNodeListPtr nodes, const String &group, bool doImports = true, bool doObjects = true, bool doVariables = true);
         /// Adds the given error to the compiler's list of errors
         void addError(uint32 code, const String &file, int line, const String &msg = "");
         /// Sets the listener used by the compiler
@@ -237,9 +252,9 @@ namespace Ogre
          * names. This means that excluded types will always have empty names.
          * All values in the object header are stored as object values.
          */
-        //void addNameExclusion(const String &type);
+        void addNameExclusion(const String &type);
         /// Removes a name exclusion
-        //void removeNameExclusion(const String &type);
+        void removeNameExclusion(const String &type);
         /// Internal method for firing the handleEvent method
         bool _fireEvent(ScriptCompilerEvent *evt, void *retval);
 
@@ -257,25 +272,24 @@ namespace Ogre
 		uint32 registerCustomWordId(const String &word);
 
     private: // Tree processing
-        AbstractNodeListPtr convertToAST(const ConcreteNodeList &nodes);
+        AbstractNodeListPtr convertToAST(const ConcreteNodeListPtr &nodes);
         /// This built-in function processes import nodes
-        void processImports(AbstractNodeList &nodes);
+        void processImports(AbstractNodeListPtr &nodes);
         /// Loads the requested script and converts it to an AST
         AbstractNodeListPtr loadImportPath(const String &name);
         /// Returns the abstract nodes from the given tree which represent the target
-        AbstractNodeList locateTarget(const AbstractNodeList& nodes, const String &target);
+        AbstractNodeListPtr locateTarget(AbstractNodeList *nodes, const String &target);
         /// Handles object inheritance and variable expansion
-        void processObjects(AbstractNodeList& nodes, const AbstractNodeList &top);
+        void processObjects(AbstractNodeList *nodes, const AbstractNodeListPtr &top);
         /// Handles processing the variables
-        void processVariables(AbstractNodeList& nodes);
+        void processVariables(AbstractNodeList *nodes);
         /// This function overlays the given object on the destination object following inheritance rules
-        void overlayObject(const ObjectAbstractNode &source, ObjectAbstractNode& dest);
+        void overlayObject(const AbstractNodePtr &source, ObjectAbstractNode *dest);
         /// Returns true if the given class is name excluded
-        bool isNameExcluded(const ObjectAbstractNode& node, AbstractNode *parent);
+        bool isNameExcluded(const String &cls, AbstractNode *parent);
         /// This function sets up the initial values in word id map
         void initWordMap();
     private:
-        friend String getPropertyName(const ScriptCompiler *compiler, uint32 id);
         // Resource group
         String mGroup;
         // The word -> id conversion table
@@ -285,26 +299,18 @@ namespace Ogre
 		uint32 mLargestRegisteredWordId;
 
         // This is an environment map
-        typedef std::map<String,String> Environment;
+        typedef map<String,String>::type Environment;
         Environment mEnv;
 
-        typedef std::map<String,AbstractNodeListPtr> ImportCacheMap;
+        typedef map<String,AbstractNodeListPtr>::type ImportCacheMap;
         ImportCacheMap mImports; // The set of imported scripts to avoid circular dependencies
-        typedef std::multimap<String,String> ImportRequestMap;
+        typedef multimap<String,String>::type ImportRequestMap;
         ImportRequestMap mImportRequests; // This holds the target objects for each script to be imported
 
         // This stores the imports of the scripts, so they are separated and can be treated specially
         AbstractNodeList mImportTable;
 
         // Error list
-        // The container for errors
-        struct Error
-        {
-            String file, message;
-            int line;
-            uint32 code;
-        };
-        typedef std::list<Error> ErrorList;
         ErrorList mErrors;
 
         // The listener
@@ -404,14 +410,17 @@ namespace Ogre
         // A list of patterns loaded by this compiler manager
         StringVector mScriptPatterns;
 
+        // A pointer to the listener used for compiling scripts
+        ScriptCompilerListener *mListener;
+
         // Stores a map from object types to the translators that handle them
-        std::vector<ScriptTranslatorManager*> mManagers;
+        vector<ScriptTranslatorManager*>::type mManagers;
 
         // A pointer to the built-in ScriptTranslatorManager
         ScriptTranslatorManager *mBuiltinTranslatorManager;
 
-        // the specific compiler instance used
-        ScriptCompiler mScriptCompiler;
+        // A pointer to the specific compiler instance used
+        OGRE_THREAD_POINTER(ScriptCompiler, mScriptCompiler);
     public:
         ScriptCompilerManager();
         virtual ~ScriptCompilerManager();
@@ -452,14 +461,42 @@ namespace Ogre
         /// @copydoc ScriptLoader::getLoadingOrder
         Real getLoadingOrder(void) const;
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ScriptCompilerManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ScriptCompilerManager* getSingletonPtr(void);
     };
 
-    /// @deprecated do not use
-    class OGRE_DEPRECATED _OgreExport PreApplyTextureAliasesScriptCompilerEvent : public ScriptCompilerEvent
+    // Standard event types
+    class _OgreExport PreApplyTextureAliasesScriptCompilerEvent : public ScriptCompilerEvent
     {
     public:
         Material *mMaterial;
@@ -478,6 +515,8 @@ namespace Ogre
             TEXTURE,
             MATERIAL,
             GPU_PROGRAM,
+            UAV,
+            UAV_BUFFER,
             COMPOSITOR
         };
         ResourceType mResourceType;
@@ -523,21 +562,18 @@ namespace Ogre
         {}  
     };
 
-    /// @deprecated use CreateGpuProgramScriptCompilerEvent
-    class OGRE_DEPRECATED _OgreExport CreateHighLevelGpuProgramScriptCompilerEvent : public CreateGpuProgramScriptCompilerEvent
+    class _OgreExport CreateHighLevelGpuProgramScriptCompilerEvent : public ScriptCompilerEvent
     {
     public:
-        String mLanguage;
+        String mFile, mName, mResourceGroup, mSource, mLanguage;
+        GpuProgramType mProgramType;
         static String eventType;
 
-        CreateHighLevelGpuProgramScriptCompilerEvent(const String& file, const String& name,
-                                                     const String& resourceGroup, const String& source,
-                                                     const String& language, GpuProgramType programType)
-            : CreateGpuProgramScriptCompilerEvent(file, name, resourceGroup, source, language, programType),
-              mLanguage(language)
-        {
-            mType = eventType; // override
-        }
+        CreateHighLevelGpuProgramScriptCompilerEvent(const String &file, const String &name, const String &resourceGroup, const String &source, 
+            const String &language, GpuProgramType programType)
+            :ScriptCompilerEvent(eventType), mFile(file), mName(name), mResourceGroup(resourceGroup), mSource(source), 
+             mLanguage(language), mProgramType(programType)
+        {}  
     };
 
     class _OgreExport CreateGpuSharedParametersScriptCompilerEvent : public ScriptCompilerEvent
@@ -585,10 +621,7 @@ namespace Ogre
         ID_FRAGMENT_PROGRAM_REF,
         ID_SHADOW_CASTER_VERTEX_PROGRAM_REF,
         ID_SHADOW_CASTER_FRAGMENT_PROGRAM_REF,
-        ID_SHADOW_RECEIVER_VERTEX_PROGRAM_REF,
-        ID_SHADOW_RECEIVER_FRAGMENT_PROGRAM_REF,
         ID_SHADOW_CASTER_MATERIAL,
-        ID_SHADOW_RECEIVER_MATERIAL,
         
         ID_LOD_VALUES,
         ID_LOD_STRATEGY,
@@ -652,17 +685,10 @@ namespace Ogre
         ID_ALPHA_TO_COVERAGE,
         ID_LIGHT_SCISSOR,
         ID_LIGHT_CLIP_PLANES,
-        ID_TRANSPARENT_SORTING,
-        ID_ILLUMINATION_STAGE,
-            ID_DECAL,
         ID_CULL_HARDWARE,
+        ID_CULL_MODE,
             ID_CLOCKWISE,
             ID_ANTICLOCKWISE,
-        ID_CULL_SOFTWARE,
-            ID_BACK,
-            ID_FRONT,
-        ID_NORMALISE_NORMALS,
-        ID_LIGHTING,
         ID_SHADING,
             ID_FLAT, 
             ID_GOURAUD,
@@ -678,6 +704,7 @@ namespace Ogre
             ID_EXP,
             ID_EXP2,
         ID_COLOUR_WRITE,
+        ID_CHANNEL_MASK,
         ID_MAX_LIGHTS,
         ID_START_LIGHT,
         ID_ITERATION,
@@ -720,9 +747,6 @@ namespace Ogre
             ID_BILINEAR,
             ID_TRILINEAR,
             ID_ANISOTROPIC,
-        ID_CMPTEST,
-            ID_ON,
-            ID_OFF,
         ID_CMPFUNC,
         ID_MAX_ANISOTROPY,
         ID_MIPMAP_BIAS,
@@ -779,6 +803,8 @@ namespace Ogre
         ID_CONTENT_TYPE,
             ID_NAMED,
             ID_SHADOW,
+            ID_COMPOSITOR,
+        ID_AUTOMATIC_BATCHING,
         ID_TEXTURE_SOURCE,
         ID_SHARED_PARAMS,
         ID_SHARED_PARAM_NAMED,
@@ -788,65 +814,217 @@ namespace Ogre
         ID_EMITTER,
         ID_AFFECTOR,
 
-        ID_COMPOSITOR,
-            ID_TARGET,
-            ID_TARGET_OUTPUT,
-
-            ID_INPUT,
-                ID_PREVIOUS,
+        ID_WORKSPACE,
+            ID_ALIAS,
+            ID_CONNECT,
+            ID_CONNECT_BUFFER,
+            ID_CONNECT_OUTPUT,
+            ID_CONNECT_EXTERNAL,
+            ID_CONNECT_BUFFER_EXTERNAL,
+        ID_COMPOSITOR_NODE,
+            ID_IN,
+            ID_OUT,
+            ID_IN_BUFFER,
+            ID_OUT_BUFFER,
+            ID_CUSTOM_ID,
+            ID_RTV,
+                //ID_COLOUR,
+                    ID_RESOLVE,
+                    ID_MIP,
+                    //ID_MIPMAP,
+                    ID_RESOLVE_MIP,
+                    ID_RESOLVE_MIPMAP,
+                    ID_SLICE,
+                    ID_RESOLVE_SLICE,
+                    ID_ALL_LAYERS,
+                //ID_DEPTH,
+                //ID_STENCIL,
+                ID_DEPTH_STENCIL,
+                //ID_DEPTH_TEXTURE,
+                //ID_DEPTH_FORMAT,
+                ID_DEPTH_READ_ONLY,
+                ID_STENCIL_READ_ONLY,
+            ID_BUFFER,
+        //  ID_TEXTURE,
                 ID_TARGET_WIDTH,
                 ID_TARGET_HEIGHT,
                 ID_TARGET_WIDTH_SCALED,
                 ID_TARGET_HEIGHT_SCALED,
-            ID_COMPOSITOR_LOGIC,
-            ID_TEXTURE_REF,
-            ID_SCOPE_LOCAL,
-            ID_SCOPE_CHAIN,
-            ID_SCOPE_GLOBAL,
-            ID_POOLED,
-            //ID_GAMMA, - already registered for material
-            ID_NO_FSAA,
-            ID_DEPTH_POOL,
-            ID_ONLY_INITIAL,
-            ID_VISIBILITY_MASK,
-            ID_LOD_BIAS,
-            ID_MATERIAL_SCHEME,
-            ID_SHADOWS_ENABLED,
+                ID_TARGET_FORMAT,
+            //  ID_GAMMA,
+                ID_NO_GAMMA,
+                ID_NO_FSAA,
+                ID_MSAA,
+                ID_MSAA_AUTO,
+                ID_EXPLICIT_RESOLVE,
+                ID_REINTERPRETABLE,
+                ID_KEEP_CONTENT,
+                ID_DEPTH_POOL,
+                ID_DEPTH_TEXTURE,
+                ID_DEPTH_FORMAT,
+                ID_2D_ARRAY,
+                //ID_3D,
+                ID_CUBEMAP,
+                ID_CUBEMAP_ARRAY,
+                ID_MIPMAPS,
 
-            ID_CLEAR,
-            ID_STENCIL,
-            ID_RENDER_SCENE,
-            ID_RENDER_QUAD,
-            ID_IDENTIFIER,
-            ID_FIRST_RENDER_QUEUE,
-            ID_LAST_RENDER_QUEUE,
-            ID_QUAD_NORMALS,
-                ID_CAMERA_FAR_CORNERS_VIEW_SPACE,
-                ID_CAMERA_FAR_CORNERS_WORLD_SPACE,
+                ID_NO_AUTOMIPMAPS,
+            ID_TARGET,
+        //  ID_PASS,
+                ID_CLEAR,
+                ID_STENCIL,
+                ID_RENDER_SCENE,
+                ID_RENDER_QUAD,
+                ID_DEPTH_COPY,
+                ID_BIND_UAV,
+                    ID_LOAD,
+                        ID_ALL,
+                        //ID_COLOUR,
+                        //ID_DEPTH,
+                        //ID_STENCIL,
+                        ID_CLEAR_COLOUR,
+                        ID_CLEAR_COLOUR_REVERSE_DEPTH_AWARE,
+                        ID_CLEAR_DEPTH,
+                        ID_CLEAR_STENCIL,
+                        ID_WARN_IF_RTV_WAS_FLUSHED,
+                    ID_STORE,
+                    ID_VIEWPORT,
+                    ID_NUM_INITIAL,
+                    ID_FLUSH_COMMAND_BUFFERS,
+                    ID_IDENTIFIER,
+                    ID_OVERLAYS,
+                    ID_EXECUTION_MASK,
+                    ID_VIEWPORT_MODIFIER_MASK,
+                    ID_USES_UAV,
+                        ID_ALLOW_WRITE_AFTER_WRITE, //Used inside ID_USES_UAV
+                    //ID_COLOUR_WRITE,
+                    ID_EXPOSE,
+                    ID_SHADOW_MAP_FULL_VIEWPORT,
+                    ID_PROFILING_ID,
 
-            ID_BUFFERS,
-                ID_COLOUR,
-                ID_DEPTH,
-            ID_COLOUR_VALUE,
-            ID_DEPTH_VALUE,
-            ID_STENCIL_VALUE,
+                    //Used by PASS_SCENE
+                    ID_LOD_BIAS,
+                    ID_LOD_UPDATE_LIST,
+                    ID_LOD_CAMERA,
+                    ID_CULL_REUSE_DATA,
+                    ID_CULL_CAMERA,
+                    ID_MATERIAL_SCHEME,
+                    ID_VISIBILITY_MASK,
+                    ID_LIGHT_VISIBILITY_MASK,
+                    ID_SHADOWS_ENABLED,
+                    ID_CAMERA,
+                    ID_FIRST_RENDER_QUEUE,
+                    ID_LAST_RENDER_QUEUE,
+                    ID_CAMERA_CUBEMAP_REORIENT,
+                    ID_ENABLE_FORWARDPLUS,
+                    ID_FLUSH_COMMAND_BUFFERS_AFTER_SHADOW_NODE,
+                    ID_IS_PREPASS,
+                    ID_USE_PREPASS,
+                    ID_GEN_NORMALS_GBUFFER,
+                    ID_USE_REFRACTIONS,
+                    ID_UV_BAKING,
+                    ID_UV_BAKING_OFFSET,
+                    ID_BAKE_LIGHTING_ONLY,
+                    ID_INSTANCED_STEREO,
 
-            ID_CHECK,
-            ID_COMP_FUNC,
-            ID_REF_VALUE,
-            ID_MASK,
-            ID_FAIL_OP,
-                ID_KEEP,
-                ID_INCREMENT,
-                ID_DECREMENT,
-                ID_INCREMENT_WRAP,
-                ID_DECREMENT_WRAP,
-                ID_INVERT,
-            ID_DEPTH_FAIL_OP,
-            ID_PASS_OP,
-            ID_TWO_SIDED,
+                    //Used by PASS_QUAD
+                    ID_USE_QUAD,
+                    ID_QUAD_NORMALS,
+                        ID_CAMERA_FAR_CORNERS_VIEW_SPACE,
+                        ID_CAMERA_FAR_CORNERS_VIEW_SPACE_NORMALIZED,
+                        ID_CAMERA_FAR_CORNERS_VIEW_SPACE_NORMALIZED_LH,
+                        ID_CAMERA_FAR_CORNERS_WORLD_SPACE,
+                        ID_CAMERA_FAR_CORNERS_WORLD_SPACE_CENTERED,
+                        ID_CAMERA_DIRECTION,
+                    ID_INPUT,
+
+
+                    //Used by PASS_IBL_SPECULAR
+                    //ID_INPUT,
+                    ID_OUTPUT,
+
+                    //Used by PASS_CLEAR
+                    ID_NON_TILERS_ONLY,
+                    ID_BUFFERS,
+                    ID_COLOUR,
+                    ID_DEPTH,
+                //  ID_STENCIL,
+                    ID_COLOUR_VALUE,
+                    ID_DEPTH_VALUE,
+                    ID_STENCIL_VALUE,
+                    ID_DISCARD_ONLY,
+
+                    ID_CHECK,
+                    ID_REF_VALUE,
+                    ID_MASK,
+                    ID_READ_MASK,
+                    ID_BOTH,
+                    ID_FRONT,
+                    ID_BACK,
+                        ID_COMP_FUNC,
+                    ID_FAIL_OP,
+                        ID_KEEP,
+                        ID_INCREMENT,
+                        ID_DECREMENT,
+                        ID_INCREMENT_WRAP,
+                        ID_DECREMENT_WRAP,
+                        ID_INVERT,
+                    ID_DEPTH_FAIL_OP,
+                    ID_PASS_OP,
+                    ID_TWO_SIDED,
+
+                    //Used by PASS_UAV (& PASS_COMPUTE)
+                    ID_UAV,
+                    ID_UAV_EXTERNAL,
+                    ID_UAV_BUFFER,
+                    ID_STARTING_SLOT,
+                    ID_KEEP_PREVIOUS_UAV,
+                    ID_READ,
+                    ID_WRITE,
+                    ID_MIPMAP,
+
+                    //Used by PASS_COMPUTE
+                    ID_JOB,
+
+                    //Used by PASS_MIPMAP
+                    ID_MIPMAP_METHOD,
+                        ID_API_DEFAULT,
+                        //ID_COMPUTE,
+                        ID_COMPUTE_HQ,
+                    ID_KERNEL_RADIUS,
+                    ID_GAUSS_DEVIATION,
+
+                    //Used by IBL_SPECULAR
+                    ID_SAMPLES_PER_ITERATION,
+                    ID_SAMPLES_SINGLE_ITERATION_FALLBACK,
+                    ID_FORCE_MIPMAP_FALLBACK,
+
             ID_READ_BACK_AS_TEXTURE,
-        // Suport for shader model 5.0
+
+        ID_SHADOW_NODE,
+            ID_NUM_SPLITS,
+            ID_NUM_STABLE_SPLITS,
+            ID_NORMAL_OFFSET_BIAS,
+            ID_CONSTANT_BIAS_SCALE,
+            ID_PSSM_SPLIT_PADDING,
+            ID_PSSM_SPLIT_BLEND,
+            ID_PSSM_SPLIT_FADE,
+            ID_PSSM_LAMBDA,
+            ID_SHADOW_MAP_TARGET_TYPE,
+            ID_SHADOW_MAP_REPEAT,
+            ID_SHADOW_MAP,
+                ID_UV,
+                ID_ARRAY_INDEX,
+                ID_FSAA,
+                ID_LIGHT,
+                ID_SPLIT,
+
+        ID_HLMS,
+
+#ifdef RTSHADER_SYSTEM_BUILD_CORE_SHADERS
+        ID_RT_SHADER_SYSTEM,
+#endif
+        /// Suport for shader model 5.0
         // More program IDs
         ID_TESSELLATION_HULL_PROGRAM,
         ID_TESSELLATION_DOMAIN_PROGRAM,
@@ -862,16 +1040,6 @@ namespace Ogre
 
         // Support for subroutine
         ID_SUBROUTINE,
-
-        // added during 1.11. re-sort for 1.12
-        ID_LINE_WIDTH,
-        ID_SAMPLER,
-        ID_SAMPLER_REF,
-        ID_THREAD_GROUPS,
-        ID_RENDER_CUSTOM,
-        ID_AUTO,
-        ID_CAMERA,
-        ID_ALIGN_TO_FACE,
 
         ID_END_BUILTIN_IDS
     };

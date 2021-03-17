@@ -57,7 +57,7 @@ namespace Ogre {
 
         /** Default destructor.
         */
-        ~RenderSystemCapabilitiesManager();
+        virtual ~RenderSystemCapabilitiesManager();
 
 
         /** @see ScriptLoader::parseScript
@@ -70,21 +70,49 @@ namespace Ogre {
         RenderSystemCapabilities* loadParsedCapabilities(const String& name);
 
         /** Access to the internal map of loaded capabilities */
-        const std::map<String, RenderSystemCapabilities*> &getCapabilities() const;
+        const map<String, RenderSystemCapabilities*>::type &getCapabilities() const;
 
         /** Method used by RenderSystemCapabilitiesSerializer::parseScript */
         void _addRenderSystemCapabilities(const String& name, RenderSystemCapabilities* caps);
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static RenderSystemCapabilitiesManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static RenderSystemCapabilitiesManager* getSingletonPtr(void);
 
     protected:
 
         RenderSystemCapabilitiesSerializer* mSerializer;
 
-        typedef std::map<String, RenderSystemCapabilities*> CapabilitiesMap;
+        typedef map<String, RenderSystemCapabilities*>::type CapabilitiesMap;
         CapabilitiesMap mCapabilitiesMap;
 
         const String mScriptPattern;

@@ -26,6 +26,10 @@ THE SOFTWARE
 #ifndef __OgreDefaultWorkQueueStandard_H__
 #define __OgreDefaultWorkQueueStandard_H__
 
+#if OGRE_THREAD_SUPPORT
+#include "ogrestd/vector.h"
+#endif
+
 #include "../OgreWorkQueue.h"
 
 namespace Ogre
@@ -65,13 +69,13 @@ namespace Ogre
 
         size_t mNumThreadsRegisteredWithRS;
         /// Init notification mutex (must lock before waiting on initCondition)
-        OGRE_WQ_MUTEX(mInitMutex);
+        OGRE_MUTEX(mInitMutex);
         /// Synchroniser token to wait / notify on thread init 
-        OGRE_WQ_THREAD_SYNCHRONISER(mInitSync);
+        OGRE_THREAD_SYNCHRONISER(mInitSync);
 
-        OGRE_WQ_THREAD_SYNCHRONISER(mRequestCondition);
+        OGRE_THREAD_SYNCHRONISER(mRequestCondition);
 #if OGRE_THREAD_SUPPORT
-        typedef std::vector<OGRE_THREAD_TYPE*> WorkerThreadList;
+        typedef vector<OGRE_THREAD_TYPE*>::type WorkerThreadList;
         WorkerThreadList mWorkers;
 #endif
 

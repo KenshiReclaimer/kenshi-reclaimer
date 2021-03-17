@@ -40,6 +40,10 @@ namespace Ogre {
     /** \addtogroup Math
     *  @{
     */
+    /** Real type for numeric solvers */
+    typedef double PreciseReal;
+
+
     /** Provides numeric solvers for Ogre
         @remarks
             Handles linear algebra numerics.
@@ -52,7 +56,7 @@ namespace Ogre {
                This implements a naive Gaussian elimination algorithm.
                The algorithm is destructive, so there are side effects in coeff and col.
         */
-        static bool solveNxNLinearSysDestr(int n, double **coeff, double *col);
+        static bool solveNxNLinearSysDestr(int n, PreciseReal **coeff, PreciseReal *col);
     };
     /** @} */
     /** @} */

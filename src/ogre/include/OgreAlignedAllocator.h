@@ -28,16 +28,13 @@ THE SOFTWARE.
 #ifndef __AlignedAllocator_H__
 #define __AlignedAllocator_H__
 
-#include <cstdlib>
-#include "OgrePlatform.h"
-
 namespace Ogre {
 
     /** \addtogroup Core
     *  @{
     */
 
-    /** \addtogroup General
+    /** \addtogroup Memory
     *  @{
     */
 
@@ -98,29 +95,6 @@ namespace Ogre {
         static void deallocate(void* p);
     };
 
-    /// STL compatible wrapper for @ref AlignedMemory
-    template<typename T, size_t Alignment>
-    struct AlignedAllocator : public std::allocator<T>
-    {
-        AlignedAllocator() : std::allocator<T>() {}
-
-        template <class U>
-        AlignedAllocator(const AlignedAllocator<U, Alignment>& other) {};
-
-        template<class Other>
-        struct rebind { using other = AlignedAllocator<Other, Alignment>; };
-
-        T* allocate(size_t n) {
-            return static_cast<T*>(AlignedMemory::allocate(n * sizeof(T), Alignment));
-        }
-        T* allocate(size_t n, const void* hint) { // deprecated in C++17
-            return static_cast<T*>(AlignedMemory::allocate(n * sizeof(T), Alignment));
-        }
-
-        void deallocate(T* p, size_t /*n*/) {
-            AlignedMemory::deallocate(p);
-        }
-    };
     /** @} */
     /** @} */
 

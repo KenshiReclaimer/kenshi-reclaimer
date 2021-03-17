@@ -32,7 +32,10 @@ THE SOFTWARE.
 
 #include "OgreCommon.h"
 #include "OgreStringVector.h"
-#include "OgreIteratorWrapper.h"
+#include "OgreIteratorWrappers.h"
+
+#include "ogrestd/map.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -63,6 +66,7 @@ namespace Ogre {
     public:
 
         ConfigFile();
+        virtual ~ConfigFile();
         /// load from a filename (not using resource group locations)
         void load(const String& filename, const String& separators = "\t:=", bool trimWhitespace = true);
         /// load from a filename (using resource group locations)
@@ -83,32 +87,22 @@ namespace Ogre {
         /** Gets all settings from the file with the named key. */
         StringVector getMultiSetting(const String& key, const String& section = BLANKSTRING) const;
 
-        typedef std::multimap<String, String> SettingsMultiMap;
+        typedef multimap<String, String>::type SettingsMultiMap;
         typedef MapIterator<SettingsMultiMap> SettingsIterator;
         /** Gets an iterator for stepping through all the keys / values in the file. */
-        typedef std::map<String, SettingsMultiMap*> SettingsBySection;
-        typedef std::map<String, SettingsMultiMap> SettingsBySection_;
+        typedef map<String, SettingsMultiMap*>::type SettingsBySection;
         typedef MapIterator<SettingsBySection> SectionIterator;
+        /** Get an iterator over all the available sections in the config file */
+        SectionIterator getSectionIterator(void);
+        /** Get an iterator over all the available settings in a section */
+        SettingsIterator getSettingsIterator(const String& section = BLANKSTRING);
 
-        /// @deprecated use getSettingsBySection()
-        OGRE_DEPRECATED SectionIterator getSectionIterator(void);
 
-        /** Get all the available settings grouped by sections */
-        const SettingsBySection_& getSettingsBySection() const {
-            return mSettings;
-        }
-
-        /// @deprecated use getSettings()
-        OGRE_DEPRECATED SettingsIterator getSettingsIterator(const String& section = BLANKSTRING);
-
-        /** Get all the available settings in a section */
-        const SettingsMultiMap& getSettings(const String& section = BLANKSTRING) const;
         
         /** Clear the settings */
         void clear(void);
     protected:
-        SettingsBySection_ mSettings;
-        SettingsBySection mSettingsPtr; // for backwards compatibility
+        SettingsBySection mSettings;
     };
     /** @} */
     /** @} */

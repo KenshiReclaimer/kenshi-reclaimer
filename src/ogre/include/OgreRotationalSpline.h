@@ -30,6 +30,9 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreQuaternion.h"
+
+#include "ogrestd/vector.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -122,8 +125,8 @@ namespace Ogre {
 
 
 
-        std::vector<Quaternion> mPoints;
-        std::vector<Quaternion> mTangents;
+        vector<Quaternion>::type mPoints;
+        vector<Quaternion>::type mTangents;
 
     };
 

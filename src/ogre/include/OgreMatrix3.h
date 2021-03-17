@@ -30,7 +30,7 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 
-#include "OgreVector.h"
+#include "OgreVector3.h"
 
 // NB All code adapted from Wild Magic 0.2 Matrix math (free source code)
 // http://www.geometrictools.com/
@@ -72,12 +72,15 @@ namespace Ogre
             @note
                 It does <b>NOT</b> initialize the matrix for efficiency.
         */
-        Matrix3 () {}
-        explicit Matrix3 (const Real arr[3][3])
+        inline Matrix3 () {}
+        inline explicit Matrix3 (const Real arr[3][3])
         {
             memcpy(m,arr,9*sizeof(Real));
         }
-
+        inline Matrix3 (const Matrix3& rkMatrix)
+        {
+            memcpy(m,rkMatrix.m,9*sizeof(Real));
+        }
         Matrix3 (Real fEntry00, Real fEntry01, Real fEntry02,
                     Real fEntry10, Real fEntry11, Real fEntry12,
                     Real fEntry20, Real fEntry21, Real fEntry22)
@@ -93,34 +96,47 @@ namespace Ogre
             m[2][2] = fEntry22;
         }
 
+        /** Exchange the contents of this matrix with another. 
+        */
+        inline void swap(Matrix3& other)
+        {
+            std::swap(m[0][0], other.m[0][0]);
+            std::swap(m[0][1], other.m[0][1]);
+            std::swap(m[0][2], other.m[0][2]);
+            std::swap(m[1][0], other.m[1][0]);
+            std::swap(m[1][1], other.m[1][1]);
+            std::swap(m[1][2], other.m[1][2]);
+            std::swap(m[2][0], other.m[2][0]);
+            std::swap(m[2][1], other.m[2][1]);
+            std::swap(m[2][2], other.m[2][2]);
+        }
+
         /// Member access, allows use of construct mat[r][c]
-        const Real* operator[] (size_t iRow) const
+        inline const Real* operator[] (size_t iRow) const
         {
             return m[iRow];
         }
 
-        Real* operator[] (size_t iRow)
+        inline Real* operator[] (size_t iRow)
         {
             return m[iRow];
         }
 
-        Vector3 GetColumn(size_t iCol) const
+
+
+        /*inline operator Real* ()
         {
-            assert(iCol < 3);
-            return Vector3(m[0][iCol], m[1][iCol], m[2][iCol]);
-        }
-        void SetColumn(size_t iCol, const Vector3& vec)
+            return (Real*)m[0];
+        }*/
+        Vector3 GetColumn (size_t iCol) const;
+        void SetColumn(size_t iCol, const Vector3& vec);
+        void FromAxes(const Vector3& xAxis, const Vector3& yAxis, const Vector3& zAxis);
+
+        /// Assignment and comparison
+        inline Matrix3& operator= (const Matrix3& rkMatrix)
         {
-            assert(iCol < 3);
-            m[0][iCol] = vec.x;
-            m[1][iCol] = vec.y;
-            m[2][iCol] = vec.z;
-        }
-        void FromAxes(const Vector3& xAxis, const Vector3& yAxis, const Vector3& zAxis)
-        {
-            SetColumn(0, xAxis);
-            SetColumn(1, yAxis);
-            SetColumn(2, zAxis);
+            memcpy(m,rkMatrix.m,9*sizeof(Real));
+            return *this;
         }
 
         /** Tests 2 matrices for equality.
@@ -129,7 +145,7 @@ namespace Ogre
 
         /** Tests 2 matrices for inequality.
          */
-        bool operator!= (const Matrix3& rkMatrix) const
+        inline bool operator!= (const Matrix3& rkMatrix) const
         {
             return !operator==(rkMatrix);
         }
@@ -148,6 +164,9 @@ namespace Ogre
         Matrix3 operator* (const Matrix3& rkMatrix) const;
         Matrix3 operator- () const;
 
+        /// Matrix * vector [3x3 * 3x1 = 3x1]
+        Vector3 operator* (const Vector3& rkVector) const;
+
         /// Vector * matrix [1x3 * 3x3 = 1x3]
         _OgreExport friend Vector3 operator* (const Vector3& rkVector,
             const Matrix3& rkMatrix);
@@ -160,23 +179,9 @@ namespace Ogre
 
         // utilities
         Matrix3 Transpose () const;
-        bool Inverse (Matrix3& rkInverse, Real fTolerance = 1e-06f) const;
-        Matrix3 Inverse (Real fTolerance = 1e-06f) const;
-        Real Determinant() const { return determinant(); }
-
-        Matrix3 transpose() const { return Transpose(); }
-        Matrix3 inverse() const { return Inverse(); }
-        Real determinant() const
-        {
-            Real fCofactor00 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
-            Real fCofactor10 = m[1][2] * m[2][0] - m[1][0] * m[2][2];
-            Real fCofactor20 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
-
-            return m[0][0] * fCofactor00 + m[0][1] * fCofactor10 + m[0][2] * fCofactor20;
-        }
-
-        /** Determines if this matrix involves a negative scaling. */
-        bool hasNegativeScale() const { return determinant() < 0; }
+        bool Inverse (Matrix3& rkInverse, Real fTolerance = 1e-06) const;
+        Matrix3 Inverse (Real fTolerance = 1e-06) const;
+        Real Determinant () const;
 
         /// Singular value decomposition
         void SingularValueDecomposition (Matrix3& rkL, Vector3& rkS,
@@ -184,37 +189,8 @@ namespace Ogre
         void SingularValueComposition (const Matrix3& rkL,
             const Vector3& rkS, const Matrix3& rkR);
 
-        /// Gram-Schmidt orthogonalisation (applied to columns of rotation matrix)
-        Matrix3 orthonormalised() const
-        {
-            // Algorithm uses Gram-Schmidt orthogonalisation.  If 'this' matrix is
-            // M = [m0|m1|m2], then orthonormal output matrix is Q = [q0|q1|q2],
-            //
-            //   q0 = m0/|m0|
-            //   q1 = (m1-(q0*m1)q0)/|m1-(q0*m1)q0|
-            //   q2 = (m2-(q0*m2)q0-(q1*m2)q1)/|m2-(q0*m2)q0-(q1*m2)q1|
-            //
-            // where |V| indicates length of vector V and A*B indicates dot
-            // product of vectors A and B.
-
-            Matrix3 Q;
-            // compute q0
-            Q.SetColumn(0, GetColumn(0) / GetColumn(0).length());
-
-            // compute q1
-            Real dot0 = Q.GetColumn(0).dotProduct(GetColumn(1));
-            Q.SetColumn(1, (GetColumn(1) - dot0 * Q.GetColumn(0)).normalisedCopy());
-
-            // compute q2
-            Real dot1 = Q.GetColumn(1).dotProduct(GetColumn(2));
-            dot0 = Q.GetColumn(0).dotProduct(GetColumn(2));
-            Q.SetColumn(2, (GetColumn(2) - dot0 * Q.GetColumn(0) + dot1 * Q.GetColumn(1)).normalisedCopy());
-
-            return Q;
-        }
-
-        /// @deprecated
-        OGRE_DEPRECATED void Orthonormalize() { *this = orthonormalised(); }
+        /// Gram-Schmidt orthonormalization (applied to columns of rotation matrix)
+        void Orthonormalize ();
 
         /// Orthogonal Q, diagonal D, upper triangular U stored as (u01,u02,u12)
         void QDUDecomposition (Matrix3& rkQ, Vector3& rkD,
@@ -260,7 +236,7 @@ namespace Ogre
             Matrix3& rkProduct);
 
         /** Determines if this matrix involves a scaling. */
-        bool hasScale() const
+        inline bool hasScale() const
         {
             // check magnitude of column vectors (==local axes)
             Real t = m[0][0] * m[0][0] + m[1][0] * m[1][0] + m[2][0] * m[2][0];
@@ -278,14 +254,7 @@ namespace Ogre
 
         /** Function for writing to a stream.
         */
-        inline friend std::ostream& operator <<
-            ( std::ostream& o, const Matrix3& mat )
-        {
-            o << "Matrix3(" << mat[0][0] << ", " << mat[0][1] << ", " << mat[0][2] << "; "
-                            << mat[1][0] << ", " << mat[1][1] << ", " << mat[1][2] << "; "
-                            << mat[2][0] << ", " << mat[2][1] << ", " << mat[2][2] << ")";
-            return o;
-        }
+        _OgreExport friend std::ostream &operator<<( std::ostream &o, const Matrix3 &mat );
 
         static const Real EPSILON;
         static const Matrix3 ZERO;
@@ -311,25 +280,6 @@ namespace Ogre
         // for faster access
         friend class Matrix4;
     };
-
-    /// Matrix * vector [3x3 * 3x1 = 3x1]
-    inline Vector3 operator*(const Matrix3& m, const Vector3& v)
-    {
-        return Vector3(
-                m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
-                m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
-                m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z);
-    }
-
-    inline Matrix3 Math::lookRotation(const Vector3& direction, const Vector3& yaw)
-    {
-        Matrix3 ret;
-        // cross twice to rederive, only direction is unaltered
-        const Vector3& xAxis = yaw.crossProduct(direction).normalisedCopy();
-        const Vector3& yAxis = direction.crossProduct(xAxis);
-        ret.FromAxes(xAxis, yAxis, direction);
-        return ret;
-    }
     /** @} */
     /** @} */
 }

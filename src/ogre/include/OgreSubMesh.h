@@ -34,9 +34,11 @@ THE SOFTWARE.
 #include "OgreVertexBoneAssignment.h"
 #include "OgreAnimationTrack.h"
 #include "OgreResourceGroupManager.h"
+#include "Vao/OgreVertexArrayObject.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -67,24 +69,29 @@ namespace Ogre {
         SubMesh();
         ~SubMesh();
 
-
         /// Indicates if this submesh shares vertex data with other meshes or whether it has it's own vertices.
         bool useSharedVertices;
 
+        uint32 renderOpMeshIndex;
+
         /// The render operation type used to render this submesh
-        RenderOperation::OperationType operationType;
+        OperationType operationType;
 
         /** Dedicated vertex data (only valid if useSharedVertices = false).
+            [0] is for the regular pass, [1] is for the caster. Note that
+            vertexData[0] = vertexData[1] is possible, but if one
+            submesh has vertexData[0] = vertexData[1], then all submeshes in the mesh
+            must have vertexData[0] = vertexData[1] as well for the sake of simplicity.
             @remarks
                 This data is completely owned by this submesh.
             @par
                 The use of shared or non-shared buffers is determined when
                 model data is converted to the OGRE .mesh format.
         */
-        VertexData *vertexData;
+        VertexData *vertexData[NumVertexPass];
 
         /// Face index data
-        IndexData *indexData;
+        IndexData *indexData[NumVertexPass];
 
         /** Dedicated index map for translate blend index to bone index (only valid if useSharedVertices = false).
             @remarks
@@ -105,11 +112,11 @@ namespace Ogre {
                 The use of shared or non-shared index map is determined when
                 model data is converted to the OGRE .mesh format.
         */
-        typedef std::vector<unsigned short> IndexMap;
+        typedef FastArray<unsigned short> IndexMap;
         IndexMap blendIndexToBoneIndexMap;
 
-        typedef std::vector<IndexData*> LODFaceList;
-        LODFaceList mLodFaceList;
+        typedef vector<IndexData*>::type LODFaceList;
+        LODFaceList mLodFaceList[NumVertexPass];
 
         /** A list of extreme points on the submesh (optional).
             @remarks
@@ -130,7 +137,7 @@ namespace Ogre {
                 If this array is empty, submesh sorting is done like in older versions -
                 by comparing the positions of the owning entity.
          */
-        std::vector<Vector3> extremityPoints;
+        vector<Vector3>::type extremityPoints;
 
         /// Reference to parent Mesh (not a smart pointer so child does not keep parent alive).
         Mesh* parent;
@@ -139,11 +146,9 @@ namespace Ogre {
         void setMaterialName(const String& matName, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
         const String& getMaterialName(void) const;
 
-        void setMaterial(const MaterialPtr& mat) { mMaterial = mat; }
-        const MaterialPtr& getMaterial() const { return mMaterial; }
-
-        /// @deprecated use getMaterial() instead
-        OGRE_DEPRECATED bool isMatInitialised(void) const { return bool(mMaterial); }
+        /** Returns true if a material has been assigned to the submesh, otherwise returns false.
+        */
+        bool isMatInitialised(void) const;
 
         /** Returns a RenderOperation structure required to render this mesh.
             @param 
@@ -151,7 +156,7 @@ namespace Ogre {
             @param
                 lodIndex The index of the LOD to use. 
         */
-        void _getRenderOperation(RenderOperation& rend, ushort lodIndex = 0);
+        void _getRenderOperation(RenderOperation& rend, ushort lodIndex, bool casterPass);
 
         /** Assigns a vertex to a bone with a given weight, for skeletal animation. 
         @remarks    
@@ -175,33 +180,54 @@ namespace Ogre {
         void clearBoneAssignments(void);
 
         /// Multimap of verex bone assignments (orders by vertex index)
-        typedef std::multimap<size_t, VertexBoneAssignment> VertexBoneAssignmentList;
+        typedef multimap<size_t, VertexBoneAssignment>::type VertexBoneAssignmentList;
         typedef MapIterator<VertexBoneAssignmentList> BoneAssignmentIterator;
 
-        /// @deprecated use getBoneAssignments
-        OGRE_DEPRECATED BoneAssignmentIterator getBoneAssignmentIterator(void);
+        /** Gets an iterator for access all bone assignments. 
+        @remarks
+            Only valid if this SubMesh has dedicated geometry.
+        */
+        BoneAssignmentIterator getBoneAssignmentIterator(void);
 
         /** Gets a const reference to the list of bone assignments
         */
-        const VertexBoneAssignmentList& getBoneAssignments() const { return mBoneAssignments; }
+        const VertexBoneAssignmentList& getBoneAssignments() { return mBoneAssignments; }
 
 
         /** Must be called once to compile bone assignments into geometry buffer. */
         void _compileBoneAssignments(void);
 
         typedef ConstMapIterator<AliasTextureNamePairList> AliasTextureIterator;
-        /// @deprecated do not use
+        /** Gets an constant iterator to access all texture alias names assigned to this submesh. 
+
+        */
         AliasTextureIterator getAliasTextureIterator(void) const;
-        /// @deprecated do not use
+        /** Adds the alias or replaces an existing one and associates the texture name to it.
+        @remarks
+          The submesh uses the texture alias to replace textures used in the material applied
+          to the submesh.
+        @param
+            aliasName is the name of the alias.
+        @param
+            textureName is the name of the texture to be associated with the alias
+
+        */
         void addTextureAlias(const String& aliasName, const String& textureName);
-        /// @deprecated do not use
-        OGRE_DEPRECATED void removeTextureAlias(const String& aliasName);
-        /// @deprecated do not use
-        OGRE_DEPRECATED void removeAllTextureAliases(void);
-        /// @deprecated do not use
+        /** Remove a specific texture alias name from the sub mesh
+        @param
+            aliasName is the name of the alias to be removed.  If it is not found 
+            then it is ignored.
+        */
+        void removeTextureAlias(const String& aliasName);
+        /** removes all texture aliases from the sub mesh
+        */
+        void removeAllTextureAliases(void);
+        /** returns true if the sub mesh has texture aliases
+        */
         bool hasTextureAliases(void) const { return !mTextureAliases.empty(); }
-        /// @deprecated do not use
-        OGRE_DEPRECATED size_t getTextureAliasCount(void) const { return mTextureAliases.size(); }
+        /** Gets the number of texture aliases assigned to the sub mesh.
+        */
+        size_t getTextureAliasCount(void) const { return mTextureAliases.size(); }
 
         /**  The current material used by the submesh is copied into a new material
             and the submesh's texture aliases are applied if the current texture alias
@@ -242,10 +268,24 @@ namespace Ogre {
          */
         SubMesh * clone(const String& newName, Mesh *parentMesh = 0);
 
+        /// Imports a v2 SubMesh @See Mesh::importV2.
+        void importFromV2( Ogre::SubMesh *subMesh );
+
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents );
+
+        void dearrangeToInefficient(void);
+
+    protected:
+        /// @See v1::Mesh::arrangeEfficient
+        void arrangeEfficient( bool halfPos, bool halfTexCoords, bool qTangents, size_t vaoPassIdx );
+
     protected:
 
-        /// the material this SubMesh uses.
-        MaterialPtr mMaterial;
+        /// Name of the material this SubMesh uses.
+        String mMaterialName;
+
+        /// Is there a material yet?
+        bool mMatInitialised;
 
         /// paired list of texture aliases and texture names
         AliasTextureNamePairList mTextureAliases;
@@ -267,11 +307,31 @@ namespace Ogre {
         /// Internal method for removing LOD data
         void removeLodLevels(void);
 
+        static void removeLodLevel( LODFaceList &lodList );
 
+        /** Rearranges the buffers to be efficiently rendered in Ogre 2.0 with Hlms
+        @remarks
+            vertexData->vertexDeclaration is modified and vertexData->vertexBufferBinding
+            is destroyed. Caller must reallocate the vertex buffer filled with the returned
+            pointer
+        @param halfPos
+            @See Mesh::arrangeEfficientFor
+        @param halfTexCoords
+            @See Mesh::arrangeEfficientFor
+        @param outVertexElements [out]
+            Description of the buffer in the new Vao system. Matches the same as
+            vertexData->vertexDeclaration, provided as out param as convenience.
+            Can be null.
+        @return
+            Buffer pointer with reorganized data.
+            Caller MUST free the pointer with OGRE_FREE_SIMD( MEMCATEGORY_GEOMETRY ).
+        */
+        char* arrangeEfficient( bool halfPos, bool halfTexCoords, VertexElement2Vec *outVertexElements );
     };
     /** @} */
     /** @} */
 
+}
 } // namespace
 
 #include "OgreHeaderSuffix.h"

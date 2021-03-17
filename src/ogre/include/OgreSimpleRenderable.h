@@ -37,6 +37,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -49,56 +50,47 @@ namespace Ogre {
     */
     class _OgreExport SimpleRenderable : public MovableObject, public Renderable
     {
-        bool getCastsShadows(void) const override { return getCastShadows(); }
     protected:
         RenderOperation mRenderOp;
 
-        Affine3 mTransform;
+        Matrix4 mWorldTransform;
         AxisAlignedBox mBox;
 
+        String mMatName;
         MaterialPtr mMaterial;
 
         /// The scene manager for the current frame.
         SceneManager *mParentSceneManager;
 
-        /// The camera for the current frame.
-        Camera *mCamera;
-
-        /// Static member used to automatically generate names for SimpleRendaerable objects.
-        static uint msGenNameCount;
-
     public:
         /// Constructor
-        SimpleRenderable();
+        SimpleRenderable( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
 
-        /// Named constructor
-        SimpleRenderable(const String& name);
-
+        virtual void setMaterial( const String& matName );
         virtual void setMaterial(const MaterialPtr& mat);
         virtual const MaterialPtr& getMaterial(void) const;
 
         virtual void setRenderOperation( const RenderOperation& rend );
-        virtual void getRenderOperation(RenderOperation& op);
+        virtual void getRenderOperation(RenderOperation& op, bool casterPass);
 
-        void setTransform( const Affine3& xform );
+        void setWorldTransform( const Matrix4& xform );
         virtual void getWorldTransforms( Matrix4* xform ) const;
-
-
-        virtual void _notifyCurrentCamera(Camera* cam);
 
         void setBoundingBox( const AxisAlignedBox& box );
         virtual const AxisAlignedBox& getBoundingBox(void) const;
 
-        virtual void _updateRenderQueue(RenderQueue* queue);
+        virtual ~SimpleRenderable();
 
-        void visitRenderables(Renderable::Visitor* visitor,
-            bool debugRenderables = false) override;
-        virtual const String& getMovableType(void) const override;
-        const LightList& getLights(void) const override;
+        /** Overridden from MovableObject */
+        virtual const String& getMovableType(void) const;
+
+        /** @copydoc Renderable::getLights */
+        const LightList& getLights(void) const;
 
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

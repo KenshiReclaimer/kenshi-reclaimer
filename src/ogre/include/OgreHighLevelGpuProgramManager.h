@@ -50,10 +50,10 @@ namespace Ogre {
         virtual ~HighLevelGpuProgramFactory();
         /// Get the name of the language this factory creates programs for
         virtual const String& getLanguage(void) const = 0;
-        virtual GpuProgram* create(ResourceManager* creator,
+        virtual HighLevelGpuProgram* create(ResourceManager* creator, 
             const String& name, ResourceHandle handle,
             const String& group, bool isManual, ManualResourceLoader* loader) = 0;
-        virtual void destroy(GpuProgram* prog) { delete prog; }
+        virtual void destroy(HighLevelGpuProgram* prog) = 0;
     };
 
     /** This ResourceManager manages high-level vertex and fragment programs. 
@@ -73,15 +73,15 @@ namespace Ogre {
         : public ResourceManager, public Singleton<HighLevelGpuProgramManager>
     {
     public:
-        typedef std::map<String, HighLevelGpuProgramFactory*> FactoryMap;
+        typedef map<String, HighLevelGpuProgramFactory*>::type FactoryMap;
     protected:
         /// Factories capable of creating HighLevelGpuProgram instances
         FactoryMap mFactories;
 
         /// Factory for dealing with programs for languages we can't create
-        std::unique_ptr<HighLevelGpuProgramFactory> mNullFactory;
+        HighLevelGpuProgramFactory* mNullFactory;
         /// Factory for unified high-level programs
-        std::unique_ptr<HighLevelGpuProgramFactory> mUnifiedFactory;
+        HighLevelGpuProgramFactory* mUnifiedFactory;
 
         HighLevelGpuProgramFactory* getFactory(const String& language);
 
@@ -98,11 +98,11 @@ namespace Ogre {
         void removeFactory(HighLevelGpuProgramFactory* factory);
 
         /** Returns whether a given high-level language is supported. */
-        bool isLanguageSupported(const String& lang) const;
+        bool isLanguageSupported(const String& lang);
 
         /// Get a resource by name
         /// @see ResourceManager::getResourceByName
-        HighLevelGpuProgramPtr getByName(const String& name, const String& groupName OGRE_RESOURCE_GROUP_INIT);
+        HighLevelGpuProgramPtr getByName(const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
 
         /** Create a new, unloaded HighLevelGpuProgram. 
         @par
@@ -119,9 +119,37 @@ namespace Ogre {
             const String& name, const String& groupName, 
             const String& language, GpuProgramType gptype);
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static HighLevelGpuProgramManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static HighLevelGpuProgramManager* getSingletonPtr(void);
 
 

@@ -37,7 +37,9 @@ THE SOFTWARE.
 #define __OGRE_ANY_H__
 
 #include "OgrePrerequisites.h"
+#include "OgreException.h"
 #include <typeinfo>
+#include "OgreLwString.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -55,7 +57,7 @@ namespace Ogre
     */
     /** Variant type that can hold Any other type.
     */
-    class Any 
+    class _OgreExport Any
     {
     public: // constructors
 
@@ -65,7 +67,7 @@ namespace Ogre
         }
 
         template<typename ValueType>
-        Any(const ValueType & value)
+        explicit Any(const ValueType & value)
           : mContent(OGRE_NEW_T(holder<ValueType>, MEMCATEGORY_GENERAL)(value))
         {
         }
@@ -75,10 +77,7 @@ namespace Ogre
         {
         }
 
-        virtual ~Any()
-        {
-            reset();
-        }
+        virtual ~Any();
 
     public: // modifiers
 
@@ -109,7 +108,7 @@ namespace Ogre
         }
 
         /// @deprecated use has_value() instead
-        OGRE_DEPRECATED bool isEmpty() const { return !has_value(); }
+        bool isEmpty() const { return !has_value(); }
 
         const std::type_info& type() const
         {
@@ -117,10 +116,9 @@ namespace Ogre
         }
 
         /// @deprecated use type() instead
-        OGRE_DEPRECATED const std::type_info& getType() const { return type(); }
+        const std::type_info& getType() const { return type(); }
 
-        /// @deprecated no longer supported
-        OGRE_DEPRECATED friend std::ostream& operator <<
+        inline friend std::ostream& operator <<
             ( std::ostream& o, const Any& v )
         {
             if (v.mContent)
@@ -135,17 +133,15 @@ namespace Ogre
         }
 
         /// @deprecated use reset() instead
-        OGRE_DEPRECATED void destroy() { reset(); }
+        void destroy() { reset(); }
 
     protected: // types
 
-        class placeholder 
+        class _OgreExport placeholder
         {
         public: // structors
     
-            virtual ~placeholder()
-            {
-            }
+            virtual ~placeholder();
 
         public: // queries
 
@@ -181,7 +177,7 @@ namespace Ogre
 
             virtual void writeToStream(std::ostream& o)
             {
-                o << "Any::ValueType";
+                o << held;
             }
 
 
@@ -203,14 +199,14 @@ namespace Ogre
     public: 
         /// @deprecated use Ogre::any_cast instead
         template<typename ValueType>
-        OGRE_DEPRECATED ValueType operator()() const
+        ValueType operator()() const
         {
             return any_cast<ValueType>(*this);
         }
 
         /// @deprecated use Ogre::any_cast instead
         template <typename ValueType>
-        OGRE_DEPRECATED ValueType get(void) const
+        ValueType get(void) const
         {
             return any_cast<ValueType>(*this);
         }
@@ -221,7 +217,7 @@ namespace Ogre
     /** Specialised Any class which has built in arithmetic operators, but can 
         hold only types which support operator +,-,* and / .
     */
-    class AnyNumeric : public Any
+    class _OgreExport AnyNumeric : public Any
     {
     public:
         AnyNumeric()
@@ -242,14 +238,14 @@ namespace Ogre
             mContent = other.mContent ? other.mContent->clone() : 0; 
         }
 
+        virtual ~AnyNumeric();
+
     protected:
-        class numplaceholder : public Any::placeholder
+        class _OgreExport numplaceholder : public Any::placeholder
         {
         public: // structors
 
-            ~numplaceholder()
-            {
-            }
+            virtual ~numplaceholder();
             virtual placeholder* add(placeholder* rhs) = 0;
             virtual placeholder* subtract(placeholder* rhs) = 0;
             virtual placeholder* multiply(placeholder* rhs) = 0;
@@ -403,7 +399,11 @@ namespace Ogre
         const ValueType * result = any_cast<ValueType>(&operand);
         if(!result)
         {
-            throw std::bad_cast();
+            char tmpBuffer[256];
+            LwString str( LwString::FromEmptyPointer( tmpBuffer, sizeof( tmpBuffer ) ) );
+            str.a( "Bad cast from type '", operand.type().name(), "' ", "to '",
+                   typeid( ValueType ).name() );
+            OGRE_EXCEPT( Exception::ERR_INVALIDPARAMS, str.c_str(), "Ogre::any_cast" );
         }
         return *result;
     }

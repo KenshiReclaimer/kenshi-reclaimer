@@ -33,6 +33,11 @@ THE SOFTWARE.
 #include "OgreSharedPtr.h"
 #include "OgreCommon.h"
 #include "Threading/OgreThreadHeaders.h"
+
+#include "ogrestd/deque.h"
+#include "ogrestd/list.h"
+#include "ogrestd/map.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre
@@ -71,10 +76,10 @@ namespace Ogre
     class _OgreExport WorkQueue : public UtilityAlloc
     {
     protected:
-        typedef std::map<String, uint16> ChannelMap;
+        typedef map<String, uint16>::type ChannelMap;
         ChannelMap mChannelMap;
         uint16 mNextChannel;
-        OGRE_WQ_MUTEX(mChannelMapMutex);
+        OGRE_MUTEX(mChannelMapMutex);
     public:
         /// Numeric identifier for a request
         typedef unsigned long long int RequestID;
@@ -143,7 +148,7 @@ namespace Ogre
             /// Return the response data (user defined, only valid on success)
             const Any& getData() const { return mData; }
             /// Abort the request
-            void abortRequest() { mRequest->abortRequest(); mData.reset(); }
+            void abortRequest() { mRequest->abortRequest(); mData.destroy(); }
         };
 
         /** Interface definition for a handler of requests. 
@@ -184,7 +189,7 @@ namespace Ogre
             @return Pointer to a Response object - the caller is responsible
             for deleting the object.
             */
-            virtual Response* handleRequest(const Request* req, const WorkQueue* srcQ) OGRE_NODISCARD = 0;
+            virtual Response* handleRequest(const Request* req, const WorkQueue* srcQ) = 0;
         };
 
         /** Interface definition for a handler of responses. 
@@ -279,15 +284,6 @@ namespace Ogre
         @param id The ID of the previously issued request.
         */
         virtual void abortRequest(RequestID id) = 0;
-
-        /** Abort request if it is not being processed currently.
-         *
-         * @param id The ID of the previously issued request.
-         *
-         * @retval true If request was aborted successfully.
-         * @retval false If request is already being processed so it can not be aborted.
-         */
-        virtual bool abortPendingRequest(RequestID id) = 0;
 
         /** Abort all previously issued requests in a given channel.
         Any requests still waiting to be processed of the given channel, will be 
@@ -445,8 +441,6 @@ namespace Ogre
             bool forceSynchronous = false, bool idleThread = false);
         /// @copydoc WorkQueue::abortRequest
         virtual void abortRequest(RequestID id);
-        /// @copydoc WorkQueue::abortPendingRequest
-        virtual bool abortPendingRequest(RequestID id);
         /// @copydoc WorkQueue::abortRequestsByChannel
         virtual void abortRequestsByChannel(uint16 channel);
         /// @copydoc WorkQueue::abortPendingRequestsByChannel
@@ -474,8 +468,8 @@ namespace Ogre
         bool mIsRunning;
         unsigned long mResposeTimeLimitMS;
 
-        typedef std::deque<Request*> RequestQueue;
-        typedef std::deque<Response*> ResponseQueue;
+        typedef deque<Request*>::type RequestQueue;
+        typedef deque<Response*>::type ResponseQueue;
         RequestQueue mRequestQueue; // Guarded by mRequestMutex
         RequestQueue mProcessQueue; // Guarded by mProcessMutex
         ResponseQueue mResponseQueue; // Guarded by mResponseMutex
@@ -503,7 +497,7 @@ namespace Ogre
         class _OgreExport RequestHandlerHolder : public UtilityAlloc
         {
         protected:
-            OGRE_WQ_RW_MUTEX(mRWMutex);
+            OGRE_RW_MUTEX(mRWMutex);
             RequestHandler* mHandler;
         public:
             RequestHandlerHolder(RequestHandler* handler)
@@ -513,7 +507,7 @@ namespace Ogre
             void disconnectHandler()
             {
                 // write lock - must wait for all requests to finish
-                OGRE_WQ_LOCK_RW_MUTEX_WRITE(mRWMutex);
+                OGRE_LOCK_RW_MUTEX_WRITE(mRWMutex);
                 mHandler = 0;
             }
 
@@ -529,7 +523,7 @@ namespace Ogre
             {
                 // Read mutex so that multiple requests can be processed by the
                 // same handler in parallel if required
-                OGRE_WQ_LOCK_RW_MUTEX_READ(mRWMutex);
+                OGRE_LOCK_RW_MUTEX_READ(mRWMutex);
                 Response* response = 0;
                 if (mHandler)
                 {
@@ -545,10 +539,10 @@ namespace Ogre
         // Hold these by shared pointer so they can be copied keeping same instance
         typedef SharedPtr<RequestHandlerHolder> RequestHandlerHolderPtr;
 
-        typedef std::list<RequestHandlerHolderPtr> RequestHandlerList;
-        typedef std::list<ResponseHandler*> ResponseHandlerList;
-        typedef std::map<uint16, RequestHandlerList> RequestHandlerListByChannel;
-        typedef std::map<uint16, ResponseHandlerList> ResponseHandlerListByChannel;
+        typedef list<RequestHandlerHolderPtr>::type RequestHandlerList;
+        typedef list<ResponseHandler*>::type ResponseHandlerList;
+        typedef map<uint16, RequestHandlerList>::type RequestHandlerListByChannel;
+        typedef map<uint16, ResponseHandlerList>::type ResponseHandlerListByChannel;
 
         RequestHandlerListByChannel mRequestHandlers;
         ResponseHandlerListByChannel mResponseHandlers;
@@ -561,11 +555,11 @@ namespace Ogre
         // For example if threadA locks mIdleMutex first then tries to lock mProcessMutex,
         // and threadB locks mProcessMutex first, then mIdleMutex. In this case you can get livelock and the system is dead!
         //RULE: Lock mProcessMutex before other mutex, to prevent livelocks
-        OGRE_WQ_MUTEX(mIdleMutex);
-        OGRE_WQ_MUTEX(mRequestMutex);
-        OGRE_WQ_MUTEX(mProcessMutex);
-        OGRE_WQ_MUTEX(mResponseMutex);
-        OGRE_WQ_RW_MUTEX(mRequestHandlerMutex);
+        OGRE_MUTEX(mIdleMutex);
+        OGRE_MUTEX(mRequestMutex);
+        OGRE_MUTEX(mProcessMutex);
+        OGRE_MUTEX(mResponseMutex);
+        OGRE_RW_MUTEX(mRequestHandlerMutex);
 
 
         void processRequestResponse(Request* r, bool synchronous);

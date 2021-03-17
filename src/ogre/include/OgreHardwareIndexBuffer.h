@@ -30,10 +30,13 @@ THE SOFTWARE.
 
 // Precompiler options
 #include "OgrePrerequisites.h"
+#include "OgreCommon.h"
 #include "OgreHardwareBuffer.h"
 #include "OgreSharedPtr.h"
 
 namespace Ogre {
+namespace v1 {
+
     class HardwareBufferManagerBase;
 
     /** \addtogroup Core
@@ -46,23 +49,20 @@ namespace Ogre {
     class _OgreExport HardwareIndexBuffer : public HardwareBuffer
     {
         public:
-            enum IndexType {
-                IT_16BIT,
-                IT_32BIT
-            };
+            typedef Ogre::IndexType IndexType;
+            static const IndexType IT_16BIT = Ogre::IT_16BIT;
+            static const IndexType IT_32BIT = Ogre::IT_32BIT;
 
         protected:
-            IndexType mIndexType;
             HardwareBufferManagerBase* mMgr;
+            IndexType mIndexType;
             size_t mNumIndexes;
             size_t mIndexSize;
 
         public:
             /// Should be called by HardwareBufferManager
-            HardwareIndexBuffer(HardwareBufferManagerBase* mgr, IndexType idxType, size_t numIndexes,
-                                Usage usage, bool useSystemMemory, bool useShadowBuffer);
-            HardwareIndexBuffer(HardwareBufferManagerBase* mgr, IndexType idxType, size_t numIndexes,
-                                HardwareBuffer* delegate);
+            HardwareIndexBuffer(HardwareBufferManagerBase* mgr, IndexType idxType, size_t numIndexes, HardwareBuffer::Usage usage,
+                bool useSystemMemory, bool useShadowBuffer);
             ~HardwareIndexBuffer();
             /// Return the manager of this buffer, if any
             HardwareBufferManagerBase* getManager() const { return mMgr; }
@@ -73,16 +73,24 @@ namespace Ogre {
             /// Get the size in bytes of each index
             size_t getIndexSize(void) const { return mIndexSize; }
 
-            static size_t indexSize(IndexType type) { return type == IT_16BIT ? sizeof(uint16) : sizeof(uint32); }
-
             // NB subclasses should override lock, unlock, readData, writeData
     };
+
+
+    /** Shared pointer implementation used to share index buffers. */
+    class _OgreExport HardwareIndexBufferSharedPtr : public SharedPtr<HardwareIndexBuffer>
+    {
+    public:
+        HardwareIndexBufferSharedPtr() : SharedPtr<HardwareIndexBuffer>() {}
+        explicit HardwareIndexBufferSharedPtr(HardwareIndexBuffer* buf);
+    };
     
-    /// @deprecated use HardwareBufferLockGuard directly
-    OGRE_DEPRECATED typedef HardwareBufferLockGuard HardwareIndexBufferLockGuard;
+    /** Locking helper. */    
+    typedef HardwareBufferLockGuard HardwareIndexBufferLockGuard; // deprecated, use HardwareBufferLockGuard directly
 
     /** @} */
     /** @} */
+}
 }
 #endif
 

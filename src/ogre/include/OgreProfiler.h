@@ -43,28 +43,156 @@ Ogre-dependent is in the visualization/logging routines and the use of the Timer
 
 #include "OgrePrerequisites.h"
 #include "OgreSingleton.h"
+#include "OgreProfilerCommon.h"
+
+#include "ogrestd/map.h"
+#include "ogrestd/set.h"
+#include "ogrestd/vector.h"
+
+#if OGRE_PROFILING == OGRE_PROFILING_REMOTERY
+    #include "Remotery.h"
+#elif OGRE_PROFILING == OGRE_PROFILING_INTERNAL_OFFLINE
+    #include "OgreOfflineProfiler.h"
+#endif
 #include "OgreHeaderPrefix.h"
 
-#if OGRE_PROFILING == 1
-#   define OgreProfile( a ) Ogre::Profile _OgreProfileInstance( (a) )
+#if OGRE_PROFILING == OGRE_PROFILING_INTERNAL
+#   define OgreProfilerUseStableMarkers true
+#   define OgreProfileL2( a, line ) Ogre::Profile _OgreProfileInstance##line( (a), ProfileSampleFlags::FlagsNone )
+#   define OgreProfileL( a, line ) OgreProfileL2( a, line )
+#   define OgreProfile( a ) OgreProfileL( a, __LINE__ )
+#   if OGRE_PROFILING_EXHAUSTIVE
+#       define OgreProfileExhaustive( a )           OgreProfile( a )
+#       define OgreProfileExhaustiveAggr( a )       OgreProfile( a )
+#   endif
 #   define OgreProfileBegin( a ) Ogre::Profiler::getSingleton().beginProfile( (a) )
+#   define OgreProfileBeginDynamic( a ) OgreProfileBegin( a )
+#   define OgreProfileBeginDynamicHashed( a, hash ) OgreProfileBegin( a )
 #   define OgreProfileEnd( a ) Ogre::Profiler::getSingleton().endProfile( (a) )
-#   define OgreProfileGroup( a, g ) Ogre::Profile OGRE_TOKEN_PASTE(_OgreProfileInstance, __LINE__) ( (a), (g) )
+#   define OgreProfileGroupL2( a, g, f, line ) Ogre::Profile _OgreProfileInstance##line( (a), (f), (g) )
+#   define OgreProfileGroupL( a, g, f, line ) OgreProfileGroupL2( a, g, f, line )
+#   define OgreProfileGroup( a, g ) OgreProfileGroupL( a, g, ProfileSampleFlags::FlagsNone, __LINE__ )
+#   define OgreProfileGroupAggregate( a, g ) OgreProfileGroupL( a, g, ProfileSampleFlags::Aggregate, __LINE__ )
 #   define OgreProfileBeginGroup( a, g ) Ogre::Profiler::getSingleton().beginProfile( (a), (g) )
 #   define OgreProfileEndGroup( a, g ) Ogre::Profiler::getSingleton().endProfile( (a), (g) )
 #   define OgreProfileBeginGPUEvent( g ) Ogre::Profiler::getSingleton().beginGPUEvent(g)
 #   define OgreProfileEndGPUEvent( g ) Ogre::Profiler::getSingleton().endGPUEvent(g)
 #   define OgreProfileMarkGPUEvent( e ) Ogre::Profiler::getSingleton().markGPUEvent(e)
+#   define OgreProfileGpuBegin( a )
+#   define OgreProfileGpuBeginDynamic( a )
+#   define OgreProfileGpuBeginDynamicHashed( a, hash )
+#   define OgreProfileGpuEnd( a )
+#elif OGRE_PROFILING == OGRE_PROFILING_REMOTERY
+namespace Ogre
+{
+    class RemoteryProfile;
+}
+#   define OgreProfilerUseStableMarkers Ogre::Profiler::getSingleton().getUseStableMarkers()
+#   define OgreProfileL2( a, f, line )                                                 \
+    static rmtU32 ogre_rmt_sample_hash_##line = 0;                                  \
+    Ogre::RemoteryProfile _OgreRemoteryProfileInstance##line( (a), ogre_rmt_sample_hash_##line, (f) );
+#   define OgreProfileL( a, f, line ) OgreProfileL2( a, f, line )
+#   define OgreProfile( a ) OgreProfileL( a, ProfileSampleFlags::FlagsNone, __LINE__ )
+#   define Ogre_rmt_BeginCPUSampleL2( name, flags, line )                           \
+    RMT_OPTIONAL(RMT_ENABLED, {                                                     \
+        static rmtU32 rmt_sample_hash_##line = 0;                                   \
+        _rmt_BeginCPUSample( name, flags, &rmt_sample_hash_##line );                \
+    })
+#   if OGRE_PROFILING_EXHAUSTIVE
+#       define OgreProfileExhaustive( a )           OgreProfile( a )
+#       define OgreProfileExhaustiveAggr( a )       OgreProfileL( a, ProfileSampleFlags::Aggregate, __LINE__ )
+#   endif
+#   define Ogre_rmt_BeginCPUSampleL( name, flags, line ) Ogre_rmt_BeginCPUSampleL2( name, flags, line )
+#   define OgreProfileBegin( name ) Ogre_rmt_BeginCPUSampleL( name, RMTSF_Aggregate, __LINE__ )
+#   define OgreProfileBeginDynamic( name )                                          \
+    RMT_OPTIONAL(RMT_ENABLED, _rmt_BeginCPUSample(name, RMTSF_Aggregate, NULL))
+#   define OgreProfileBeginDynamicHashed( name, hash )                              \
+    RMT_OPTIONAL(RMT_ENABLED, _rmt_BeginCPUSample(name, RMTSF_Aggregate, hash))
+#   define OgreProfileEnd( a ) RMT_OPTIONAL(RMT_ENABLED, _rmt_EndCPUSample())
+
+#   define OgreProfileGroup( a, g ) OgreProfile( a )
+#   define OgreProfileGroupAggregate( a, g )    OgreProfileL( a, ProfileSampleFlags::Aggregate, __LINE__ )
+#   define OgreProfileBeginGroup( a, g ) OgreProfileBegin( a )
+#   define OgreProfileEndGroup( a, g ) OgreProfileEnd( a )
+#   define OgreProfileBeginGPUEvent( g ) Ogre::Profiler::getSingleton().beginGPUEvent(g)
+#   define OgreProfileEndGPUEvent( g ) Ogre::Profiler::getSingleton().endGPUEvent(g)
+#   define OgreProfileMarkGPUEvent( e ) Ogre::Profiler::getSingleton().markGPUEvent(e)
+
+#   define OgreProfileGpuBeginL2( a, line )                                         \
+    static rmtU32 rmt_sample_hash_##line = 0;                                       \
+    Ogre::Profiler::getSingleton().beginGPUSample( a, &rmt_sample_hash_##line );
+#   define OgreProfileGpuBeginL( a, line ) OgreProfileGpuBeginL2( a, line )
+#   define OgreProfileGpuBegin( a ) OgreProfileGpuBeginL( a, __LINE__ )
+#   define OgreProfileGpuBeginDynamic( a ) Ogre::Profiler::getSingleton().beginGPUSample( a, NULL )
+#   define OgreProfileGpuBeginDynamicHashed( a, hash )                              \
+    Ogre::Profiler::getSingleton().beginGPUSample( a, hash )
+#   define OgreProfileGpuEnd( a ) Ogre::Profiler::getSingleton().endGPUSample(a)
+//#   define OgreProfileGpu( g ) Ogre::Profiler::getSingleton().endGPUEvent(g)
+
+namespace Ogre
+{
+    class RemoteryProfile
+    {
+    public:
+        RemoteryProfile( const char *name, rmtU32 &hash, ProfileSampleFlags::ProfileSampleFlags flags )
+        {
+            _rmt_BeginCPUSample( name, (rmtSampleFlags)flags, &hash );
+        }
+        ~RemoteryProfile()
+        {
+            _rmt_EndCPUSample();
+        }
+    };
+}
+#elif OGRE_PROFILING == OGRE_PROFILING_INTERNAL_OFFLINE
+#   define OgreProfilerUseStableMarkers         Ogre::Profiler::getSingleton().getUseStableMarkers()
+#   define OgreProfileL2( a, f, line )          Ogre::Profile _OgreProfileInstance##line( (a), (f) )
+#   define OgreProfileL( a, f, line )           OgreProfileL2( a, f, line )
+#   define OgreProfile( a )                     OgreProfileL( a, ProfileSampleFlags::FlagsNone, __LINE__ )
+#   if OGRE_PROFILING_EXHAUSTIVE
+#       define OgreProfileExhaustive( a )       OgreProfile( a )
+#       define OgreProfileExhaustiveAggr( a )   OgreProfileL( a, ProfileSampleFlags::Aggregate, __LINE__ )
+#   endif
+#   define OgreProfileBegin( a )                Ogre::Profiler::getSingleton().beginProfile( (a) )
+#   define OgreProfileBeginDynamic( a )         OgreProfileBegin( a )
+#   define OgreProfileBeginDynamicHashed( a, hash ) OgreProfileBegin( a )
+#   define OgreProfileEnd( a )                  Ogre::Profiler::getSingleton().endProfile( (a) )
+#   define OgreProfileGroup( a, g )             OgreProfile( a )
+#   define OgreProfileGroupAggregate( a, g )    OgreProfileL( a, ProfileSampleFlags::Aggregate, __LINE__ )
+#   define OgreProfileBeginGroup( a, g )        OgreProfileBegin( a )
+#   define OgreProfileEndGroup( a, g )          OgreProfileEnd( a )
+#   define OgreProfileBeginGPUEvent( e )
+#   define OgreProfileEndGPUEvent( e )
+#   define OgreProfileMarkGPUEvent( e )
+#   define OgreProfileGpuBegin( a )
+#   define OgreProfileGpuBeginDynamic( a )
+#   define OgreProfileGpuBeginDynamicHashed( a, hash )
+#   define OgreProfileGpuEnd( a )
 #else
+#   define OgreProfilerUseStableMarkers true
+#   define OgreProfileExhaustive( a )
+#   define OgreProfileExhaustiveAggr( a )
 #   define OgreProfile( a )
 #   define OgreProfileBegin( a )
+#   define OgreProfileBeginDynamic( a )
+#   define OgreProfileBeginDynamicHashed( a, hash )
 #   define OgreProfileEnd( a )
 #   define OgreProfileGroup( a, g ) 
+#   define OgreProfileGroupAggregate( a, g )
 #   define OgreProfileBeginGroup( a, g ) 
 #   define OgreProfileEndGroup( a, g ) 
 #   define OgreProfileBeginGPUEvent( e )
 #   define OgreProfileEndGPUEvent( e )
 #   define OgreProfileMarkGPUEvent( e )
+#   define OgreProfileGpuBegin( a )
+#   define OgreProfileGpuBeginDynamic( a )
+#   define OgreProfileGpuBeginDynamicHashed( a, hash )
+#   define OgreProfileGpuEnd( a )
+#endif
+
+#if OGRE_PROFILING && !OGRE_PROFILING_EXHAUSTIVE
+#   define OgreProfileExhaustive( a )
+#   define OgreProfileExhaustiveAggr( a )
 #endif
 
 namespace Ogre {
@@ -88,6 +216,34 @@ namespace Ogre {
         OGREPROF_CULLING = 0x40000000,
         /// Rendering
         OGREPROF_RENDERING = 0x20000000
+    };
+
+    /** An individual profile that will be processed by the Profiler
+        @remarks
+            Use the macro OgreProfile(name) instead of instantiating this profile directly
+        @remarks
+            We use this Profile to allow scoping rules to signify the beginning and end of
+            the profile. Use the Profiler singleton (through the macro OgreProfileBegin(name)
+            and OgreProfileEnd(name)) directly if you want a profile to last
+            outside of a scope (i.e. the main game loop).
+        @author Amit Mathew (amitmathew (at) yahoo (dot) com)
+    */
+    class _OgreExport Profile : 
+        public ProfilerAlloc 
+    {
+
+        public:
+            Profile( const String& profileName, ProfileSampleFlags::ProfileSampleFlags flags,
+                     uint32 groupID = (uint32)OGREPROF_USER_DEFAULT );
+            ~Profile();
+
+        protected:
+
+            /// The name of this profile
+            String mName;
+            /// The group ID
+            uint32 mGroupID;
+            
     };
 
     /** Represents the total timing information of a profile
@@ -143,16 +299,18 @@ namespace Ogre {
     };
 
     /// Represents an individual profile call
-    class _OgreExport ProfileInstance : public ProfilerAlloc
+    class ProfileInstance : public ProfilerAlloc
     {
         friend class Profiler;
     public:
         ProfileInstance(void);
         virtual ~ProfileInstance(void);
 
-        typedef std::map<String,ProfileInstance*> ProfileChildren;
+        typedef Ogre::map<String,ProfileInstance*>::type ProfileChildrenMap;
+        typedef Ogre::vector<ProfileInstance*>::type ProfileChildrenVec;
 
         void logResults();
+        void destroyAllChildren();
         void reset();
 
         inline bool watchForMax(void) { return history.currentTimePercent == history.maxTimePercent; }
@@ -175,7 +333,8 @@ namespace Ogre {
         /// The name of the parent, null if root
         ProfileInstance* parent;
 
-        ProfileChildren children;
+        ProfileChildrenVec children;
+        ProfileChildrenMap childrenMap;
 
         ProfileFrame frame;
         ulong frameNumber;
@@ -183,7 +342,7 @@ namespace Ogre {
         ProfileHistory history;
 
         /// The time this profile was started
-        ulong           currTime;
+        uint64 currTime;
 
         /// Represents the total time of all child profiles to subtract
         /// from this profile
@@ -201,6 +360,15 @@ namespace Ogre {
     class _OgreExport ProfileSessionListener
     {
     public:
+        enum DisplayMode
+        {
+            /// Display % frame usage on the overlay
+            DISPLAY_PERCENTAGE,
+            /// Display milliseconds on the overlay
+            DISPLAY_MILLISECONDS
+        };
+
+        ProfileSessionListener() : mDisplayMode(DISPLAY_MILLISECONDS) {}
         virtual ~ProfileSessionListener() {}
 
         /// Create the internal resources
@@ -217,6 +385,16 @@ namespace Ogre {
         
         /// Here we get the real profiling information which we can use 
         virtual void displayResults(const ProfileInstance& instance, ulong maxTotalFrameTime) {};
+
+        /// Set the display mode for the overlay. 
+        void setDisplayMode(DisplayMode d) { mDisplayMode = d; }
+    
+        /// Get the display mode for the overlay. 
+        DisplayMode getDisplayMode() const { return mDisplayMode; }
+    
+    protected:
+        /// How to display the overlay
+        DisplayMode mDisplayMode;
     };
 
     /** The profiler allows you to measure the performance of your code
@@ -257,7 +435,9 @@ namespace Ogre {
             @param profileName Must be unique and must not be an empty string
             @param groupID A profile group identifier, which can allow you to mask profiles
             */
-            void beginProfile(const String& profileName, uint32 groupID = (uint32)OGREPROF_USER_DEFAULT);
+            void beginProfile( const String& profileName, uint32 groupID = (uint32)OGREPROF_USER_DEFAULT,
+                               ProfileSampleFlags::ProfileSampleFlags flags=ProfileSampleFlags::
+                                                                            FlagsNone );
 
             /** Ends a profile
             @remarks 
@@ -290,6 +470,9 @@ namespace Ogre {
              */
             void markGPUEvent(const String& event);
 
+            void beginGPUSample( const String &name, uint32 *hashCache );
+            void endGPUSample( const String &name );
+
             /** Sets whether this profiler is enabled. Only takes effect after the
                 the frame has ended.
                 @remarks When this is called the first time with the parameter true,
@@ -299,6 +482,18 @@ namespace Ogre {
 
             /** Gets whether this profiler is enabled */
             bool getEnabled() const;
+
+            /** Sets whether each frame should be tagged with the frame number (starting from 0).
+                This is very useful for tagging and identifying CPU samples with GPU ones,
+                but it causes Remotery to shift colours like a rainbow.
+                Setting this to true forces each frame to not have the frame number embedded in
+                it, which stabilizes the colour.
+                Default is false.
+            @remarks
+                Relevant only when using Remotery.
+            */
+            void setUseStableMarkers( bool useStableMarkers );
+            bool getUseStableMarkers(void) const;
 
             /** Enables a previously disabled profile 
             @remarks Can be safely called in the middle of the profile.
@@ -336,7 +531,6 @@ namespace Ogre {
             @remarks If this is called during a frame, it will be reading the results
             from the previous frame. Therefore, it is best to use this after the frame
             has ended.
-            @param profileName Must be unique and must not be an empty string
             @param limit A number between 0 and 1 representing the percentage of frame time
             @param greaterThan If true, this will return whether the limit is exceeded. Otherwise,
             it will return if the frame time has gone under this limit.
@@ -347,7 +541,7 @@ namespace Ogre {
             void logResults();
 
             /** Clears the profiler statistics */
-            void reset();
+            void reset( bool deleteAll );
 
             /** Sets the Profiler so the display of results are updated every n frames*/
             void setUpdateDisplayFrequency(uint freq);
@@ -371,15 +565,47 @@ namespace Ogre {
             */
             void removeListener(ProfileSessionListener* listener);
 
-            /// @copydoc Singleton::getSingleton()
+            /** Override standard Singleton retrieval.
+            @remarks
+            Why do we do this? Well, it's because the Singleton
+            implementation is in a .h file, which means it gets compiled
+            into anybody who includes it. This is needed for the
+            Singleton template to work, but we actually only want it
+            compiled into the implementation of the class based on the
+            Singleton, not all of them. If we don't change this, we get
+            link errors when trying to use the Singleton-based class from
+            an outside dll.
+            @par
+            This method just delegates to the template version anyway,
+            but the implementation stays in this single compilation unit,
+            preventing link errors.
+            */
             static Profiler& getSingleton(void);
-            /// @copydoc Singleton::getSingleton()
+            /** Override standard Singleton retrieval.
+            @remarks
+            Why do we do this? Well, it's because the Singleton
+            implementation is in a .h file, which means it gets compiled
+            into anybody who includes it. This is needed for the
+            Singleton template to work, but we actually only want it
+            compiled into the implementation of the class based on the
+            Singleton, not all of them. If we don't change this, we get
+            link errors when trying to use the Singleton-based class from
+            an outside dll.
+            @par
+            This method just delegates to the template version anyway,
+            but the implementation stays in this single compilation unit,
+            preventing link errors.
+            */
             static Profiler* getSingletonPtr(void);
+
+#if OGRE_PROFILING == OGRE_PROFILING_INTERNAL_OFFLINE
+            OfflineProfiler& getOfflineProfiler(void)       { return mOfflineProfiler; }
+#endif
 
         protected:
             friend class ProfileInstance;
 
-            typedef std::vector<ProfileSessionListener*> TProfileSessionListener;
+            typedef vector<ProfileSessionListener*>::type TProfileSessionListener;
             TProfileSessionListener mListeners;
 
             /** Initializes the profiler's GUI elements */
@@ -395,9 +621,13 @@ namespace Ogre {
             /** Handles a change of the profiler's enabled state*/
             void changeEnableState();
 
+#if OGRE_PROFILING == OGRE_PROFILING_INTERNAL_OFFLINE
+            OfflineProfiler mOfflineProfiler;
+#endif
+
             // lol. Uses typedef; put's original container type in name.
-            typedef std::set<String> DisabledProfileMap;
-            typedef ProfileInstance::ProfileChildren ProfileChildren;
+            typedef set<String>::type DisabledProfileMap;
+            typedef ProfileInstance::ProfileChildrenVec ProfileChildrenVec;
 
             ProfileInstance* mCurrent;
             ProfileInstance* mLast;
@@ -424,6 +654,7 @@ namespace Ogre {
 
             /// Whether this profiler is enabled
             bool mEnabled;
+            bool mUseStableMarkers;
 
             /// Keeps track of the new enabled/disabled state that the user has requested
             /// which will be applied after the frame ends
@@ -439,36 +670,12 @@ namespace Ogre {
             Real mAverageFrameTime;
             bool mResetExtents;
 
+#if OGRE_PROFILING == OGRE_PROFILING_REMOTERY
+            Remotery *mRemotery;
+#endif
+
 
     }; // end class
-
-    /** An individual profile that will be processed by the Profiler
-        @remarks
-            Use the macro OgreProfile(name) instead of instantiating this profile directly
-        @remarks
-            We use this Profile to allow scoping rules to signify the beginning and end of
-            the profile. Use the Profiler singleton (through the macro OgreProfileBegin(name)
-            and OgreProfileEnd(name)) directly if you want a profile to last
-            outside of a scope (i.e. the main game loop).
-        @author Amit Mathew (amitmathew (at) yahoo (dot) com)
-    */
-    class Profile : public ProfilerAlloc
-    {
-
-    public:
-        Profile(const String& profileName, uint32 groupID = (uint32)OGREPROF_USER_DEFAULT)
-            : mName(profileName), mGroupID(groupID)
-        {
-            Profiler::getSingleton().beginProfile(profileName, groupID);
-        }
-        ~Profile() { Profiler::getSingleton().endProfile(mName, mGroupID); }
-
-    protected:
-        /// The name of this profile
-        String mName;
-        /// The group ID
-        uint32 mGroupID;
-    };
     /** @} */
     /** @} */
 

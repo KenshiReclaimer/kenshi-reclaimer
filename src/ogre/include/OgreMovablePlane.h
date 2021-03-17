@@ -32,6 +32,7 @@ THE SOFTWARE.
 
 #include "OgrePlane.h"
 #include "OgreMovableObject.h"
+#include "OgreAxisAlignedBox.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -57,39 +58,30 @@ namespace Ogre {
         mutable Plane mDerivedPlane;
         mutable Vector3 mLastTranslate;
         mutable Quaternion mLastRotate;
+        AxisAlignedBox mNullBB;
         mutable bool mDirty;
         static String msMovableType;
     public:
 
-        MovablePlane(const String& name);
-        MovablePlane (const Plane& rhs);
+        MovablePlane( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
+        MovablePlane( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      const Plane& rhs );
         /** Construct a plane through a normal, and a distance to move the plane along the normal.*/
-        MovablePlane (const Vector3& rkNormal, Real fConstant);
-        MovablePlane (const Vector3& rkNormal, const Vector3& rkPoint);
-        MovablePlane (const Vector3& rkPoint0, const Vector3& rkPoint1,
-            const Vector3& rkPoint2);
+        MovablePlane( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      const Vector3& rkNormal, Real fConstant );
+        MovablePlane( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      const Vector3& rkNormal, const Vector3& rkPoint );
+        MovablePlane( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager,
+                      const Vector3& rkPoint0, const Vector3& rkPoint1, const Vector3& rkPoint2 );
         ~MovablePlane() {}
         /// Overridden from MovableObject
-        void _notifyCurrentCamera(Camera*) { /* don't care */ }
+        const AxisAlignedBox& getBoundingBox(void) const { return mNullBB; }
         /// Overridden from MovableObject
-        const AxisAlignedBox& getBoundingBox(void) const { return AxisAlignedBox::BOX_NULL; }
-        /// Overridden from MovableObject
-        Real getBoundingRadius(void) const { return 0.0f; }
-        /// Overridden from MovableObject
-        void _updateRenderQueue(RenderQueue*) { /* do nothing */}
+        void _updateRenderQueue(RenderQueue*, Camera *camera, const Camera *lodCamera) { /* do nothing */}
         /// Overridden from MovableObject
         const String& getMovableType(void) const;
         /// Get the derived plane as transformed by its parent node. 
         const Plane& _getDerivedPlane(void) const;
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false)
-                {
-                    /* do nothing */
-                    (void)visitor;
-                    (void)debugRenderables;
-                }
-
     };
     /** @} */
     /** @} */

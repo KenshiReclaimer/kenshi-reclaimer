@@ -30,79 +30,30 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 
 #include "OgrePrerequisites.h"
 #include "OgreVertexIndexData.h"
+#include "OgreHlmsPso.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
-
-
+namespace v1 {
     /** \addtogroup Core
-     *  @{
-     */
+    *  @{
+    */
     /** \addtogroup RenderSystem
-     *  @{
-     */
+    *  @{
+    */
     /** 'New' rendering operation using vertex buffers. */
-    class _OgreExport RenderOperation {
+    class _OgrePrivate RenderOperation {
     public:
-        /// The rendering operation type to perform
-        enum OperationType {
-            /// A list of points, 1 vertex per point
-            OT_POINT_LIST = 1,
-            /// A list of lines, 2 vertices per line
-            OT_LINE_LIST = 2,
-            /// A strip of connected lines, 1 vertex per line plus 1 start vertex
-            OT_LINE_STRIP = 3,
-            /// A list of triangles, 3 vertices per triangle
-            OT_TRIANGLE_LIST = 4,
-            /// A strip of triangles, 3 vertices for the first triangle, and 1 per triangle after that
-            OT_TRIANGLE_STRIP = 5,
-            /// A fan of triangles, 3 vertices for the first triangle, and 1 per triangle after that
-            OT_TRIANGLE_FAN = 6,
-            /// Patch control point operations, used with tessellation stages
-            OT_PATCH_1_CONTROL_POINT    = 7,
-            OT_PATCH_2_CONTROL_POINT    = 8,
-            OT_PATCH_3_CONTROL_POINT    = 9,
-            OT_PATCH_4_CONTROL_POINT    = 10,
-            OT_PATCH_5_CONTROL_POINT    = 11,
-            OT_PATCH_6_CONTROL_POINT    = 12,
-            OT_PATCH_7_CONTROL_POINT    = 13,
-            OT_PATCH_8_CONTROL_POINT    = 14,
-            OT_PATCH_9_CONTROL_POINT    = 15,
-            OT_PATCH_10_CONTROL_POINT   = 16,
-            OT_PATCH_11_CONTROL_POINT   = 17,
-            OT_PATCH_12_CONTROL_POINT   = 18,
-            OT_PATCH_13_CONTROL_POINT   = 19,
-            OT_PATCH_14_CONTROL_POINT   = 20,
-            OT_PATCH_15_CONTROL_POINT   = 21,
-            OT_PATCH_16_CONTROL_POINT   = 22,
-            OT_PATCH_17_CONTROL_POINT   = 23,
-            OT_PATCH_18_CONTROL_POINT   = 24,
-            OT_PATCH_19_CONTROL_POINT   = 25,
-            OT_PATCH_20_CONTROL_POINT   = 26,
-            OT_PATCH_21_CONTROL_POINT   = 27,
-            OT_PATCH_22_CONTROL_POINT   = 28,
-            OT_PATCH_23_CONTROL_POINT   = 29,
-            OT_PATCH_24_CONTROL_POINT   = 30,
-            OT_PATCH_25_CONTROL_POINT   = 31,
-            OT_PATCH_26_CONTROL_POINT   = 32,
-            OT_PATCH_27_CONTROL_POINT   = 33,
-            OT_PATCH_28_CONTROL_POINT   = 34,
-            OT_PATCH_29_CONTROL_POINT   = 35,
-            OT_PATCH_30_CONTROL_POINT   = 36,
-            OT_PATCH_31_CONTROL_POINT   = 37,
-            OT_PATCH_32_CONTROL_POINT   = 38,
-            // max valid base OT_ = (1 << 6) - 1
-            /// Mark that the index buffer contains adjacency information
-            OT_DETAIL_ADJACENCY_BIT     = 1 << 6,
-            /// like OT_POINT_LIST but with adjacency information for the geometry shader
-            OT_LINE_LIST_ADJ            = OT_LINE_LIST | OT_DETAIL_ADJACENCY_BIT,
-            /// like OT_LINE_STRIP but with adjacency information for the geometry shader
-            OT_LINE_STRIP_ADJ           = OT_LINE_STRIP | OT_DETAIL_ADJACENCY_BIT,
-            /// like OT_TRIANGLE_LIST but with adjacency information for the geometry shader
-            OT_TRIANGLE_LIST_ADJ        = OT_TRIANGLE_LIST | OT_DETAIL_ADJACENCY_BIT,
-            /// like OT_TRIANGLE_STRIP but with adjacency information for the geometry shader
-            OT_TRIANGLE_STRIP_ADJ       = OT_TRIANGLE_STRIP | OT_DETAIL_ADJACENCY_BIT,
-        };
+        static AtomicScalar<uint32> MeshIndexId;
+
+        /// This index is set to 0 by default. The RenderQueue will sort by mesh using this index.
+        /// Two different RenderOperations may have the same meshIndex, but if so, performance could
+        /// be degraded (it would hinder auto instancing, forces rebinding of the vertex & index buffer
+        /// per Renderable, etc)
+        /// It is the implementation's responsability to assign a (unique if possible) index.
+        /// The static variable MeshIndexId is provided as an incrementing ID, but you're not forced to
+        /// use it
+        uint32 meshIndex;
 
         /// Vertex source data
         VertexData *vertexData;
@@ -118,20 +69,34 @@ namespace Ogre {
 
         /// Index data - only valid if useIndexes is true
         IndexData *indexData;
+
+#if OGRE_DEBUG_MODE
         /// Debug pointer back to renderable which created this
         const Renderable* srcRenderable;
+#endif
 
         /// The number of instances for the render operation - this option is supported
         /// in only a part of the render systems.
         size_t numberOfInstances;
+
+        /// Specifies whether rendering to the vertex buffer.
+        bool renderToVertexBuffer;
 
         /** A flag to indicate that it is possible for this operation to use a global
             vertex instance buffer if available.*/
         bool useGlobalInstancingVertexBufferIsAvailable;
 
     RenderOperation() :
-        vertexData(0), operationType(OT_TRIANGLE_LIST), useIndexes(true),
-            indexData(0), srcRenderable(0), numberOfInstances(1),
+            meshIndex(0),
+            vertexData(0),
+            operationType(OT_TRIANGLE_LIST),
+            useIndexes(true),
+            indexData(0),
+#if OGRE_DEBUG_MODE
+            srcRenderable(0),
+#endif
+            numberOfInstances(1),
+            renderToVertexBuffer(false),
             useGlobalInstancingVertexBufferIsAvailable(true)
             {}
 
@@ -139,6 +104,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

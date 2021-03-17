@@ -73,7 +73,7 @@ namespace Ogre
 #endif
         tbb::task_group mTaskGroup;
         /// Synchronise registering threads with the RenderSystem
-        OGRE_WQ_MUTEX(mRegisterRSMutex);
+        OGRE_MUTEX(mRegisterRSMutex);
         std::set<tbb::tbb_thread::id> mRegisteredThreads;
     };
 

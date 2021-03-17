@@ -31,18 +31,21 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreSerializer.h"
+#include "OgreMeshSerializerImpl.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
-    
+namespace v1 {
     class MeshSerializerListener;
-    class MeshVersionData;
     
     /// Mesh compatibility versions
     enum MeshVersion 
     {
         /// Latest version available
         MESH_VERSION_LATEST,
+
+        /// OGRE version v2.1+
+        MESH_VERSION_2_1,
         
         /// OGRE version v1.10+
         MESH_VERSION_1_10,
@@ -154,7 +157,7 @@ namespace Ogre {
         @param stream The DataStream holding the .mesh data. Must be initialised (pos at the start of the buffer).
         @param pDest Pointer to the Mesh object which will receive the data. Should be blank already.
         */
-        void importMesh(const DataStreamPtr& stream, Mesh* pDest);
+        void importMesh(DataStreamPtr& stream, Mesh* pDest);
 
         /// Sets the listener for this serializer
         void setListener(MeshSerializerListener *listener);
@@ -162,7 +165,22 @@ namespace Ogre {
         MeshSerializerListener *getListener();
         
     protected:
-        typedef std::vector<MeshVersionData*> MeshVersionDataList;
+        
+        class MeshVersionData : public SerializerAlloc
+        {
+        public:
+            MeshVersion version;
+            String versionString;
+            MeshSerializerImpl* impl;
+            
+            MeshVersionData(MeshVersion _ver, const String& _string, MeshSerializerImpl* _impl)
+            : version(_ver), versionString(_string), impl(_impl) {}
+            
+            ~MeshVersionData() { OGRE_DELETE impl; }
+            
+        };
+
+        typedef vector<MeshVersionData*>::type MeshVersionDataList;
         MeshVersionDataList mVersionData;
 
         MeshSerializerListener *mListener;
@@ -189,6 +207,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

@@ -31,6 +31,10 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreSphere.h"
 #include "OgreRay.h"
+
+#include "ogrestd/list.h"
+#include "ogrestd/set.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -106,21 +110,23 @@ namespace Ogre {
             /// Single intersection point, only applicable for WFT_SINGLE_INTERSECTION
             Vector3 singleIntersection;
             /// Planes bounding a convex region, only applicable for WFT_PLANE_BOUNDED_REGION
-            std::vector<Plane>* planes;
+            list<Plane>::type* planes;
             /// Custom geometry block, only applicable for WFT_CUSTOM_GEOMETRY
             void* geometry;
             /// General render operation structure, fallback if nothing else is available
-            RenderOperation* renderOp;
+            v1::RenderOperation* renderOp; //TODO: VertexArrayObject pointer?
             
         };
     protected:
         SceneManager* mParentSceneMgr;
         uint32 mQueryMask;
-        uint32 mQueryTypeMask;
-        std::set<WorldFragmentType> mSupportedWorldFragments;
+        set<WorldFragmentType>::type mSupportedWorldFragments;
         WorldFragmentType mWorldFragmentType;
     
     public:
+        uint8 mFirstRq;
+        uint8 mLastRq;
+
         /** Standard constructor, should be called by SceneManager. */
         SceneQuery(SceneManager* mgr);
         virtual ~SceneQuery();
@@ -133,22 +139,17 @@ namespace Ogre {
             from this query if a bitwise AND operation between this mask value and the
             MovableObject::getQueryFlags value is non-zero. The application will
             have to decide what each of the bits means.
+            The default initial query mask of a SceneQuery is
+            SceneManager::QUERY_ENTITY_DEFAULT_MASK
+        @note
+            By default, Ogre uses @SceneManager::QUERY_ENTITY_DEFAULT_MASK and Co.
+            to set each type of MovableObject's default query mask. This behavior
+            can be overriden though, just set the masks you don't need to 0 before
+            creating those objects.
         */
         virtual void setQueryMask(uint32 mask);
         /** Returns the current mask for this query. */
         virtual uint32 getQueryMask(void) const;
-
-        /** Sets the type mask for results of this query.
-        @remarks
-            This method allows you to set a 'type mask' to limit the results of this
-            query to certain types of objects. Whilst setQueryMask deals with flags
-            set per instance of object, this method deals with setting a mask on 
-            flags set per type of object. Both may exclude an object from query
-            results.
-        */
-        virtual void setQueryTypeMask(uint32 mask);
-        /** Returns the current mask for this query. */
-        virtual uint32 getQueryTypeMask(void) const;
 
         /** Tells the query what kind of world geometry to return from queries;
             often the full renderable geometry is not what is needed. 
@@ -166,7 +167,7 @@ namespace Ogre {
         virtual WorldFragmentType getWorldFragmentType(void) const;
 
         /** Returns the types of world fragments this query supports. */
-        virtual const std::set<WorldFragmentType>* getSupportedWorldFragmentTypes(void) const
+        virtual const set<WorldFragmentType>::type* getSupportedWorldFragmentTypes(void) const
             {return &mSupportedWorldFragments;}
 
         
@@ -181,7 +182,7 @@ namespace Ogre {
     class _OgreExport SceneQueryListener
     {
     public:
-        virtual ~SceneQueryListener() { }
+        virtual ~SceneQueryListener();
         /** Called when a MovableObject is returned by a query.
         @remarks
             The implementor should return 'true' to continue returning objects,
@@ -197,8 +198,8 @@ namespace Ogre {
 
     };
 
-    typedef std::list<MovableObject*> SceneQueryResultMovableList;
-    typedef std::list<SceneQuery::WorldFragment*> SceneQueryResultWorldFragmentList;
+    typedef list<MovableObject*>::type SceneQueryResultMovableList;
+    typedef list<SceneQuery::WorldFragment*>::type SceneQueryResultWorldFragmentList;
     /** Holds the results of a scene query. */
     struct _OgreExport SceneQueryResult : public SceneMgtAlloc
     {
@@ -310,6 +311,17 @@ namespace Ogre {
 
     };
 
+
+    /*
+    /// Specialises the SceneQuery class for querying within a pyramid. 
+    class _OgreExport PyramidSceneQuery : public RegionSceneQuery
+    {
+    public:
+        PyramidSceneQuery(SceneManager* mgr);
+        virtual ~PyramidSceneQuery();
+    };
+    */
+
     /** Alternative listener class for dealing with RaySceneQuery.
     @remarks
         Because the RaySceneQuery returns results in an extra bit of information, namely
@@ -318,7 +330,7 @@ namespace Ogre {
     class _OgreExport RaySceneQueryListener 
     {
     public:
-        virtual ~RaySceneQueryListener() { }
+        virtual ~RaySceneQueryListener();
         /** Called when a movable objects intersects the ray.
         @remarks
             As with SceneQueryListener, the implementor of this method should return 'true'
@@ -353,7 +365,7 @@ namespace Ogre {
         }
 
     };
-    typedef std::vector<RaySceneQueryResultEntry> RaySceneQueryResult;
+    typedef vector<RaySceneQueryResultEntry>::type RaySceneQueryResult;
 
     /** Specialises the SceneQuery class for querying along a ray. */
     class _OgreExport RaySceneQuery : public SceneQuery, public RaySceneQueryListener
@@ -444,7 +456,7 @@ namespace Ogre {
     class _OgreExport IntersectionSceneQueryListener 
     {
     public:
-        virtual ~IntersectionSceneQueryListener() { }
+        virtual ~IntersectionSceneQueryListener();
         /** Called when 2 movable objects intersect one another.
         @remarks
             As with SceneQueryListener, the implementor of this method should return 'true'
@@ -470,8 +482,8 @@ namespace Ogre {
         
     typedef std::pair<MovableObject*, MovableObject*> SceneQueryMovableObjectPair;
     typedef std::pair<MovableObject*, SceneQuery::WorldFragment*> SceneQueryMovableObjectWorldFragmentPair;
-    typedef std::list<SceneQueryMovableObjectPair> SceneQueryMovableIntersectionList;
-    typedef std::list<SceneQueryMovableObjectWorldFragmentPair> SceneQueryMovableWorldFragmentIntersectionList;
+    typedef list<SceneQueryMovableObjectPair>::type SceneQueryMovableIntersectionList;
+    typedef list<SceneQueryMovableObjectWorldFragmentPair>::type SceneQueryMovableWorldFragmentIntersectionList;
     /** Holds the results of an intersection scene query (pair values). */
     struct _OgreExport IntersectionSceneQueryResult : public SceneMgtAlloc
     {

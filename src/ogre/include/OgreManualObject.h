@@ -33,9 +33,13 @@ THE SOFTWARE.
 #include "OgreMovableObject.h"
 #include "OgreRenderable.h"
 #include "OgreResourceGroupManager.h"
+#include "OgreRenderOperation.h"
 #include "OgreHeaderPrefix.h"
+#include "OgreHardwareBuffer.h"
 
 namespace Ogre
+{
+namespace v1
 {
     /** \addtogroup Core
     *  @{
@@ -45,16 +49,16 @@ namespace Ogre
     */
     /** Class providing a much simplified interface to generating manual
         objects with custom geometry.
-
+    @remarks
         Building one-off geometry objects manually usually requires getting
         down and dirty with the vertex buffer and vertex declaration API, 
         which some people find a steep learning curve. This class gives you 
         a simpler interface specifically for the purpose of building a 
         3D object simply and quickly. Note that if you intend to instance your
         object you will still need to become familiar with the Mesh class. 
-
+    @par
         This class draws heavily on the interface for OpenGL 
-        immediate-mode (@c glBegin, @c glVertex, @c glNormal etc), since this
+        immediate-mode (glBegin, glVertex, glNormal etc), since this
         is generally well-liked by people. There are a couple of differences
         in the results though - internally this class still builds hardware 
         buffers which can be re-used, so you can render the resulting object
@@ -63,10 +67,10 @@ namespace Ogre
         all OGRE objects. This makes this object more efficient than the 
         equivalent GL immediate-mode commands, so it's feasible to use it for
         large objects if you really want to.
-
+    @par
         To construct some geometry with this object:
           -# If you know roughly how many vertices (and indices, if you use them)
-             you're going to submit, call estimateVertexCount() and estimateIndexCount().
+             you're going to submit, call estimateVertexCount and estimateIndexCount.
              This is not essential but will make the process more efficient by saving
              memory reallocations.
           -# Call begin() to begin entering data
@@ -91,25 +95,35 @@ namespace Ogre
         MovableObject you should attach the object to a SceneNode to make it 
         visible. Other aspects like the relative render order can be controlled
         using standard MovableObject methods like setRenderQueueGroup.
-
+    @par
         You can also use beginUpdate() to alter the geometry later on if you wish.
         If you do this, you should call setDynamic(true) before your first call 
-        to begin(), and also consider using estimateVertexCount() / estimateIndexCount()
+        to begin(), and also consider using estimateVertexCount / estimateIndexCount
         if your geometry is going to be growing, to avoid buffer recreation during
         growth.
-
-        @note like all OGRE geometry, triangles should be specified in 
+    @par
+        Note that like all OGRE geometry, triangles should be specified in 
         anti-clockwise winding order (whether you're doing it with just
         vertices, or using indexes too). That is to say that the front of the
         face is the one where the vertices are listed in anti-clockwise order.
     */
     class _OgreExport ManualObject : public MovableObject
     {
+
+        /** Return the HardwareBuffer::Usage that correspound to the input parameters */
+        inline Ogre::v1::HardwareBuffer::Usage getHardwareBufferUsage(bool isDynamic, bool isWriteOnly) const
+        {
+            if (isDynamic)
+                return isWriteOnly ? HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY : HardwareBuffer::HBU_DYNAMIC;
+            else
+                return isWriteOnly ? HardwareBuffer::HBU_STATIC_WRITE_ONLY : HardwareBuffer::HBU_STATIC;
+        }
+
     public:
-        ManualObject(const String& name);
+        ManualObject( IdType id, ObjectMemoryManager *objectMemoryManager, SceneManager *manager );
         virtual ~ManualObject();
 
-        /** @copydoc MovableObject::_releaseManualHardwareResources */
+        /** @copydoc MovableObject::_releaseManualHardwareResources. */
         void _releaseManualHardwareResources() { clear(); }
 
         //pre-declare ManualObjectSection
@@ -151,35 +165,27 @@ namespace Ogre
             rendering operation (triangles, points or lines for example).
         @param materialName The name of the material to render this part of the
             object with.
-        @param opType The type of operation to use to render.
-        @param groupName The resource group of the material to render this part
-            of the object with.
+        @param opType The type of operation to use to render. 
         */
         virtual void begin(const String& materialName,
-            RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST,
-            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+            OperationType opType = OT_TRIANGLE_LIST, const String & groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
-        /** @overload
-        @param mat The material to render this part of the object with.
-        @param opType The type of operation to use to render.
+        /** Use before defining geometry to indicate that you intend to update the
+            geometry regularly and want the internal structure to reflect that.
         */
-        virtual void begin(const MaterialPtr& mat,
-            RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST);
-
-        /** Use before defining geometry to indicate how you intend to update the
-            geometry.
-        */
-        void setBufferUsage(HardwareBuffer::Usage usage) { mBufferUsage = usage; }
-
-        /// @overload
-        void setDynamic(bool dyn)
-        {
-            mBufferUsage =
-                dyn ? HardwareBuffer::HBU_DYNAMIC_WRITE_ONLY : HardwareBuffer::HBU_STATIC_WRITE_ONLY;
-        }
-
+        virtual void setDynamic(bool dyn) { mDynamic = dyn; }
         /** Gets whether this object is marked as dynamic */
-        bool getDynamic() const { return mBufferUsage & HardwareBuffer::HBU_DYNAMIC; }
+        virtual bool getDynamic() const { return mDynamic; }
+
+        /** Use before defining geometry to indicate that you intend to be able
+            to read back from the geometry buffers again down the line (object
+            convertion to v2, physics engine body creation...
+         */
+        virtual void setReadable(bool readable) { mWriteOnly = !readable; }
+        /** Same as setReadable, but with the invese scemantic */
+        virtual void setWriteOnly(bool writeOnly) { setReadable(!writeOnly); }
+        /** Gets wheter this object has geometry buffer marked as write only */
+        virtual bool getWriteOnly() const { return mWriteOnly; }
 
         /** Start the definition of an update to a part of the object.
         @remarks
@@ -200,51 +206,18 @@ namespace Ogre
             after this are assumed to be adding more information (like normals or
             texture coordinates) to the last vertex started with position().
         */
-        void position(const Vector3& pos)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mTempVertexPending)
-            {
-                // bake current vertex
-                copyTempVertexToBuffer();
-                mFirstVertex = false;
-            }
-
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT3, VES_POSITION);
-            }
-
-            mTempVertex.position = pos;
-
-            // update bounds
-            mAABB.merge(mTempVertex.position);
-            mRadius = std::max(mRadius, mTempVertex.position.length());
-
-            // reset current texture coord
-            mTexCoordIndex = 0;
-
-            mTempVertexPending = true;
-        }
-        /// @overload
-        void position(float x, float y, float z) { position({x, y, z}); }
+        virtual void position(const Vector3& pos);
+        /// @copydoc ManualObject::position(const Vector3&)
+        virtual void position(Real x, Real y, Real z);
 
         /** Add a vertex normal to the current vertex.
         @remarks
             Vertex normals are most often used for dynamic lighting, and 
             their components should be normalised.
         */
-        void normal(const Vector3& norm)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT3, VES_NORMAL);
-            }
-            mTempVertex.normal = norm;
-        }
-        /// @overload
-        void normal(float x, float y, float z)  { normal({x, y, z}); }
+        virtual void normal(const Vector3& norm);
+        /// @copydoc ManualObject::normal(const Vector3&)
+        virtual void normal(Real x, Real y, Real z);
 
         /** Add a vertex tangent to the current vertex.
         @remarks
@@ -253,18 +226,9 @@ namespace Ogre
             Also, using tangent() you enable VES_TANGENT vertex semantic, which is not
             supported on old non-SM2 cards.
         */
-        void tangent(const Vector3& tan)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT3, VES_TANGENT);
-            }
-            mTempVertex.tangent = tan;
-        }
-
-        /// @overload
-        void tangent(float x, float y, float z)  { tangent({x, y, z}); }
+        virtual void tangent(const Vector3& tan);
+        /// @copydoc ManualObject::tangent(const Vector3&)
+        virtual void tangent(Real x, Real y, Real z);
 
         /** Add a texture coordinate to the current vertex.
         @remarks
@@ -274,111 +238,40 @@ namespace Ogre
             most common. There are several versions of this method for the 
             variations in number of dimensions.
         */
-        void textureCoord(float u)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT1, VES_TEXTURE_COORDINATES);
-            }
-            mTempVertex.texCoordDims[mTexCoordIndex] = 1;
-            mTempVertex.texCoord[mTexCoordIndex].x = u;
-
-            ++mTexCoordIndex;
-        }
-        /// @overload
-        void textureCoord(float u, float v)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT2, VES_TEXTURE_COORDINATES);
-            }
-            mTempVertex.texCoordDims[mTexCoordIndex] = 2;
-            mTempVertex.texCoord[mTexCoordIndex].x = u;
-            mTempVertex.texCoord[mTexCoordIndex].y = v;
-
-            ++mTexCoordIndex;
-        }
-        /// @overload
-        void textureCoord(float u, float v, float w)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT3, VES_TEXTURE_COORDINATES);
-            }
-            mTempVertex.texCoordDims[mTexCoordIndex] = 3;
-            mTempVertex.texCoord[mTexCoordIndex].x = u;
-            mTempVertex.texCoord[mTexCoordIndex].y = v;
-            mTempVertex.texCoord[mTexCoordIndex].z = w;
-
-            ++mTexCoordIndex;
-        }
-        /// @overload
-        void textureCoord(float x, float y, float z, float w) { textureCoord(Vector4(x, y, z, w)); }
-        /// @overload
-        void textureCoord(const Vector2& uv) { textureCoord(uv.x, uv.y); }
-        /// @overload
-        void textureCoord(const Vector3& uvw) { textureCoord(uvw.x, uvw.y, uvw.z); }
-        /// @@overload
-        void textureCoord(const Vector4& xyzw)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_FLOAT4, VES_TEXTURE_COORDINATES);
-            }
-            mTempVertex.texCoordDims[mTexCoordIndex] = 4;
-            mTempVertex.texCoord[mTexCoordIndex] = xyzw;
-
-            ++mTexCoordIndex;
-        }
+        virtual void textureCoord(Real u);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(Real u, Real v);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(Real u, Real v, Real w);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(Real x, Real y, Real z, Real w);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(const Vector2& uv);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(const Vector3& uvw);
+        /// @copydoc ManualObject::textureCoord(Real)
+        virtual void textureCoord(const Vector4& xyzw);
 
         /** Add a vertex colour to a vertex.
         */
-        void colour(const ColourValue& col)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            if (mFirstVertex && !mCurrentUpdating)
-            {
-                declareElement(VET_COLOUR, VES_DIFFUSE);
-            }
-            mTempVertex.colour = col;
-        }
-        /// @overload
-        void colour(float r, float g, float b, float a = 1.0f) { colour(ColourValue(r, g, b, a)); };
+        virtual void colour(const ColourValue& col);
+        /** Add a vertex colour to a vertex.
+        @param r,g,b,a Colour components expressed as floating point numbers from 0-1
+        */
+        virtual void colour(Real r, Real g, Real b, Real a = 1.0f);
 
         /** Add a vertex index to construct faces / lines / points via indexing
             rather than just by a simple list of vertices. 
         @remarks
             You will have to call this 3 times for each face for a triangle list, 
             or use the alternative 3-parameter version. Other operation types
-            require different numbers of indexes, @see RenderOperation::OperationType.
+            require different numbers of indexes, @see OperationType.
         @note
             32-bit indexes are not supported on all cards and will only be used
             when required, if an index is > 65535.
         @param idx A vertex index from 0 to 4294967295. 
         */
-        void index(uint32 idx)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            mAnyIndexed = true;
-            if (idx >= 65536)
-                mCurrentSection->set32BitIndices(true);
-
-            // make sure we have index data
-            RenderOperation* rop = mCurrentSection->getRenderOperation();
-            if (!rop->indexData)
-            {
-                rop->indexData = OGRE_NEW IndexData();
-                rop->indexData->indexCount = 0;
-            }
-            rop->useIndexes = true;
-            resizeTempIndexBufferIfNeeded(++rop->indexData->indexCount);
-
-            mTempIndexBuffer[rop->indexData->indexCount - 1] = idx;
-        }
+        virtual void index(uint32 idx);
         /** Add a set of 3 vertex indices to construct a triangle; this is a
             shortcut to calling index() 3 times. It is only valid for triangle 
             lists.
@@ -387,16 +280,7 @@ namespace Ogre
             when required, if an index is > 65535.
         @param i1, i2, i3 3 vertex indices from 0 to 4294967295 defining a face.
         */
-        void triangle(uint32 i1, uint32 i2, uint32 i3)
-        {
-            OgreAssert(mCurrentSection, "You must call begin() before this method");
-            OgreAssert(mCurrentSection->getRenderOperation()->operationType ==
-                           RenderOperation::OT_TRIANGLE_LIST,
-                       "This method is only valid on triangle lists");
-            index(i1);
-            index(i2);
-            index(i3);
-        }
+        virtual void triangle(uint32 i1, uint32 i2, uint32 i3);
         /** Add a set of 4 vertex indices to construct a quad (out of 2 
             triangles); this is a shortcut to calling index() 6 times, 
             or triangle() twice. It's only valid for triangle list operations.
@@ -405,13 +289,7 @@ namespace Ogre
             when required, if an index is > 65535.
         @param i1, i2, i3, i4 4 vertex indices from 0 to 4294967295 defining a quad. 
         */
-        void quad(uint32 i1, uint32 i2, uint32 i3, uint32 i4)
-        {
-            // first tri
-            triangle(i1, i2, i3);
-            // second tri
-            triangle(i3, i4, i1);
-        }
+        virtual void quad(uint32 i1, uint32 i2, uint32 i3, uint32 i4);
 
         /// Get the number of vertices in the section currently being defined (returns 0 if no section is in progress).
         virtual size_t getCurrentVertexCount() const;
@@ -433,16 +311,8 @@ namespace Ogre
             you can do so by calling this method.
         @param subIndex The index of the subsection to alter
         @param name The name of the new material to use
-        @param group The resource group of the new material to use
         */
-        virtual void setMaterialName(size_t subIndex, const String& name,
-            const String & group = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-
-        /** @overload
-        @param subIndex The index of the subsection to alter
-        @param mat The new material to use
-        */
-        virtual void setMaterial(size_t subIndex, const MaterialPtr &mat);
+        virtual void setMaterialName(size_t subIndex, const String& name, const String & group = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
 
         /** Convert this object to a Mesh. 
         @remarks
@@ -454,9 +324,13 @@ namespace Ogre
         @note Only objects which use indexed geometry may be converted to a mesh.
         @param meshName The name to give the mesh
         @param groupName The resource group to create the mesh in
+        @param buildShadowMapBuffers
+            True to create an optimized copy of the vertex buffers for efficient
+            shadow mapping.
         */
         virtual MeshPtr convertToMesh(const String& meshName, 
-            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+            const String& groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+            bool buildShadowMapBuffers = true );
 
         /** Sets whether or not to use an 'identity' projection.
         @remarks
@@ -502,26 +376,13 @@ namespace Ogre
         */
         bool getUseIdentityView(void) const { return mUseIdentityView; }
 
-        /** Sets the bounding box.
-            @remarks Call this after having finished creating sections to modify the
-                bounding box. E.g. if you're using ManualObject to create 2D overlays
-                you can call things function to set an infinite bounding box so that
-                the object always stays visible when attached.
-            @see ManualObject::setUseIdentityProjection, ManualObject::setUseIdentityView,
-                AxisAlignedBox::setInfinite */
-        void setBoundingBox(const AxisAlignedBox& box) { mAABB = box; }
-
-        /** Gets the list of ManualObjectSection, i.e. a part of a ManualObject.
+        /** Gets a pointer to a ManualObjectSection, i.e. a part of a ManualObject.
         */
-        const std::vector<ManualObjectSection*>& getSections() const { return mSectionList; }
+        ManualObjectSection* getSection(unsigned int index) const;
 
-        /// @deprecated use getSections()
-        OGRE_DEPRECATED ManualObjectSection* getSection(unsigned int index) const;
-
-        /// @deprecated use getSections()
-        OGRE_DEPRECATED unsigned int getNumSections(void) const;
-
-
+        /** Retrieves the number of ManualObjectSection objects making up this ManualObject.
+        */
+        unsigned int getNumSections(void) const;
         /** Sets whether or not to keep the original declaration order when 
             queuing the renderables.
         @remarks
@@ -540,22 +401,14 @@ namespace Ogre
         bool getKeepDeclarationOrder() const { return mKeepDeclarationOrder; }
         // MovableObject overrides
 
-        /** @copydoc MovableObject::getMovableType */
+        /** @copydoc MovableObject::getMovableType. */
         const String& getMovableType(void) const;
-        /** @copydoc MovableObject::getBoundingBox */
-        const AxisAlignedBox& getBoundingBox(void) const override { return mAABB; }
-        /** @copydoc MovableObject::getBoundingRadius */
-        Real getBoundingRadius(void) const override { return mRadius; }
-        /** @copydoc MovableObject::_updateRenderQueue */
-        void _updateRenderQueue(RenderQueue* queue);
-        /** Implement this method to enable stencil shadows */
-        EdgeData* getEdgeList(void) override;
+        /** @copydoc MovableObject::_updateRenderQueue. */
+        void _updateRenderQueue(RenderQueue* queue, Camera *camera, const Camera *lodCamera);
         /** Implement this method to enable stencil shadows. */
-        const ShadowRenderableList& getShadowVolumeRenderableList(
-            ShadowTechnique shadowTechnique, const Light* light, 
-            HardwareIndexBufferSharedPtr* indexBuffer, size_t* indexBufferUsedSize,
-            bool extrudeVertices, Real extrusionDist, unsigned long flags = 0);
-
+        EdgeData* getEdgeList(void);
+        /** Overridden member from ShadowCaster. */
+        bool hasEdgeList(void);
 
         /// Built, renderable section of geometry
         class _OgreExport ManualObjectSection : public Renderable, public MovableAlloc
@@ -568,16 +421,12 @@ namespace Ogre
             RenderOperation mRenderOperation;
             bool m32BitIndices;
 
-
+            
         public:
             ManualObjectSection(ManualObject* parent, const String& materialName,
-                RenderOperation::OperationType opType,
-                const String & groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-            /// @remark mat should not be null.
-            ManualObjectSection(ManualObject* parent, const MaterialPtr& mat,
-                RenderOperation::OperationType opType);
+                OperationType opType, const String & groupName = ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
             virtual ~ManualObjectSection();
-
+            
             /// Retrieve render operation for manipulation
             RenderOperation* getRenderOperation(void);
             /// Retrieve the material name in use
@@ -585,67 +434,35 @@ namespace Ogre
             /// Retrieve the material group in use
             const String& getMaterialGroup(void) const { return mGroupName; }
             /// update the material name in use
-            void setMaterialName(const String& name,
-                const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME);
-            /// Update the material in use
-            /// @remark mat should not be null.
-            void setMaterial(const MaterialPtr& mat);
-
+            void setMaterialName(const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
             /// Set whether we need 32-bit indices
             void set32BitIndices(bool n32) { m32BitIndices = n32; }
             /// Get whether we need 32-bit indices
             bool get32BitIndices() const { return m32BitIndices; }
             
             // Renderable overrides
-            /** @copydoc Renderable::getMaterial */
+            /** @copydoc Renderable::getMaterial. */
             const MaterialPtr& getMaterial(void) const;
-            /** @copydoc Renderable::getRenderOperation */
-            void getRenderOperation(RenderOperation& op);
-            /** @copydoc Renderable::getWorldTransforms */
+            /** @copydoc Renderable::getRenderOperation. */
+            void getRenderOperation(RenderOperation& op, bool casterPass);
+            /** @copydoc Renderable::getWorldTransforms. */
             void getWorldTransforms(Matrix4* xform) const;
-            /** @copydoc Renderable::getSquaredViewDepth */
+            /** @copydoc Renderable::getSquaredViewDepth. */
             Real getSquaredViewDepth(const Ogre::Camera *) const;
-            /** @copydoc Renderable::getLights */
+            /** @copydoc Renderable::getLights. */
             const LightList &getLights(void) const;
 
-            /// convert this section to a SubMesh
-            void convertToSubMesh(SubMesh* sm) const;
+
                     
         };
-        /** Nested class to allow shadows. */
-        class _OgreExport ManualObjectSectionShadowRenderable : public ShadowRenderable
-        {
-        protected:
-            ManualObject* mParent;
-            // Shared link to position buffer
-            HardwareVertexBufferSharedPtr mPositionBuffer;
-            // Shared link to w-coord buffer (optional)
-            HardwareVertexBufferSharedPtr mWBuffer;
 
-        public:
-            ManualObjectSectionShadowRenderable(ManualObject* parent, 
-                HardwareIndexBufferSharedPtr* indexBuffer, const VertexData* vertexData, 
-                bool createSeparateLightCap, bool isLightCap = false);
-            ~ManualObjectSectionShadowRenderable();
-            void getWorldTransforms(Matrix4* xform) const override;
-            HardwareVertexBufferSharedPtr getPositionBuffer(void) { return mPositionBuffer; }
-            HardwareVertexBufferSharedPtr getWBuffer(void) { return mWBuffer; }
-            virtual void rebindIndexBuffer(const HardwareIndexBufferSharedPtr& indexBuffer) override;
+        typedef vector<ManualObjectSection*>::type SectionList;
 
-            
-
-        };
-
-        typedef std::vector<ManualObjectSection*> SectionList;
-
-        /// @copydoc MovableObject::visitRenderables
-        void visitRenderables(Renderable::Visitor* visitor, 
-            bool debugRenderables = false);
-        
-        
     protected:
         /// Dynamic?
-        HardwareBuffer::Usage mBufferUsage;
+        bool mDynamic;
+        /// Write only?
+        bool mWriteOnly;
         /// List of subsections
         SectionList mSectionList;
         /// Current section
@@ -684,16 +501,10 @@ namespace Ogre
         size_t mEstIndexCount;
         /// Current texture coordinate
         ushort mTexCoordIndex;
-        /// Bounding box
-        AxisAlignedBox mAABB;
-        /// Bounding sphere
-        Real mRadius;
         /// Any indexed geometry on any sections?
         bool mAnyIndexed;
         /// Edge list, used if stencil shadow casting is enabled 
         EdgeData* mEdgeList;
-        /// List of shadow renderables
-        ShadowRenderableList mShadowRenderables;
         /// Whether to use identity projection for sections
         bool mUseIdentityProjection;
         /// Whether to use identity view for sections
@@ -712,8 +523,6 @@ namespace Ogre
         /// Copy current temp vertex into buffer
         virtual void copyTempVertexToBuffer(void);
 
-    private:
-        void declareElement(VertexElementType t, VertexElementSemantic s);
     };
 
 
@@ -721,7 +530,9 @@ namespace Ogre
     class _OgreExport ManualObjectFactory : public MovableObjectFactory
     {
     protected:
-        MovableObject* createInstanceImpl( const String& name, const NameValuePairList* params);
+        virtual MovableObject* createInstanceImpl( IdType id, ObjectMemoryManager *objectMemoryManager,
+                                                   SceneManager *manager,
+                                                   const NameValuePairList* params = 0 );
     public:
         ManualObjectFactory() {}
         ~ManualObjectFactory() {}
@@ -729,9 +540,12 @@ namespace Ogre
         static String FACTORY_TYPE_NAME;
 
         const String& getType(void) const;
+        void destroyInstance( MovableObject* obj);  
+
     };
     /** @} */
     /** @} */
+}
 }
 
 #include "OgreHeaderSuffix.h"

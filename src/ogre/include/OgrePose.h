@@ -31,10 +31,11 @@ THE SOFTWARE.
 #include "OgrePrerequisites.h"
 #include "OgreCommon.h"
 #include "OgreHardwareVertexBuffer.h"
-#include "OgreIteratorWrapper.h"
+#include "OgreIteratorWrappers.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -60,18 +61,19 @@ namespace Ogre {
             @param name Optional name
         */
         Pose(ushort target, const String& name = BLANKSTRING);
+        virtual ~Pose();
         /// Return the name of the pose (may be blank)
         const String& getName(void) const { return mName; }
         /// Return the target geometry index of the pose
         ushort getTarget(void) const { return mTarget; }
         /// A collection of vertex offsets based on the vertex index
-        typedef std::map<size_t, Vector3> VertexOffsetMap;
+        typedef map<size_t, Vector3>::type VertexOffsetMap;
         /// An iterator over the vertex offsets
         typedef MapIterator<VertexOffsetMap> VertexOffsetIterator;
         /// An iterator over the vertex offsets
         typedef ConstMapIterator<VertexOffsetMap> ConstVertexOffsetIterator;
         /// A collection of normals based on the vertex index
-        typedef std::map<size_t, Vector3> NormalsMap;
+        typedef map<size_t, Vector3>::type NormalsMap;
         /// An iterator over the vertex offsets
         typedef MapIterator<NormalsMap> NormalsIterator;
         /// An iterator over the vertex offsets
@@ -88,7 +90,6 @@ namespace Ogre {
         /** Adds an offset to a vertex and a new normal for this pose. 
         @param index The vertex index
         @param offset The position offset for this pose
-        @param normal The new vertex normal
         */
         void addVertex(size_t index, const Vector3& offset, const Vector3& normal);
 
@@ -98,31 +99,19 @@ namespace Ogre {
         /** Clear all vertices. */
         void clearVertices(void);
 
-        /// @deprecated use getVertexOffsets
-        OGRE_DEPRECATED ConstVertexOffsetIterator getVertexOffsetIterator(void) const;
-        /// @deprecated use getVertexOffsets
-        OGRE_DEPRECATED VertexOffsetIterator getVertexOffsetIterator(void);
+        /** Gets an iterator over all the vertex offsets. */
+        ConstVertexOffsetIterator getVertexOffsetIterator(void) const;
+        /** Gets an iterator over all the vertex offsets. */
+        VertexOffsetIterator getVertexOffsetIterator(void);
         /** Gets a const reference to the vertex offsets. */
         const VertexOffsetMap& getVertexOffsets(void) const { return mVertexOffsetMap; }
 
-        /// @deprecated use getNormals
-        OGRE_DEPRECATED ConstNormalsIterator getNormalsIterator(void) const;
-        /// @deprecated use getNormals
-        OGRE_DEPRECATED NormalsIterator getNormalsIterator(void);
-        /** Gets a const reference to the vertex normals */
+        /** Gets an iterator over all the vertex offsets. */
+        ConstNormalsIterator getNormalsIterator(void) const;
+        /** Gets an iterator over all the vertex offsets. */
+        NormalsIterator getNormalsIterator(void);
+        /** Gets a const reference to the vertex offsets. */
         const NormalsMap& getNormals(void) const { return mNormalsMap; }
-
-        /** writable access to the vertex offsets for offline processing
-         *
-         * @attention does not invalidate the vertexbuffer
-         */
-        VertexOffsetMap& _getVertexOffsets() { return mVertexOffsetMap; }
-
-        /** writable access to the vertex normals for offline processing
-         *
-         * @attention does not invalidate the vertexbuffer
-         */
-        NormalsMap& _getNormals() { return mNormalsMap; }
 
         /** Get a hardware vertex buffer version of the vertex offsets. */
         const HardwareVertexBufferSharedPtr& _getHardwareVertexBuffer(const VertexData* origData) const;
@@ -130,7 +119,7 @@ namespace Ogre {
         /** Clone this pose and create another one configured exactly the same
             way (only really useful for cloning holders of this class).
         */
-        Pose* clone(void) const OGRE_NODISCARD;
+        Pose* clone(void) const;
     protected:
         /// Target geometry index
         ushort mTarget;
@@ -143,13 +132,13 @@ namespace Ogre {
         /// Derived hardware buffer, covers all vertices
         mutable HardwareVertexBufferSharedPtr mBuffer;
     };
-    typedef std::vector<Pose*> PoseList;
+    typedef vector<Pose*>::type PoseList;
 
     /** @} */
     /** @} */
 
 }
-
+}
 #include "OgreHeaderSuffix.h"
 
 #endif

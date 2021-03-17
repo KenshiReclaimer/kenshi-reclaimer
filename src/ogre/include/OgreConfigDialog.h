@@ -29,42 +29,32 @@ THE SOFTWARE.
 #define __CommonConfigDialog_H__
 
 #include "OgrePrerequisites.h"
+#include "OgrePlatform.h"
 
-namespace Ogre
-{
-    /** \addtogroup Core
-    *  @{
-    */
-    /** \addtogroup General
-    *  @{
-    */
-
-    /** Defines the behaviour of an automatic renderer configuration dialog.
-    */
-    class _OgreExport ConfigDialog : public UtilityAlloc
-    {
-    public:
-        virtual ~ConfigDialog() {}
-
-        /** Displays the dialog.
-        @remarks
-            This method displays the dialog and from then on the dialog
-            interacts with the user independently. The dialog will be
-            calling the relevant OGRE rendering systems to query them for
-            options and to set the options the user selects. The method
-            returns when the user closes the dialog.
-        @returns
-            If the user accepted the dialog, <b>true</b> is returned.
-        @par
-            If the user cancelled the dialog (indicating the application
-            should probably terminate), <b>false</b> is returned.
-        @see
-            RenderSystem
-        */
-        virtual bool display() = 0;
-    };
-    /** @} */
-    /** @} */
-}
+// Bring in the specific platform's header file: first allow forced override
+#if defined OGRE_GUI_WIN32
+# include "WIN32/OgreConfigDialogImp.h"
+#elif defined OGRE_GUI_gtk
+# include "gtk/OgreConfigDialogImp.h"
+#elif defined OGRE_GUI_GLX
+# include "GLX/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WIN32
+# include "WIN32/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_WINRT
+# include "WIN32/OgreConfigDialogImpWinRT.h"
+#elif( OGRE_PLATFORM == OGRE_PLATFORM_LINUX || OGRE_PLATFORM == OGRE_PLATFORM_FREEBSD ) && \
+    !defined( OGRE_CONFIG_UNIX_NO_X11 )
+#    include "GLX/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_NACL
+# include "NaCl/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+# include "OSX/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_APPLE_IOS
+# include "iOS/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
+# include "Android/OgreConfigDialogImp.h"
+#elif OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN || defined( OGRE_CONFIG_UNIX_NO_X11 )
+# include "Emscripten/OgreConfigDialogImp.h"
+#endif
 
 #endif

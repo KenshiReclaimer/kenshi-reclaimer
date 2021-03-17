@@ -34,13 +34,16 @@ THE SOFTWARE.
 #include "OgreSingleton.h"
 #include "OgreTextureUnitState.h"
 #include "OgreSharedPtr.h"
+
+#include "ogrestd/set.h"
+
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
     /** \addtogroup Core
     *  @{
     */
-    /** \addtogroup Animation
+    /** \addtogroup General
     *  @{
     */
 
@@ -56,7 +59,7 @@ namespace Ogre {
     class _OgreExport ControllerManager : public Singleton<ControllerManager>, public ControllerAlloc
     {
     protected:
-        typedef std::set<Controller<Real>*> ControllerList;
+        typedef set<Controller<Real>*>::type ControllerList;
         ControllerList mControllers;
 
         /// Global predefined controller
@@ -258,9 +261,37 @@ namespace Ogre {
         */
         void setElapsedTime(Real elapsedTime);
 
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ControllerManager& getSingleton(void);
-        /// @copydoc Singleton::getSingleton()
+        /** Override standard Singleton retrieval.
+        @remarks
+        Why do we do this? Well, it's because the Singleton
+        implementation is in a .h file, which means it gets compiled
+        into anybody who includes it. This is needed for the
+        Singleton template to work, but we actually only want it
+        compiled into the implementation of the class based on the
+        Singleton, not all of them. If we don't change this, we get
+        link errors when trying to use the Singleton-based class from
+        an outside dll.
+        @par
+        This method just delegates to the template version anyway,
+        but the implementation stays in this single compilation unit,
+        preventing link errors.
+        */
         static ControllerManager* getSingletonPtr(void);
     };
 

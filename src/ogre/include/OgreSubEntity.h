@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
+namespace v1 {
 
     /** \addtogroup Core
     *  @{
@@ -68,16 +69,20 @@ namespace Ogre {
         /** Private constructor - don't allow creation by anybody else.
         */
         SubEntity(Entity* parent, SubMesh* subMeshBasis);
-        ~SubEntity();
 
+    public:
+        /** Destructor.
+        */
+        virtual ~SubEntity();
+
+    protected:
         /// Pointer to parent.
         Entity* mParentEntity;
 
-        /// Cached pointer to material.
-        MaterialPtr mMaterialPtr;
-
         /// Pointer to the SubMesh defining geometry.
         SubMesh* mSubMesh;
+
+        unsigned char mMaterialLodIndex;
 
         /// override the start index for the RenderOperation
         size_t mIndexStart;
@@ -85,120 +90,53 @@ namespace Ogre {
         /// override the end index for the RenderOperation
         size_t mIndexEnd;
 
-        /// Is this SubEntity visible?
-        bool mVisible;
-
-        /// The render queue to use when rendering this renderable
-        uint8 mRenderQueueID;
-        /// Flags whether the RenderQueue's default should be used.
-        bool mRenderQueueIDSet;
-        /// Flags whether the RenderQueue's default should be used.
-        bool mRenderQueuePrioritySet;
-        /// The render queue priority to use when rendering this renderable
-        ushort mRenderQueuePriority;
-#if !OGRE_NO_MESHLOD
-        /// The LOD number of the material to use, calculated by Entity::_notifyCurrentCamera
-        unsigned short mMaterialLodIndex;
-#else
-        const unsigned short mMaterialLodIndex; // = 0
-#endif
         /// Blend buffer details for dedicated geometry
-        std::unique_ptr<VertexData> mSkelAnimVertexData;
+        VertexData* mSkelAnimVertexData;
         /// Quick lookup of buffers
         TempBlendedBufferInfo mTempSkelAnimInfo;
         /// Temp buffer details for software Vertex anim geometry
         TempBlendedBufferInfo mTempVertexAnimInfo;
         /// Vertex data details for software Vertex anim of shared geometry
-        std::unique_ptr<VertexData> mSoftwareVertexAnimVertexData;
+        VertexData* mSoftwareVertexAnimVertexData;
         /// Vertex data details for hardware Vertex anim of shared geometry
         /// - separate since we need to s/w anim for shadows whilst still altering
         ///   the vertex data for hardware morphing (pos2 binding)
-        std::unique_ptr<VertexData> mHardwareVertexAnimVertexData;
-        /// Cached distance to last camera for getSquaredViewDepth
-        mutable Real mCachedCameraDist;
-        /// Number of hardware blended poses supported by material
-        ushort mHardwarePoseCount;
+        VertexData* mHardwareVertexAnimVertexData;
         /// Have we applied any vertex animation to geometry?
         bool mVertexAnimationAppliedThisFrame;
-        /// The camera for which the cached distance is valid
-        mutable const Camera *mCachedCamera;
+        /// Number of hardware blended poses supported by material
+        ushort mHardwarePoseCount;
 
         /** Internal method for preparing this Entity for use in animation. */
         void prepareTempBlendBuffers(void);
 
     public:
-        /** Gets the name of the Material in use by this instance.
-        */
-        const String& getMaterialName() const;
-
-        /** Sets the name of the Material to be used.
+        /** Sets a Material to be used.
             @remarks
                 By default a SubEntity uses the default Material that the SubMesh
                 uses. This call can alter that so that the Material is different
                 for this instance.
         */
-        void setMaterialName( const String& name, const String& groupName = ResourceGroupManager::AUTODETECT_RESOURCE_GROUP_NAME );
+        virtual void setMaterial( const MaterialPtr& material );
 
-        /// @copydoc setMaterialName
-        void setMaterial( const MaterialPtr& material );
-
-        /** Tells this SubEntity whether to be visible or not. */
-        void setVisible(bool visible);
-
-        /** Returns whether or not this SubEntity is supposed to be visible. */
-        bool isVisible(void) const { return mVisible; }
-
-        /** Sets the render queue group this SubEntity will be rendered through.
-        @remarks
-            Render queues are grouped to allow you to more tightly control the ordering
-            of rendered objects. If you do not call this method, the SubEntity will use
-            either the Entity's queue or it will use the default
-            (RenderQueue::getDefaultQueueGroup).
-        @par
-            See Entity::setRenderQueueGroup for more details.
-        @param queueID Enumerated value of the queue group to use. See the
-            enum RenderQueueGroupID for what kind of values can be used here.
+        /** Make every setDatablock method from Renderable available.
+            See http://www.research.att.com/~bs/bs_faq2.html#overloadderived
         */
-        void setRenderQueueGroup(uint8 queueID);
+        using Renderable::setDatablock;
 
-        /** Sets the render queue group and group priority this SubEntity will be rendered through.
-        @remarks
-            Render queues are grouped to allow you to more tightly control the ordering
-            of rendered objects. Within a single render group there another type of grouping
-            called priority which allows further control.  If you do not call this method, 
-            all Entity objects default to the default queue and priority 
-            (RenderQueue::getDefaultQueueGroup, RenderQueue::getDefaultRenderablePriority).
-        @par
-            See Entity::setRenderQueueGroupAndPriority for more details.
-        @param queueID Enumerated value of the queue group to use. See the
-            enum RenderQueueGroupID for what kind of values can be used here.
-        @param priority The priority within a group to use.
-        */
-        void setRenderQueueGroupAndPriority(uint8 queueID, ushort priority);
-
-        /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
-        uint8 getRenderQueueGroup(void) const { return mRenderQueueID; }
-
-        /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
-        ushort getRenderQueuePriority(void) const { return mRenderQueuePriority; }
-
-        /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
-        bool isRenderQueueGroupSet(void) const { return mRenderQueueIDSet; }
-
-        /** Gets the queue group for this entity, see setRenderQueueGroup for full details. */
-        bool isRenderQueuePrioritySet(void) const { return mRenderQueuePrioritySet; }
+        virtual void setDatablock( HlmsDatablock *datablock );
+        virtual void _setNullDatablock(void);
 
         /** Accessor method to read mesh data.
         */
-        SubMesh* getSubMesh(void);
+        SubMesh* getSubMesh(void) const;
 
         /** Accessor to get parent Entity */
         Entity* getParent(void) const { return mParentEntity; }
 
-
-        const MaterialPtr& getMaterial(void) const override { return mMaterialPtr; }
-        Technique* getTechnique(void) const override;
-        void getRenderOperation(RenderOperation& op) override;
+        /** Overridden - see Renderable.
+        */
+        void getRenderOperation(RenderOperation& op, bool casterPass);
 
         /** Tells this SubEntity to draw a subset of the SubMesh by adjusting the index buffer extents.
          * Default value is zero so that the entire index buffer is used when drawing.
@@ -225,11 +163,18 @@ namespace Ogre {
         */
         void resetIndexDataStartEndIndex();
 
-        void getWorldTransforms(Matrix4* xform) const override;
-        unsigned short getNumWorldTransforms(void) const override;
-        Real getSquaredViewDepth(const Camera* cam) const override;
-        const LightList& getLights(void) const override;
-        bool getCastsShadows(void) const override;
+        /** Overridden - see Renderable.
+        */
+        void getWorldTransforms(Matrix4* xform) const;
+        /** Overridden - see Renderable.
+        */
+        unsigned short getNumWorldTransforms(void) const;
+        /** Overridden, see Renderable */
+        Real getSquaredViewDepth(const Camera* cam) const;
+        /** @copydoc Renderable::getLights */
+        const LightList& getLights(void) const;
+        /** @copydoc Renderable::getCastsShadows */
+        bool getCastsShadows(void) const;
         /** Advanced method to get the temporarily blended vertex information
         for entities which are software skinned. 
         @remarks
@@ -262,8 +207,9 @@ namespace Ogre {
         morph animation.
         */
         TempBlendedBufferInfo* _getVertexAnimTempBufferInfo(void);
+        const TempBlendedBufferInfo* _getVertexAnimTempBufferInfo(void) const;
         /// Retrieve the VertexData which should be used for GPU binding
-        VertexData* getVertexDataForBinding(void);
+        VertexData* getVertexDataForBinding( bool casterPass );
 
         /** Mark all vertex data as so far unanimated. 
         */
@@ -279,17 +225,13 @@ namespace Ogre {
         void _restoreBuffersForUnusedAnimation(bool hardwareAnimation);
 
         /** Overridden from Renderable to provide some custom behaviour. */
-        void _updateCustomGpuParameter(
-            const GpuProgramParameters::AutoConstantEntry& constantEntry,
-            GpuProgramParameters* params) const override;
-
-        /** Invalidate the camera distance cache */
-        void _invalidateCameraCache ()
-        { mCachedCamera = 0; }
+        void _updateCustomGpuParameter( const GpuProgramParameters_AutoConstantEntry &constantEntry,
+                                        GpuProgramParameters *params ) const;
     };
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

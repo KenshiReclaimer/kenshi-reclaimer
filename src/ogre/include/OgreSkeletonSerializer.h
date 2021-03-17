@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "OgreSerializer.h"
 
 namespace Ogre {
+namespace v1 {
 
     struct LinkedSkeletonAnimationSource;
 
@@ -71,6 +72,8 @@ namespace Ogre {
         
     public:
         SkeletonSerializer();
+        virtual ~SkeletonSerializer();
+
 
         /** Exports a skeleton to the file specified. 
         @remarks
@@ -78,7 +81,6 @@ namespace Ogre {
             and animations it uses to a .skeleton file.
         @param pSkeleton Weak reference to the Skeleton to export
         @param filename The destination filename
-        @param ver @copydoc SkeletonVersion
         @param endianMode The endian mode to write in
         */
         void exportSkeleton(const Skeleton* pSkeleton, const String& filename,
@@ -90,7 +92,6 @@ namespace Ogre {
             and animations it uses to a .skeleton file.
         @param pSkeleton Weak reference to the Skeleton to export
         @param stream The destination stream
-        @param ver @copydoc SkeletonVersion
         @param endianMode The endian mode to write in
         */
         void exportSkeleton(const Skeleton* pSkeleton, DataStreamPtr stream,
@@ -112,10 +113,10 @@ namespace Ogre {
         
         // Internal export methods
         void writeSkeleton(const Skeleton* pSkel, SkeletonVersion ver);
-        void writeBone(const Skeleton* pSkel, const Bone* pBone);
+        void writeBone(const Skeleton* pSkel, const OldBone* pBone);
         void writeBoneParent(const Skeleton* pSkel, unsigned short boneId, unsigned short parentId);
         void writeAnimation(const Skeleton* pSkel, const Animation* anim, SkeletonVersion ver);
-        void writeAnimationTrack(const Skeleton* pSkel, const NodeAnimationTrack* track);
+        void writeAnimationTrack(const Skeleton* pSkel, const OldNodeAnimationTrack* track);
         void writeKeyFrame(const Skeleton* pSkel, const TransformKeyFrame* key);
         void writeSkeletonAnimationLink(const Skeleton* pSkel, 
             const LinkedSkeletonAnimationSource& link);
@@ -126,14 +127,14 @@ namespace Ogre {
         void readBoneParent(DataStreamPtr& stream, Skeleton* pSkel);
         void readAnimation(DataStreamPtr& stream, Skeleton* pSkel);
         void readAnimationTrack(DataStreamPtr& stream, Animation* anim, Skeleton* pSkel);
-        void readKeyFrame(DataStreamPtr& stream, NodeAnimationTrack* track, Skeleton* pSkel);
+        void readKeyFrame(DataStreamPtr& stream, OldNodeAnimationTrack* track, Skeleton* pSkel);
         void readSkeletonAnimationLink(DataStreamPtr& stream, Skeleton* pSkel);
 
-        size_t calcBoneSize(const Skeleton* pSkel, const Bone* pBone);
-        size_t calcBoneSizeWithoutScale(const Skeleton* pSkel, const Bone* pBone);
+        size_t calcBoneSize(const Skeleton* pSkel, const OldBone* pBone);
+        size_t calcBoneSizeWithoutScale(const Skeleton* pSkel, const OldBone* pBone);
         size_t calcBoneParentSize(const Skeleton* pSkel);
         size_t calcAnimationSize(const Skeleton* pSkel, const Animation* pAnim, SkeletonVersion ver);
-        size_t calcAnimationTrackSize(const Skeleton* pSkel, const NodeAnimationTrack* pTrack);
+        size_t calcAnimationTrackSize(const Skeleton* pSkel, const OldNodeAnimationTrack* pTrack);
         size_t calcKeyFrameSize(const Skeleton* pSkel, const TransformKeyFrame* pKey);
         size_t calcKeyFrameSizeWithoutScale(const Skeleton* pSkel, const TransformKeyFrame* pKey);
         size_t calcSkeletonAnimationLinkSize(const Skeleton* pSkel, 
@@ -145,7 +146,7 @@ namespace Ogre {
     };
     /** @} */
     /** @} */
-
+}
 }
 
 

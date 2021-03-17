@@ -30,11 +30,12 @@ THE SOFTWARE.
 
 #include "OgrePrerequisites.h"
 #include "OgreRenderOperation.h"
-#include "OgreVector.h"
+#include "OgreVector3.h"
+#include "OgreVector4.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
-
+namespace v1 {
     /** \addtogroup Core
     *  @{
     */
@@ -88,15 +89,15 @@ namespace Ogre {
         /** Array of 4D vector of triangle face normal, which is unit vector orthogonal
             to the triangles, plus distance from origin.
             Use aligned policy here because we are intended to use in SIMD optimised routines. */
-        typedef aligned_vector<Vector4> TriangleFaceNormalList;
+        typedef std::vector<Vector4, STLAllocator<Vector4, CategorisedAlignAllocPolicy<MEMCATEGORY_GEOMETRY> > > TriangleFaceNormalList;
 
         /** Working vector used when calculating the silhouette.
             Use std::vector<char> instead of std::vector<bool> which might implemented
             similar bit-fields causing loss performance. */
-        typedef std::vector<char> TriangleLightFacingList;
+        typedef vector<char>::type TriangleLightFacingList;
 
-        typedef std::vector<Triangle> TriangleList;
-        typedef std::vector<Edge> EdgeList;
+        typedef vector<Triangle>::type TriangleList;
+        typedef vector<Edge>::type EdgeList;
 
         /** A group of edges sharing the same vertex data. */
         struct EdgeGroup
@@ -117,7 +118,7 @@ namespace Ogre {
 
         };
 
-        typedef std::vector<EdgeGroup> EdgeGroupList;
+        typedef vector<EdgeGroup>::type EdgeGroupList;
 
         /** Main triangles array, stores all triangles of this edge list. Note that
             triangles are grouping against edge group.
@@ -150,7 +151,7 @@ namespace Ogre {
         */
         void updateFaceNormals(size_t vertexSet, const HardwareVertexBufferSharedPtr& positionBuffer);
 
-        EdgeData* clone() OGRE_NODISCARD;
+        EdgeData* clone();
 
 
         /// Debugging method
@@ -172,6 +173,7 @@ namespace Ogre {
     public:
 
         EdgeListBuilder();
+        virtual ~EdgeListBuilder();
         /** Add a set of vertex geometry data to the edge builder. 
         @remarks
             You must add at least one set of vertex data to the builder before invoking the
@@ -189,7 +191,7 @@ namespace Ogre {
             are supported (no point or line types)
         */
         void addIndexData(const IndexData* indexData, size_t vertexSet = 0, 
-            RenderOperation::OperationType opType = RenderOperation::OT_TRIANGLE_LIST);
+            OperationType opType = OT_TRIANGLE_LIST);
 
         /** Builds the edge information based on the information built up so far.
         @remarks
@@ -218,7 +220,7 @@ namespace Ogre {
             size_t vertexSet;           /// The vertex data set this geometry data refers to
             size_t indexSet;            /// The index data set this geometry data refers to
             const IndexData* indexData; /// The index information which describes the triangles.
-            RenderOperation::OperationType opType;  /// The operation type used to render this geometry
+            OperationType opType;  /// The operation type used to render this geometry
         };
         /** Comparator for sorting geometries by vertex set */
         struct geometryLess {
@@ -241,21 +243,21 @@ namespace Ogre {
             }
         };
 
-        typedef std::vector<const VertexData*> VertexDataList;
-        typedef std::vector<Geometry> GeometryList;
-        typedef std::vector<CommonVertex> CommonVertexList;
+        typedef vector<const VertexData*>::type VertexDataList;
+        typedef vector<Geometry>::type GeometryList;
+        typedef vector<CommonVertex>::type CommonVertexList;
 
         GeometryList mGeometryList;
         VertexDataList mVertexDataList;
         CommonVertexList mVertices;
         EdgeData* mEdgeData;
         /// Map for identifying common vertices
-        typedef std::map<Vector3, size_t, vectorLess> CommonVertexMap;
+        typedef map<Vector3, size_t, vectorLess>::type CommonVertexMap;
         CommonVertexMap mCommonVertexMap;
         /** Edge map, used to connect edges. Note we allow many triangles on an edge,
         after connected an existing edge, we will remove it and never used again.
         */
-        typedef std::multimap< std::pair<size_t, size_t>, std::pair<size_t, size_t> > EdgeMap;
+        typedef multimap< std::pair<size_t, size_t>, std::pair<size_t, size_t> >::type EdgeMap;
         EdgeMap mEdgeMap;
 
         void buildTrianglesEdges(const Geometry &geometry);
@@ -270,6 +272,7 @@ namespace Ogre {
     /** @} */
     /** @} */
 
+}
 }
 
 #include "OgreHeaderSuffix.h"

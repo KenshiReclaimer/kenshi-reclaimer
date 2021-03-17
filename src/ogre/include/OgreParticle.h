@@ -29,6 +29,8 @@ THE SOFTWARE.
 #define __Particle_H__
 
 #include "OgrePrerequisites.h"
+#include "OgreVector3.h"
+#include "OgreColourValue.h"
 #include "OgreHeaderPrefix.h"
 
 namespace Ogre {
@@ -39,7 +41,15 @@ namespace Ogre {
     /** \addtogroup Effects
     *  @{
     */
-    /// @deprecated do not use
+    /** Abstract class containing any additional data required to be associated
+        with a particle to perform the required rendering. 
+    @remarks
+        Because you can specialise the way that particles are rendered by supplying
+        custom ParticleSystemRenderer classes, you might well need some additional 
+        data for your custom rendering routine which is not held on the default particle
+        class. If that's the case, then you should define a subclass of this class, 
+        and construct it when asked in your custom ParticleSystemRenderer class.
+    */
     class _OgreExport ParticleVisualData : public FXAlloc
     {
     public:
@@ -58,7 +68,7 @@ namespace Ogre {
         ParticleVisualData* mVisual;
     public:
         /// Type of particle
-        enum ParticleType : uint8
+        enum ParticleType
         {
             Visual,
             Emitter
@@ -88,15 +98,12 @@ namespace Ogre {
         Radian mRotationSpeed;
         /// Determines the type of particle.
         ParticleType mParticleType;
-        /// Index into the array of texture coordinates @see BillboardSet::setTextureStacksAndSlices()
-        uint8 mTexcoordIndex;
-        uint8 mRandomTexcoordOffset;
 
         Particle()
             : mParentSystem(0), mVisual(0), mOwnDimensions(false), mWidth(0), mHeight(0),
             mRotation(0), mPosition(Vector3::ZERO), mDirection(Vector3::ZERO),
             mColour(ColourValue::White), mTimeToLive(10), mTotalTimeToLive(10),
-            mRotationSpeed(0), mParticleType(Visual), mTexcoordIndex(0), mRandomTexcoordOffset(0)
+            mRotationSpeed(0), mParticleType(Visual)
         {
         }
 
@@ -123,7 +130,7 @@ namespace Ogre {
         Real getOwnHeight(void) const { return mHeight; }
         
         /** Sets the current rotation */
-        void setRotation(const Radian& rad) { mRotation = rad; }
+        void setRotation(const Radian& rad);
 
         const Radian& getRotation(void) const { return mRotation; }
 
@@ -135,8 +142,8 @@ namespace Ogre {
         */
         void _notifyVisualData(ParticleVisualData* vis) { mVisual = vis; }
 
-        /// @deprecated do not use
-        OGRE_DEPRECATED ParticleVisualData* getVisualData(void) const { return mVisual; }
+        /// Get the optional visual data associated with the class
+        ParticleVisualData* getVisualData(void) const { return mVisual; }
 
         /// Utility method to reset this particle
         void resetDimensions(void);

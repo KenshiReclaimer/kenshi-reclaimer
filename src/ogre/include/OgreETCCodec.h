@@ -28,7 +28,7 @@ THE SOFTWARE.
 #ifndef __OgreETCCodec_H__
 #define __OgreETCCodec_H__
 
-#include "OgreImageCodec.h"
+#include "OgreImageCodec2.h"
 
 namespace Ogre {
     /** \addtogroup Core
@@ -43,11 +43,14 @@ namespace Ogre {
         We implement our own codec here since we need to be able to keep ETC
         data compressed if the card supports it.
     */
-    class _OgreExport ETCCodec : public ImageCodec
+    class _OgreExport ETCCodec : public ImageCodec2
     {
     protected:
         String mType;
         
+		static void flipEndian(void * pData, size_t size, size_t count);	// invokes Bitwise::bswapChunks() if OGRE_ENDIAN_BIG
+		static void flipEndian(void * pData, size_t size);					// invokes Bitwise::bswapBuffer() if OGRE_ENDIAN_BIG
+
         /// Single registered codec instance
         static ETCCodec* msPKMInstance;
         static ETCCodec* msKTXInstance;
@@ -56,18 +59,24 @@ namespace Ogre {
         ETCCodec(const String &type);
         virtual ~ETCCodec() { }
 
-        using ImageCodec::decode;
-        DecodeResult decode(const DataStreamPtr& input) const override;
-        String magicNumberToFileExt(const char *magicNumberPtr, size_t maxbytes) const override;
-        String getType() const override;
+        /// @copydoc Codec::encode
+        DataStreamPtr encode(MemoryDataStreamPtr& input, CodecDataPtr& pData) const;
+        /// @copydoc Codec::encodeToFile
+        void encodeToFile(MemoryDataStreamPtr& input, const String& outFileName, CodecDataPtr& pData) const;
+        /// @copydoc Codec::decode
+        DecodeResult decode(DataStreamPtr& input) const;
+        /// @copydoc Codec::magicNumberToFileExt
+        String magicNumberToFileExt(const char *magicNumberPtr, size_t maxbytes) const;
+        
+        virtual String getType() const;        
 
         /// Static method to startup and register the ETC codec
         static void startup(void);
         /// Static method to shutdown and unregister the ETC codec
         static void shutdown(void);
     private:
-        bool decodePKM(const DataStreamPtr& input, DecodeResult& result) const;
-        bool decodeKTX(const DataStreamPtr& input, DecodeResult& result) const;
+        bool decodePKM(DataStreamPtr& input, DecodeResult& result) const;
+        bool decodeKTX(DataStreamPtr& input, DecodeResult& result) const;
 
     };
     /** @} */

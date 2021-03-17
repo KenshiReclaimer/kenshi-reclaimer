@@ -38,7 +38,7 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void initialise() override
     {
         printf("ReclaimerMain::initialise()\n");
-        auto gui = Kenshi::getGuiInstance();
+        auto gui = MyGUI::Gui::getInstancePtr();
         printf("ui_instance=%p\n", gui);
 
     }

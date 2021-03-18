@@ -24,7 +24,7 @@ struct RootObjectBase
     virtual void sub_7FF7F09E11A0();
     virtual void sub_7FF7F09E11B0();
     virtual void sub_7FF7F0F15550();
-    virtual void sub_7FF7F0F15550();
+    virtual void sub_7FF7F0F15550_1();
     virtual void sub_7FF7F09E11D0();
     virtual void sub_7FF7F0DB7D90();
 };

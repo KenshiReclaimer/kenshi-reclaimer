@@ -3,7 +3,7 @@
 #define SOL_ALL_SAFETIES_ON 1
 #include <sol/sol.hpp>
 
-#include <Threading/OgreThreads.h>
+
 
 
 class ReclaimerVM
@@ -27,5 +27,5 @@ private:
 
 private:
     sol::state m_state;
-    Ogre::ThreadHandlePtr m_thread;
+    void* m_thread;
 };

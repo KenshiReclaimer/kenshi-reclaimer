@@ -1,6 +1,9 @@
+#include <stdafx.h>
+
 #include <ReclaimerVM.h>
 #include <string>
 #include <iostream>
+
 
 
 ReclaimerVM::ReclaimerVM()
@@ -22,12 +25,12 @@ ReclaimerVM::ReclaimerVM()
 unsigned long ReclaimerVM::ThreadEntry(void* param)
 {
     reinterpret_cast<ReclaimerVM*>(param)->REPLLoop();
+    return 0;
 }
-THREAD_DECLARE(ReclaimerVM::ThreadEntry);
 
 void ReclaimerVM::StartREPL()
 {
-    m_thread = Ogre::Threads::CreateThread(THREAD_GET(ReclaimerVM::ThreadEntry), 0, this);
+    m_thread = (void*)CreateThread(0,0, ReclaimerVM::ThreadEntry, this, 0, 0);
 }
 
 void ReclaimerVM::REPLLoop()

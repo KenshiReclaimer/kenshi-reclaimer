@@ -37,12 +37,12 @@ public:
 
 	operator T *() const
 	{
-		return *reinterpret_cast <T *>(m_addr);
+		return GetPtr();
 	}
 
 	T * operator->() const
 	{
-		return *reinterpret_cast <T *>(m_addr);
+		return GetPtr();
 	}
 
 	T * GetPtr() const
@@ -52,7 +52,7 @@ public:
 
 	const T * GetConst() const
 	{
-		return *reinterpret_cast <T *>(m_addr);
+		return reinterpret_cast <T *>(m_addr);
 	}
 
 };

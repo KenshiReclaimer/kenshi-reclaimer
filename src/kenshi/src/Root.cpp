@@ -15,7 +15,7 @@ RootObjectSimple* RootObjectSimple::Instance()
     // .text:00007FF7F1006251                 call    std__string__ctor ; #STR: "string too long"
     // .text:00007FF7F1006256                 nop
     // Just look for UNLOADED_NOT_DEAD
-    
-    static RVAPtr<RootObjectSimple**> c_inst(0x1AADEC0);
+
+    static RVAPtr<RootObjectSimple*> c_inst(0x1AADEC0);
     return *c_inst;
 }

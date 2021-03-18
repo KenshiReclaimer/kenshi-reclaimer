@@ -48,5 +48,7 @@ private:
     uint32_t m_capacity;
     T* m_heap;
 
-    virtual ~lektor() = 0;
+
+
+    virtual ~lektor();
 };

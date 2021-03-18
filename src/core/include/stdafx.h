@@ -7,6 +7,7 @@
 #include <map>
 #include <unordered_map>
 #include <deque>
+#include <string>
 
 // ogre
 #include <OgreConfig.h>

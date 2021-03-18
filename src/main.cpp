@@ -6,6 +6,9 @@
 #include <OgrePlugin.h>
 #include <OgreRoot.h>
 
+#include <luajit.h>
+#include <sol/sol.hpp>
+
 #include <MyGUI.h>
 #include "kenshi/Kenshi.h"
 
@@ -24,6 +27,18 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void install() override
     {
         printf("ReclaimerMain::install()\n");
+
+        {
+            using sol::lib;
+            m_lua.open_libraries(
+                lib::base,
+                lib::package,
+                lib::os,
+                lib::math,
+                lib::io, 
+                lib::jit
+            );
+        }
     }
 
     /** Perform any tasks the plugin needs to perform on full system
@@ -38,9 +53,6 @@ class ReclaimerMain : public Ogre::Plugin
     virtual void initialise() override
     {
         printf("ReclaimerMain::initialise()\n");
-        auto gui = MyGUI::Gui::getInstancePtr();
-        printf("ui_instance=%p\n", gui);
-
     }
 
     /** Perform any tasks the plugin needs to perform when the system is shut down.
@@ -69,28 +81,26 @@ class ReclaimerMain : public Ogre::Plugin
         printf("ReclaimerMain::uninstall()\n");
     }
 
-    MyGUI::WindowPtr m_mywin;
+    sol::state m_lua;
 };
 
 
-static ReclaimerMain* g_instance = nullptr;
-
-
+ReclaimerMain* g_main = nullptr;
 extern "C" void __declspec(dllexport) dllStartPlugin(void)
 {
-    g_instance = new ReclaimerMain();
+    g_main = new ReclaimerMain();
 
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
 
     printf("dllStartPlugin()\n");
 
-    Ogre::Root::getSingleton().installPlugin(g_instance);
+    Ogre::Root::getSingleton().installPlugin(g_main);
 }
 extern "C" void __declspec(dllexport) dllStopPlugin(void)
 {
     printf("dllStopPlugin()\n");
     
-    Ogre::Root::getSingleton().uninstallPlugin(g_instance);
-    delete g_instance;
+    Ogre::Root::getSingleton().uninstallPlugin(g_main);
+    delete g_main;
 }

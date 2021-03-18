@@ -3,6 +3,7 @@ set_languages("cxx20")
 add_rules("mode.debug", "mode.release")
 -- bunch of ogre defines that are made because im too lazy to run cmake on it
 
+add_requires("sol2", "luajit")
 
 target("OgreMain")
     set_kind("static")
@@ -25,6 +26,7 @@ target("Plugin_Reclaimer")
     set_kind("shared")
     add_files("src/**.cpp")
     add_deps("OgreMain", "MyGUIMain")
+    add_packages("sol2", "luajit")
 
     
     add_linkdirs("src/ogre/lib")

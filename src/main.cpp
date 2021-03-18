@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include <stdafx.h>
 
 #include <stdio.h>
 
@@ -6,11 +6,11 @@
 #include <OgrePlugin.h>
 #include <OgreRoot.h>
 
-#include <luajit.h>
-#include <sol/sol.hpp>
-
 #include <MyGUI.h>
-#include "kenshi/Kenshi.h"
+#include <Kenshi.h>
+
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
 
 class ReclaimerMain : public Ogre::Plugin
 {
@@ -35,8 +35,7 @@ class ReclaimerMain : public Ogre::Plugin
                 lib::package,
                 lib::os,
                 lib::math,
-                lib::io, 
-                lib::jit
+                lib::io
             );
         }
     }

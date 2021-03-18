@@ -1,7 +1,8 @@
-#include "../UI.h"
+#include <UI.h>
 
 #include <stdio.h>
 
+// NOTE(KAOS): not really needed I dont think, but here since i didnt think about it lol
 MyGUI::Gui* Kenshi::getGuiInstance()
 {
     // 48 8B D0 48 8D 45 C7 48 89 44 24 48

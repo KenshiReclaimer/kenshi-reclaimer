@@ -39,7 +39,8 @@ target("Plugin_Reclaimer")
 
     add_includedirs("src/core/include")
     add_includedirs("src/kenshi/include")
-    
+    add_includedirs("src/reclaimer/include")
+
     after_build(function (target)
         in_dir = target:targetfile()
         out_dir = os.getenv('KenshiGamePath') .. '\\' .. target:name() .. '.dll'

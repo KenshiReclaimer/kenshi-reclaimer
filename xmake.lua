@@ -5,41 +5,20 @@ add_rules("mode.debug", "mode.release")
 
 add_requires("sol2")
 
-target("OgreMain")
-    set_kind("static")
-    set_group("third-party")
-    add_linkdirs("src/ogre/lib")
-    add_links("OgreMain_x64")
-    add_headerfiles("src/ogre/include/**.h")
-    
-    add_includedirs("src/ogre/include", {public=true})
-target_end()
-
-target("MyGUIMain")
-    set_kind("static")
-    set_group("third-party")
-    add_headerfiles("src/mygui/include/**.h")
-    add_includedirs("src/mygui/include", {public=true})
-target_end()
-
 target("Plugin_Reclaimer")
     set_kind("shared")
-    add_files("src/**.cpp")
-    add_deps("OgreMain", "MyGUIMain")
+    add_files("code/src/**.cpp")
     add_packages("sol2")
 
     
-    add_linkdirs("src/ogre/lib")
-    add_linkdirs("src/mygui/lib")
+    add_linkdirs("code/lib")
 
     add_links("OgreMain_x64")
     add_links("MyGUIEngine_x64")
     
-    set_pcxxheader("src/core/include/stdafx.h")
+    set_pcxxheader("code/include/stdafx.h")
 
-    add_includedirs("src/core/include")
-    add_includedirs("src/kenshi/include")
-    add_includedirs("src/reclaimer/include")
+    add_includedirs("code/include")
 
     after_build(function (target)
         in_dir = target:targetfile()

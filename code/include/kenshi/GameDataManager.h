@@ -1,12 +1,14 @@
 #pragma once
 
-
-struct GameDataContainer
+namespace Kenshi
 {
-    virtual ~GameDataContainer();
-};
+    struct GameDataContainer
+    {
+        virtual ~GameDataContainer();
+    };
 
-struct GameDataManager : public GameDataContainer // 0x180 bytes total
-{
+    struct GameDataManager : public GameDataContainer // 0x180 bytes total
+    {
 
-};
+    };
+}

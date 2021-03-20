@@ -1,12 +1,14 @@
 #include <Reclaimer.h>
 
-#include <Ogre.h>
-#include <OgrePlugin.h>
-#include <Threading/OgreThreads.h>
+#include <ogre/Ogre.h>
+#include <ogre/OgrePlugin.h>
+#include <ogre/Threading/OgreThreads.h>
 
-#include <MyGUI.h>
-#include <Kenshi.h>
-#include <ReclaimerVM.h>
+#include <mygui/MyGUI.h>
+
+#include <kenshi/Kenshi.h>
+
+#include <reclaimer/ReclaimerVM.h>
 
 
 void ReclaimerMain::install()

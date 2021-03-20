@@ -1,3 +1,5 @@
+
+#if 0
 #include <UI.h>
 
 #include <stdio.h>
@@ -10,3 +12,4 @@ MyGUI::Gui* Kenshi::getGuiInstance()
     printf("getGuiInstance() = %p\n", c_inst.GetUIntPtr());
     return *c_inst;
 }
+#endif

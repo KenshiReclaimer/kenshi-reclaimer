@@ -10,10 +10,10 @@
 #include <string>
 
 // ogre
-#include <OgreConfig.h>
+#include <ogre/OgreConfig.h>
 
 // core
-#include <RVA.h>
+#include <core/RVA.h>
 
 
 using _BYTE = uint8_t;

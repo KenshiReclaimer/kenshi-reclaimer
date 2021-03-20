@@ -2,7 +2,7 @@
 
 namespace Kenshi
 {
-    struct Faction
+    struct PlayerInterface
     {
 
     };

@@ -3,7 +3,7 @@
 #include <Root.h>
 
 
-RootObjectSimple* RootObjectSimple::Instance()
+Kenshi::RootObjectSimple* Kenshi::RootObjectSimple::Instance()
 {
     // .text:00007FF7F1006229                 mov     cs:g_rootObjectSimple, rax
     // .text:00007FF7F1006230                 mov     [rbp+57h+var_48], 0Fh

@@ -1,6 +1,9 @@
 #pragma once
 
-struct Building
+namespace Kenshi
 {
+    struct Building
+    {
 
-};
+    };
+}

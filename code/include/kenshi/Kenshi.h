@@ -1,7 +1,13 @@
 #pragma once
 
 
-#include "Root.h"
-#include "Tasks.h"
-#include "UI.h"
-#include "Zone.h"
+namespace Kenshi 
+{
+
+
+    struct GameWorld;
+    struct PlayerInterface;
+
+
+
+}

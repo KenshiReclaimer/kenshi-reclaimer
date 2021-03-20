@@ -13,6 +13,12 @@ public:
 
     RVACore(uintptr_t rva) : m_addr(c_base + rva) {}
 
+	RVACore(
+		const std::string& pattern, 
+		uintptr_t(*onFound)(uintptr_t) = [](uintptr_t addr) { return addr; },
+		const char* moduleName = nullptr
+		);
+
     uintptr_t GetUIntPtr() const
 	{
 		return m_addr;
@@ -21,6 +27,7 @@ public:
 protected:
 
     static uintptr_t c_base;
+	static size_t c_size;
 
     uintptr_t m_addr;
 
@@ -71,3 +78,10 @@ public:
 
 private:
 };
+
+
+uintptr_t ProtectedDeref(uintptr_t addr);
+
+uintptr_t ProtectedDerefRel(uintptr_t addr);
+// Addr expected from start of instruction, not from the offset
+// makes it easier to work with in ida

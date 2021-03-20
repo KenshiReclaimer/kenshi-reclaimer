@@ -6,12 +6,13 @@
 	Class that implements RVA resolution at runtime. Mostly like how F4SE/SKSE64 implement it.
 */
 
+using offset_t = size_t;
 
 class RVACore
 {
 public:
 
-    RVACore(uintptr_t rva);
+    RVACore(offset_t rva);
 	RVACore(
 		const std::string& pattern, 
 		uintptr_t(*onFound)(uintptr_t) = [](uintptr_t addr) { return addr; },

@@ -14,7 +14,7 @@ uintptr_t RVACore::c_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr
 size_t RVACore::c_size = GetRegionSize(RVACore::c_base);
 
 
-RVACore::RVACore(uintptr_t rva) : m_addr(c_base + rva) {}
+RVACore::RVACore(offset_t rva) : m_addr(c_base + rva) {}
 
 RVACore::RVACore(
     const std::string& pattern, 

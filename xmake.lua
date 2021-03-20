@@ -3,12 +3,12 @@ set_languages("cxx20")
 add_rules("mode.debug", "mode.release")
 -- bunch of ogre defines that are made because im too lazy to run cmake on it
 
-add_requires("sol2")
+add_requires("sol2", "boost")
 
 target("Plugin_Reclaimer")
     set_kind("shared")
     add_files("code/src/**.cpp")
-    add_packages("sol2")
+    add_packages("sol2", "boost")
 
     
     add_linkdirs("code/lib")

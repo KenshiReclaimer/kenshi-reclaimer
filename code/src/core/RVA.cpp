@@ -1,7 +1,7 @@
-#include <RVA.h>
+#include <core/RVA.h>
 
 #include <cassert>
-#include "Scanner.h"
+#include <core/Scanner.h>
 #include <stdexcept>
 
 static size_t GetRegionSize(uintptr_t base)
@@ -18,8 +18,8 @@ RVACore::RVACore(uintptr_t rva) : m_addr(c_base + rva) {}
 
 RVACore::RVACore(
     const std::string& pattern, 
-    uintptr_t(*onFound)(uintptr_t) = [](uintptr_t addr) { return addr; },
-    const char* moduleName = nullptr
+    uintptr_t(*onFound)(uintptr_t),
+    const char* moduleName
 )
 {
     uintptr_t base; size_t size;

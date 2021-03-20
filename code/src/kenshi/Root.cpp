@@ -1,6 +1,6 @@
 #include <stdafx.h>
 
-#include <Root.h>
+#include <kenshi/Root.h>
 
 
 Kenshi::RootObjectSimple* Kenshi::RootObjectSimple::Instance()

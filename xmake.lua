@@ -13,8 +13,8 @@ target("Plugin_Reclaimer")
     
     add_linkdirs("code/lib")
 
-    add_links("OgreMain_x64")
-    add_links("MyGUIEngine_x64")
+    add_links("ogre/OgreMain_x64")
+    add_links("mygui/MyGUIEngine_x64")
     
     set_pcxxheader("code/include/stdafx.h")
 

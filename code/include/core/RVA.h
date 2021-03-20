@@ -11,8 +11,7 @@ class RVACore
 {
 public:
 
-    RVACore(uintptr_t rva) : m_addr(c_base + rva) {}
-
+    RVACore(uintptr_t rva);
 	RVACore(
 		const std::string& pattern, 
 		uintptr_t(*onFound)(uintptr_t) = [](uintptr_t addr) { return addr; },

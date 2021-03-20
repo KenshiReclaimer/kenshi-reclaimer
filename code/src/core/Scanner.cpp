@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 #include <algorithm>
+#include <cassert>
 
 // Shamelessly stolen from https://github.com/rafzi/hacklib due to laziness
 
@@ -35,23 +36,10 @@ void GetModuleCodeRegion(const char* moduleName, uintptr_t* o_base, size_t* o_si
     uintptr_t base = (uintptr_t)GetModuleHandleA(moduleName) + 0x1000;
 
     MEMORY_BASIC_INFORMATION mbi;
-    VirtualQuery((LPCVOID)base, &mbi,sizeof(mbi));
+    assert(VirtualQuery((LPCVOID)base, &mbi,sizeof(mbi)));
 
     *o_base = base;
     *o_size = mbi.RegionSize;
-}
-
-
-uintptr_t FindPattern(const std::string& pattern, const char* moduleName, int instance)
-{
-    uintptr_t result = 0;
-
-    uintptr_t base;
-    size_t size;
-    GetModuleCodeRegion(moduleName, &base, &size);
-
-    result = FindPattern(pattern, base, size, instance);
-    return result;
 }
 
 uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len, int instance)
@@ -91,6 +79,18 @@ uintptr_t FindPattern(const std::string& pattern, uintptr_t address, size_t len,
     checkMask.push_back('\0');
 
     return FindPatternMask(byteMask.data(), checkMask.data(), address, len, instance);
+}
+
+uintptr_t FindPattern(const std::string& pattern, const char* moduleName, int instance)
+{
+    uintptr_t result = 0;
+
+    uintptr_t base;
+    size_t size;
+    GetModuleCodeRegion(moduleName, &base, &size);
+
+    result = FindPattern(pattern, base, size, instance);
+    return result;
 }
 
 

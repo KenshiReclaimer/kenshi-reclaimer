@@ -1,4 +1,5 @@
-#include <Reclaimer.h>
+#include <reclaimer/Reclaimer.h>
+#include <reclaimer/ReclaimerVM.h>
 
 #include <ogre/Ogre.h>
 #include <ogre/OgrePlugin.h>
@@ -7,8 +8,6 @@
 #include <mygui/MyGUI.h>
 
 #include <kenshi/Kenshi.h>
-
-#include <reclaimer/ReclaimerVM.h>
 
 
 void ReclaimerMain::install()

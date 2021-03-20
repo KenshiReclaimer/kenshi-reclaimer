@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Ogre.h>
-#include <OgrePlugin.h>
+#include <ogre/Ogre.h>
+#include <ogre/OgrePlugin.h>
 
 class ReclaimerVM;
 

@@ -1,9 +1,9 @@
 #include <stdafx.h>
 #include <stdio.h>
 
-#include <OgreRoot.h>
+#include <ogre/OgreRoot.h>
 
-#include <Reclaimer.h>
+#include <reclaimer/Reclaimer.h>
 
 ReclaimerMain* g_main = nullptr;
 

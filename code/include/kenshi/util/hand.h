@@ -13,6 +13,7 @@ namespace Kenshi
 
     public:
         uint32_t a, b;
-        void* ptr1, ptr2;
+        void* ptr1;
+        void* ptr2;
     };
 }

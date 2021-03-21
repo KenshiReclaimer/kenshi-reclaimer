@@ -10,8 +10,8 @@ static size_t GetRegionSize(uintptr_t base)
     assert(VirtualQuery((LPCVOID)base, &mbi, sizeof(mbi)));
     return static_cast<size_t>(mbi.RegionSize);
 }
-uintptr_t RVACore::c_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr)) + 0x1000;
-size_t RVACore::c_size = GetRegionSize(RVACore::c_base);
+uintptr_t RVACore::c_base = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+size_t RVACore::c_size = GetRegionSize(RVACore::c_base + 0x1000);
 
 
 RVACore::RVACore(offset_t rva) : m_addr(c_base + rva) {}

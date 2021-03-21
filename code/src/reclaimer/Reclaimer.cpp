@@ -8,11 +8,26 @@
 #include <mygui/MyGUI.h>
 
 #include <kenshi/Kenshi.h>
+#include <kenshi/GameWorld.h>
+#include <kenshi/ModInfo.h>
 
+#include <iostream>
 
+#define testthing(x) printf(#x##": %p\n", &##x)
 void ReclaimerMain::install()
 {
     printf("ReclaimerMain::install()\n");
+
+    auto& game = Kenshi::GetGameWorld();
+
+    printf("[DEBUG] gameWorld = %p\n", &game);
+
+    testthing(game.dataMgr1);
+    testthing(game.dataMgr2);
+    testthing(game.dataMgr3);
+    testthing(game.factionData);
+    testthing(game.loadedMods);
+
 }
 
 /** Perform any tasks the plugin needs to perform on full system
@@ -28,6 +43,25 @@ void ReclaimerMain::initialise()
 {
     printf("ReclaimerMain::initialise()\n");
     m_vm = new ReclaimerVM();
+
+
+    printf(" == Mod List == \n");
+
+    auto& game = Kenshi::GetGameWorld();
+
+    printf("loadedMods: %p <count=%d>\n", &game.loadedMods, game.availableMods.size());
+    for(Kenshi::ModInfo* v : game.availableMods)
+    {
+        printf("modName: %s\n", v->modName.c_str());
+        printf("filePath: %s\n", v->filePath.c_str());
+        printf("fileDir: %s\n", v->fileDir.c_str());
+        printf("assetPath: %s\n", v->assetPath.c_str());
+        printf("displayName: %s\n", v->displayName.c_str());
+        printf("author: %s\n", v->author.c_str());
+        printf("\n");
+    }
+
+
     m_vm->StartREPL();
 }
 

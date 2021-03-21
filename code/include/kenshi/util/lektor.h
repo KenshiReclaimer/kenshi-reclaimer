@@ -50,8 +50,6 @@ namespace Kenshi
         uint32_t m_capacity;
         T* m_heap;
 
-
-
         virtual ~lektor();
     };
 }

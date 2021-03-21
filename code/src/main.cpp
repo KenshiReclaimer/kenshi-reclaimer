@@ -17,6 +17,8 @@ extern "C" void __declspec(dllexport) dllStartPlugin(void)
 
     printf("dllStartPlugin()\n");
 
+    printf("sizeof(string) = %d\n", sizeof(std::string));
+
     Ogre::Root::getSingleton().installPlugin(g_main);
 }
 

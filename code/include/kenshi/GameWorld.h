@@ -44,9 +44,9 @@ namespace Kenshi
         char pad_04E8[16]; //0x04E8
         class lektor<ModInfo> coreMods; //0x04F8 ModInfo
         class lektor<std::string> coreModNames; //0x0510 std::string
-        class lektor<ModInfo*> availableMods; //0x0528 ModInfo*
+        class lektor<ModInfo*> loadedMods; //0x0528 ModInfo*
         char pad_0540[40]; //0x0540
-        class lektor<ModInfo*> loadedMods; //0x0568
+        class lektor<ModInfo*> availableMods; //0x0568
         class PlayerInterface *playerInterface; //0x0580
         char pad_0588[160]; //0x0588
         class lektor<hand> unkHand; //0x0628 hand

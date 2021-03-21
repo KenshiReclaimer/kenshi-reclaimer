@@ -11,6 +11,6 @@ namespace Kenshi
     {
         // will re this structure later,
         // has a bunch of unordered_maps and other data containers for lists of gamedata
-        char pad[0x180];
+        char pad[0x178];
     };
 }

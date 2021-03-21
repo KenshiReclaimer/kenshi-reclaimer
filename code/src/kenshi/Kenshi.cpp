@@ -22,10 +22,9 @@ Kenshi::GameWorld& Kenshi::GetGameWorld()
     return *c_inst.GetPtr();
 }
 
+#if 0
 Kenshi::PlayerInterface& Kenshi::GetPlayerInterface()
 {
-    static RVAPtr<PlayerInterface*> c_inst(0x001AAE5E0);
-    PlayerInterface* playerInterface = *c_inst.GetPtr();
-    assert(playerInterface != nullptr);
-    return *playerInterface;
+   return *Kenshi::GetGameWorld().player_interface;
 }
+#endif

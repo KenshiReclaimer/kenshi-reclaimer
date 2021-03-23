@@ -17,6 +17,7 @@ namespace Kenshi
     struct ZoneManager;
     struct AudioSystemGlobal;
     struct Alarm;
+    struct PlayerInterface;
 
     struct StringPair
     {
@@ -59,7 +60,7 @@ namespace Kenshi
         char pad_08C8[80]; //0x08C8
         class lektor<StringPair> someBuffs; //0x0918 StringPair
         char pad_0930[720]; //0x0930
-        class lektor<Building*> usedBuildings; //0x0C00 Building*
+        class lektor<Building*> usedBuildings; //0x0C00 Building* ?
         char pad_0C18[864]; //0x0C18
         class lektor<Alarm*> currentAlarms; //0x0F78 AlarmManager::Alarm*
         char pad_0F90[1368]; //0x0F90

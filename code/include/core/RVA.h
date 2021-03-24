@@ -41,6 +41,7 @@ class RVAPtr : public RVACore
 {
 public:
 	using Type = T;
+	using RVACore::RVACore;
 
 	operator T *() const
 	{
@@ -62,6 +63,8 @@ public:
 		return reinterpret_cast <T *>(m_addr);
 	}
 
+private:
+	RVAPtr(RVAPtr& rhs) = delete;
 };
 
 

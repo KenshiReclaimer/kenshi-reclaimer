@@ -22,7 +22,9 @@ namespace Kenshi
         void* pad6;
         std::string description; // 0x100
         void* pad7;
-        lektor<std::string> unk1, unk2;
+        // below is assumed from FCS GameData.Header.cs
+        lektor<std::string> dependencies;
+        lektor<std::string> referenced;
     };
 }
 

@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30621.155
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Reclaimer_Native", "code\Reclaimer_Native\Kenshi Reclaimer.vcxproj", "{AAEC9E8C-1B59-46E2-8987-10D2F841630E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reclaimer.Core", "Reclaimer.Core\Reclaimer.Core.csproj", "{3ED9E75F-3DC4-49AB-8A79-C59447D06ABD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reclaimer.Core", "code\Reclaimer.Core\Reclaimer.Core.csproj", "{3ED9E75F-3DC4-49AB-8A79-C59447D06ABD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

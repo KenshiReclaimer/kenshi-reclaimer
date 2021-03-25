@@ -33,6 +33,8 @@ struct ReclaimerNETHost
     load_assembly_and_get_function_pointer_fn load_assembly_and_get_fn_ptr;
     get_function_pointer_fn get_fn_ptr;
 
+    hostfxr_handle cxt = nullptr;
+
     void PrepareHost()
     {
 
@@ -52,8 +54,6 @@ struct ReclaimerNETHost
 
     void LoadRuntime()
     {
-
-        hostfxr_handle cxt = nullptr;
         int rc = init_fn(L"Reclaimer.runtimeconfig.json", nullptr, &cxt);
         if (rc != 0 || cxt == nullptr)
         {
@@ -82,20 +82,38 @@ struct ReclaimerNETHost
     }
 
     template <typename T>
-    T LoadAssembly(const std::wstring& path, const std::wstring& type, const std::wstring& method)
+    T LoadAssembly(const std::wstring& path, const std::wstring& type, const std::wstring& method, const std::wstring& dlgate = std::wstring())
     {
         T fn = nullptr;
-        load_assembly_and_get_fn_ptr(
+        int rc = load_assembly_and_get_fn_ptr(
             path.c_str(),
             type.c_str(),
             method.c_str(),
-            nullptr,
+            dlgate.empty() ? nullptr: dlgate.c_str(),
             nullptr,
             (void**)&fn
-            );
-            return fn;
+        );
+        
+        if (rc != 0)
+            throw L"LoadAssembly: Cant load " + type + L"; " + method;
+
+        return fn;
     }
+
+    template<typename T>
+    T GetMethod(const std::wstring& type, const std::wstring& method, const std::wstring& dlgate = std::wstring())
+    {
+        T fn = nullptr;
+        int rc = get_fn_ptr(type.c_str(), method.c_str(), dlgate.empty() ? nullptr : dlgate.c_str(), nullptr, nullptr, (void**)&fn);
+        if (rc != 0)
+            throw L"GetMethod: Cant load " + type + L"; " + method;
+        return fn;
+    }
+
 };
+
+
+using ReclaimerEntryFn = void();
 
 
 void ReclaimerMain::install()
@@ -114,13 +132,14 @@ void ReclaimerMain::install()
     dotnet->LoadRuntime();
 
     printf("Load Reclaimer.Core.dll.. \n");
-    auto start_assembly = dotnet->LoadAssembly<component_entry_point_fn>(
+    auto install_assembly = dotnet->LoadAssembly<ReclaimerEntryFn*>(
         L"Reclaimer.Core.dll",
-        L"Reclaimer.Core.Entry, Reclaimer.Core",
-        L"Main"
+        L"Reclaimer.Core.ReclaimerEntry, Reclaimer.Core",
+        L"Install",
+        L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
         );
 
-    start_assembly(nullptr, 0);
+    install_assembly();
 }
 
 /** Perform any tasks the plugin needs to perform on full system
@@ -135,23 +154,13 @@ void ReclaimerMain::install()
 void ReclaimerMain::initialise()
 {
     printf("ReclaimerMain::initialise()\n");
-
-    printf(" == Mod List == \n");
-
-    auto& game = Kenshi::GetGameWorld();
-
-    printf("loadedMods: %p <count=%d>\n", &game.loadedMods, game.availableMods.size());
-    for(Kenshi::ModInfo* v : game.availableMods)
-    {
-        printf("modName: %s\n", v->modName.c_str());
-        printf("filePath: %s\n", v->filePath.c_str());
-        printf("fileDir: %s\n", v->fileDir.c_str());
-        printf("assetPath: %s\n", v->assetPath.c_str());
-        printf("displayName: %s\n", v->displayName.c_str());
-        printf("author: %s\n", v->author.c_str());
-        printf("\n");
-    }
-
+    auto init_assembly = dotnet->LoadAssembly<ReclaimerEntryFn*>(
+        L"Reclaimer.Core.dll",
+        L"Reclaimer.Core.ReclaimerEntry, Reclaimer.Core",
+        L"Initialize",
+        L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
+        );
+    init_assembly();
 }
 
 /** Perform any tasks the plugin needs to perform when the system is shut down.
@@ -164,6 +173,13 @@ instances of other plugins (e.g. rendersystems) still exist.
 void ReclaimerMain::shutdown()
 {
     printf("ReclaimerMain::shutdown()\n");
+    auto shutdown_assembly = dotnet->LoadAssembly<ReclaimerEntryFn*>(
+        L"Reclaimer.Core.dll",
+        L"Reclaimer.Core.ReclaimerEntry, Reclaimer.Core",
+        L"Shutdown",
+        L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
+        );
+    shutdown_assembly();
 }
 
 /** Perform the final plugin uninstallation sequence.
@@ -178,4 +194,11 @@ should have been sorted out in the 'shutdown' method.
 void ReclaimerMain::uninstall()
 {
     printf("ReclaimerMain::uninstall()\n");
+    auto uninstall_assembly = dotnet->LoadAssembly<ReclaimerEntryFn*>(
+        L"Reclaimer.Core.dll",
+        L"Reclaimer.Core.ReclaimerEntry, Reclaimer.Core",
+        L"Uninstall",
+        L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
+        );
+    uninstall_assembly();
 }

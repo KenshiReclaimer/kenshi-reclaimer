@@ -13,11 +13,8 @@ extern "C" void __declspec(dllexport) dllStartPlugin(void)
 
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
-    freopen("CONIN$", "r", stdin);
 
     printf("dllStartPlugin()\n");
-
-    printf("sizeof(string) = %d\n", sizeof(std::string));
 
     Ogre::Root::getSingleton().installPlugin(g_main);
 }

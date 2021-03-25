@@ -1,5 +1,4 @@
 #include <reclaimer/Reclaimer.h>
-#include <reclaimer/ReclaimerVM.h>
 
 #include <ogre/Ogre.h>
 #include <ogre/OgrePlugin.h>
@@ -13,7 +12,6 @@
 
 #include <iostream>
 
-#define testthing(x) printf(#x##": %p\n", &##x)
 void ReclaimerMain::install()
 {
     printf("ReclaimerMain::install()\n");
@@ -21,12 +19,6 @@ void ReclaimerMain::install()
     auto& game = Kenshi::GetGameWorld();
 
     printf("[DEBUG] gameWorld = %p\n", &game);
-
-    testthing(game.dataMgr1);
-    testthing(game.dataMgr2);
-    testthing(game.dataMgr3);
-    testthing(game.factionData);
-    testthing(game.loadedMods);
 
 }
 
@@ -42,8 +34,6 @@ void ReclaimerMain::install()
 void ReclaimerMain::initialise()
 {
     printf("ReclaimerMain::initialise()\n");
-    m_vm = new ReclaimerVM();
-
 
     printf(" == Mod List == \n");
 
@@ -61,8 +51,6 @@ void ReclaimerMain::initialise()
         printf("\n");
     }
 
-
-    m_vm->StartREPL();
 }
 
 /** Perform any tasks the plugin needs to perform when the system is shut down.

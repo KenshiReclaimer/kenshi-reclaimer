@@ -86,7 +86,7 @@
 
 #define OGRE_NO_TBB_SCHEDULER 0
 
-#define OGRE_USE_BOOST 1
+#define OGRE_USE_BOOST 0
 
 #define OGRE_PROFILING 0
 

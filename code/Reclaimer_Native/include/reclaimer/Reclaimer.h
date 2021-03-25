@@ -3,7 +3,6 @@
 #include <ogre/Ogre.h>
 #include <ogre/OgrePlugin.h>
 
-class ReclaimerVM;
 
 class ReclaimerMain : public Ogre::Plugin
 {
@@ -16,5 +15,4 @@ public:
     virtual void uninstall() override;
 
 private:
-    ReclaimerVM* m_vm;
 };

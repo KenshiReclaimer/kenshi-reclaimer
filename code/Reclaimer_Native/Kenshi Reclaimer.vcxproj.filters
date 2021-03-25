@@ -1,0 +1,2187 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\kenshi\Kenshi.cpp">
+      <Filter>src\kenshi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kenshi\Root.cpp">
+      <Filter>src\kenshi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kenshi\UI.cpp">
+      <Filter>src\kenshi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\reclaimer\Reclaimer.cpp">
+      <Filter>src\reclaimer</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\RVA.cpp">
+      <Filter>src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\Scanner.cpp">
+      <Filter>src\core</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\stdafx.h" />
+    <ClInclude Include="include\mygui\MyGUI.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ActionController.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Align.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Allocator.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Any.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_BackwardCompatibility.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_BiIndexBase.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Bitwise.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Button.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Canvas.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ChildSkinInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ClipboardManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Colour.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ComboBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Common.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_CommonStateInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ConsoleLogListener.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Constants.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerEdgeHide.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerFadeAlpha.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerPosition.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ControllerRepeatClick.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_CoordConverter.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_CustomAllocator.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DataFileStream.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DataManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DataMemoryStream.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DataStream.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DataStreamHolder.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DDContainer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DDItemInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Delegate.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DelegateImplement.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DeprecatedTypes.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DeprecatedWidgets.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Diagnostic.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DynLib.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_DynLibManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_EditBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_EditText.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Enumerator.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_EventPair.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Exception.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_FactoryManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_FileLogListener.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_FlowDirection.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_FontData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_FontManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_GenericFactory.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_GeometryUtility.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Gui.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IBItemInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ICroppedRectangle.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IDataStream.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IFont.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IItemContainer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ILayer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ILayerItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ILayerNode.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ILogFilter.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ILogListener.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ImageBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ImageInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_InputManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IObject.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IPointer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IRenderTarget.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IResource.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ISerializable.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IStateInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ISubWidget.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ISubWidgetRect.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ISubWidgetText.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ItemBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ITexture.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IUnlinkWidget.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_IVertexBuffer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_KeyCode.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LanguageManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LayerItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LayerManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LayerNode.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LayoutData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LayoutManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LevelLogFilter.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ListBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LogLevel.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LogManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LogSource.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_LogStream.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Macros.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MainSkin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MaskPickInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MenuBar.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MenuControl.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MenuItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MenuItemType.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MouseButton.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MultiListBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_MultiListItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_OverlappedLayer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Platform.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Plugin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_PluginManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_PointerManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_PolygonalSkin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_PopupMenu.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Precompiled.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Prerequest.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ProgressBar.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RenderFormat.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RenderItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RenderManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RenderTargetInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResizingPolicy.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceImageSet.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceImageSetData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceImageSetPointer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceLayout.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceManualFont.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceManualPointer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceSkin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ResourceTrueTypeFont.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RotatingSkin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_RTTI.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ScrollBar.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ScrollView.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ScrollViewBase.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SharedLayer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SharedLayerNode.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SimpleText.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Singleton.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SkinItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SkinManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_StringUtility.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SubSkin.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SubWidgetBinding.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SubWidgetInfo.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_SubWidgetManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TabControl.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TabItem.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TCoord.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextBox.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextChangeHistory.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextIterator.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextureUtility.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextView.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TextViewData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TileRect.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Timer.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_ToolTipManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TPoint.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TRect.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_TSize.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Types.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_UString.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Version.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_VertexData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Widget.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetDefines.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetInput.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetManager.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetStyle.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetToolTip.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetTranslate.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WidgetUserData.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_Window.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_WindowsClipboardHandler.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\mygui\MyGUI_XmlDocument.h">
+      <Filter>include\mygui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\Ogre.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\simple\c\OgreAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\simple\OgreAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAlignedAllocator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreAndroidLogListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAnimable.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAnimation.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAnimationState.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAnimationTrack.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAny.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreAPKFileSystemArchive.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreAPKZipArchive.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreArchive.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreArchiveFactory.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreArchiveManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArrayAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArrayAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArrayAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayConfig.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayMatrix4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArrayMatrix4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArrayMatrix4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArrayMatrix4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArrayMatrixAf4x3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayMatrixAf4x3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArrayMatrixAf4x3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArrayMatrixAf4x3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArrayQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArrayQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArrayQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayRay.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArraySphere.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArraySphere.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArraySphere.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArraySphere.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreArrayVector3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreArrayVector3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreArrayVector3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreArrayVector3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAssert.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreASTCCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAsyncTextureTicket.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreAsyncTicket.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAtomicObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAtomicScalar.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAutoParamDataSource.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreAxisAlignedBox.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreBarrier.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBillboard.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBillboardChain.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBillboardParticleRenderer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBillboardSet.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBitset.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBitwise.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBlendMode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreBone.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreBoneArrayMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreBoneMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreBoneTransform.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreBooleanMask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreBooleanMask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreBooleanMask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreBooleanMask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreBufferInterface.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreBuildSettings.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreCamera.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbCommon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbDrawCall.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbLowLevelMaterial.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbPipelineStateObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbShaderBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCbTexture.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreColourValue.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\commandbuffer\OgreCommandBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreCommon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorChannel.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorCommon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorManager2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorNamedBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorNode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorNodeDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\OgreCompositorPass.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passclear\OgreCompositorPassClear.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passclear\OgreCompositorPassClearDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passcompute\OgreCompositorPassCompute.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passcompute\OgreCompositorPassComputeDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\OgreCompositorPassDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passdepthcopy\OgreCompositorPassDepthCopy.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passdepthcopy\OgreCompositorPassDepthCopyDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passiblspecular\OgreCompositorPassIblSpecular.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passiblspecular\OgreCompositorPassIblSpecularDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passmipmap\OgreCompositorPassMipmap.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passmipmap\OgreCompositorPassMipmapDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\OgreCompositorPassProvider.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passquad\OgreCompositorPassQuad.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passquad\OgreCompositorPassQuadDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passscene\OgreCompositorPassScene.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passscene\OgreCompositorPassSceneDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passstencil\OgreCompositorPassStencil.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passstencil\OgreCompositorPassStencilDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passuav\OgreCompositorPassUav.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\pass\passuav\OgreCompositorPassUavDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorShadowNode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorShadowNodeDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorWorkspace.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorWorkspaceDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreCompositorWorkspaceListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreComPtr.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compute\OgreComputeTools.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConfig.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConfigDialog.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ios\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\emscripten\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\glx\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\gtk\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\nacl\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\osx\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreConfigDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreConfigDialogImpWinRT.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConfigFile.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConfigOptionMap.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreConstBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConstBufferPool.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreController.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreControllerManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreConvexBody.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreCustomCompositionPass.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDataStream.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreDDSCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDDSCodec2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDecal.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDefaultHardwareBufferManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreDefaultWorkQueue.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreDefaultWorkQueueStandard.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreDefaultWorkQueueTBB.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDeflate.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDepthBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreDepthBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDescriptorSetSampler.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDescriptorSetTexture.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDescriptorSetUav.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDistanceLodStrategy.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDualQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDynLib.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreDynLibManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreEdgeListBuilder.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreEntity.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreErrorDialog.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\osx\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\gtk\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ios\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\emscripten\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\nacl\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\glx\OgreErrorDialogImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreErrorDialogImpWinRT.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreETCCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreException.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreExternalTextureSource.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreExternalTextureSourceManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFactoryObj.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFastArray.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFileSystem.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFileSystemLayer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreForward3D.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreForwardClustered.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreForwardPlusBase.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFrameListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFrameStats.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreFreeImageCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFreeImageCodec2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreFrustum.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGL3PlusBuildSettings.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGpuProgram.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGpuProgramManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGpuProgramParams.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGpuProgramUsage.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreGpuResource.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareBufferManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareCounterBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareIndexBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareOcclusionQuery.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreHardwarePixelBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareUniformBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHardwareVertexBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHeaderPrefix.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHeaderSuffix.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHiddenAreaMeshVr.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHighLevelGpuProgram.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHighLevelGpuProgramManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlms.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsCommon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsCompute.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsComputeJob.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsDatablock.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsDiskCache.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsJson.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsJsonCompute.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsLowLevel.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsLowLevelDatablock.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsPso.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsSamplerblock.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreHlmsTexturePack.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreId.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreIdString.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreImage.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreImage2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreImageCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreImageCodec2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreImageDownsampler.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreIndexBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreIndirectBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreInternalCubemapProbe.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreItem.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreIteratorRange.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreIteratorWrapper.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreIteratorWrappers.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreKeyFrame.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreKfTransform.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreKfTransformArrayMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLight.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreLightweightMutex.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLodListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLodStrategy.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLodStrategyManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLog.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLogManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLwConstString.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreLwString.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreManualObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreManualObject2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMaterial.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMaterialManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMaterialSerializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMath.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreMathlib.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\c\OgreMathlibC.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\OgreMathlibNEON.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\OgreMathlibSSE2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMatrix3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMatrix4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryAllocatedObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryAllocatorConfig.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryNedAlloc.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryNedPooling.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryStdAlloc.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemorySTLAllocator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryTrackAlloc.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMemoryTracker.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMesh.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMesh2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMesh2Serializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMesh2SerializerImpl.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMeshFileFormat.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMeshManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMeshManager2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMeshSerializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMeshSerializerImpl.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreMinGWSupport.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMovableObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreMovablePlane.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreMultiSourceVertexBufferPool.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreNameGenerator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreNode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreNodeMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreNumerics.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreObjCmdBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreObjectData.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreObjectMemoryManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOfflineProfiler.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOITDCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOldBone.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOldNode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOldSkeletonInstance.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOldSkeletonManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreOptimisedUtil.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ios\OgreOSXCocoaTouchView.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticle.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleAffector.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleAffectorFactory.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleEmitter.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleEmitterCommands.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleEmitterFactory.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleIterator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleSystem.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleSystemManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreParticleSystemRenderer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePass.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePatchMesh.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePatchSurface.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgrePixelBox.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePixelCountLodStrategy.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgrePixelFormat.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgrePixelFormatDescriptions.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePixelFormatGpu.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePixelFormatGpuUtils.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePlane.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePlaneBoundedVolume.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePlatform.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePlatformInformation.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePlugin.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePolygon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePose.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePredefinedControllers.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePrefabFactory.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePrerequisites.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreProfiler.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreProfilerCommon.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePsoCacheHelper.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgrePVRTCCodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreQuaternion.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRadialDensityMask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRadixSort.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRawPtr.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRay.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreReadOnlyBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRectangle2D.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRectangle2D2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderable.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderObjectListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderOperation.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderPassDescriptor.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderQueue.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderQueueListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderSystem.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderSystemCapabilities.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderSystemCapabilitiesManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRenderSystemCapabilitiesSerializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreRenderTarget.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreRenderTargetListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreRenderTexture.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreRenderToVertexBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreRenderWindow.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreResource.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreResourceBackgroundQueue.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreResourceGroupManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreResourceManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreResourceTransition.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRibbonTrail.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRoot.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRootLayout.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreRotationalSpline.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSceneManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSceneManagerEnumerator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSceneNode.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSceneQuery.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreScriptCompiler.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreScriptLexer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreScriptLoader.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreScriptParser.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreScriptTranslator.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSearchOps.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSerializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShaderParams.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShaderPrimitives.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowCameraSetup.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowCameraSetupConcentric.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowCameraSetupFocused.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowCameraSetupPlaneOptimal.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowCameraSetupPSSM.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreShadowVolumeExtrudeProgram.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSharedPtr.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSimpleRenderable.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSimpleSpline.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSingleton.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSkeleton.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonAnimation.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonAnimationDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonAnimManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonDef.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSkeletonFileFormat.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonInstance.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSkeletonSerializer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreSkeletonTrack.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSmallVector.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSphere.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStableHeaders.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStackVector.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreStagingBuffer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStagingTexture.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStagingTextureBufferImpl.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStagingTextureManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStaticFaceGroup.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStaticGeometry.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSTBICodec.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStdHeaders.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStreamSerialiser.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreString.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStringConverter.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStringInterface.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreStringVector.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSubEntity.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSubItem.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSubMesh.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreSubMesh2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTagPoint.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\animation\OgreTagPoint.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTangentSpaceCalc.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTechnique.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreTexBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreTexture.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureBox.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\compositor\OgreTextureDefinition.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureFilters.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureGpu.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureGpuListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureGpuManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureGpuManagerListener.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\deprecated\OgreTextureManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTextureUnitState.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefines.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefinesBoost.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefinesNone.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefinesPoco.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefinesSTD.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadDefinesTBB.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadHeaders.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadHeadersBoost.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadHeadersPoco.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadHeadersSTD.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreadHeadersTBB.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreThreads.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreTimer.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\nacl\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\win32\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ios\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\glx\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\osx\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\emscripten\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\android\OgreTimerImp.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\OgreTransform.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreUavBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreUnifiedHighLevelGpuProgram.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreUniformScalableTask.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreUserObjectBindings.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreUTFString.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreVaoManager.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVector2.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVector3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVector4.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreVertexArrayObject.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVertexBoneAssignment.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreVertexBufferDownloadHelper.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreVertexBufferPacked.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\vao\OgreVertexElements.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVertexIndexData.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVertexRemapping.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVertexShadowMapHelper.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreViewport.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreVisibilityFlags.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\threading\OgreWaitableEvent.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWindow.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWindowEventUtilities.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWireAabb.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWireBoundingBox.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWorkarounds.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreWorkQueue.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\OgreZip.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Building.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Character.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Faction.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\GameData.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\GameDataManager.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\GameWorld.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\util\hand.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Kenshi.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\util\lektor.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\list.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\debugbreak\debugbreak.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\deque.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ios\macUtils.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\osx\macUtils.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\map.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\hash\MurmurHash3.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\neon\single\neon_mathfun.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\unordered_map.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\unordered_set.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\math\array\sse2\single\sse_mathfun.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\set.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ogre\ogrestd\vector.h">
+      <Filter>include\ogre</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\MedicalSystem.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\ModInfo.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Platoon.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\PlayerInterface.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Root.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Tasks.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\View.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kenshi\Zone.h">
+      <Filter>include\kenshi</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core\RVA.h">
+      <Filter>include\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core\Scanner.h">
+      <Filter>include\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\reclaimer\Reclaimer.h">
+      <Filter>include\reclaimer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="include\ogre\math\simple\c\OgreAabb.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArrayAabb.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArrayAabb.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArrayAabb.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArrayMatrix4.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArrayMatrix4.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArrayMatrix4.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArrayMatrixAf4x3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArrayMatrixAf4x3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArrayMatrixAf4x3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArrayQuaternion.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArrayQuaternion.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArrayQuaternion.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArraySphere.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArraySphere.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArraySphere.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreArrayVector3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreArrayVector3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreArrayVector3.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\animation\OgreBone.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreBooleanMask.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreBooleanMask.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreBooleanMask.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\OgreLight.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\OgreLodStrategyPrivate.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="lib\ogre\OgreMain_x64.def">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\c\OgreMathlibC.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\neon\single\OgreMathlibNEON.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\math\array\sse2\single\OgreMathlibSSE2.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+    <None Include="include\ogre\OgreMovableObject.inl">
+      <Filter>include\ogre</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{bb11da04-4a88-4e1f-902c-8222f37acd3b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\kenshi">
+      <UniqueIdentifier>{7ef25fc1-bfba-4b14-825e-bc09f03df943}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\ogre">
+      <UniqueIdentifier>{e1f096ec-e481-40a6-8e68-a790fa3770ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\mygui">
+      <UniqueIdentifier>{b0d3ee1e-20ca-4f7e-99de-de7877a7c6d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\reclaimer">
+      <UniqueIdentifier>{3df2ba39-380e-4cbf-b1a5-b3f361bc8d60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\core">
+      <UniqueIdentifier>{38467ec3-d607-4880-806d-331af0b9ceb1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{e18020a1-4b37-4a5b-88a0-831a59b5849d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\kenshi">
+      <UniqueIdentifier>{ab3c11f5-d558-4d95-af6b-7f6160ad1a86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\reclaimer">
+      <UniqueIdentifier>{e0998c67-d5eb-40f6-acb5-d33ad5dff7f4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\core">
+      <UniqueIdentifier>{47c3c1f9-a069-4765-9a80-53f636e84a93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{01b14d30-9a52-427b-8a21-a135634281d1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\mygui\MyGUIEngine_x64.lib">
+      <Filter>lib</Filter>
+    </Library>
+    <Library Include="lib\ogre\OgreMain_x64.lib">
+      <Filter>lib</Filter>
+    </Library>
+  </ItemGroup>
+</Project>

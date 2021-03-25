@@ -15,14 +15,12 @@ extern "C" void __declspec(dllexport) dllStartPlugin(void)
     freopen("CONOUT$", "w", stdout);
 
     printf("dllStartPlugin()\n");
-
     Ogre::Root::getSingleton().installPlugin(g_main);
 }
 
 extern "C" void __declspec(dllexport) dllStopPlugin(void)
 {
     printf("dllStopPlugin()\n");
-    
     Ogre::Root::getSingleton().uninstallPlugin(g_main);
     delete g_main;
 }

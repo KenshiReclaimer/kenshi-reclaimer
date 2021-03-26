@@ -14,6 +14,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="NewFolder\" />
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(KenshiGamePath)\Reclaimer.Core.dll&quot;" />
   </Target>

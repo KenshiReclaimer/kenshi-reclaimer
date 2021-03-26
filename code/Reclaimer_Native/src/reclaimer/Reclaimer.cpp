@@ -26,7 +26,11 @@ struct ReclaimerNETHost
 
     // init core
     hostfxr_initialize_for_runtime_config_fn init_fn;
+    hostfxr_initialize_for_dotnet_command_line_fn init_cmdln_fn;
     hostfxr_get_runtime_delegate_fn get_delegate_fn;
+    hostfxr_get_runtime_properties_fn get_runtime_properties_fn;
+    hostfxr_get_runtime_property_value_fn get_runtime_property_value_fn;
+    hostfxr_set_runtime_property_value_fn set_runtime_property_value_fn;
     hostfxr_close_fn close_fn;
 
     // load/run delegates
@@ -34,6 +38,8 @@ struct ReclaimerNETHost
     get_function_pointer_fn get_fn_ptr;
 
     hostfxr_handle cxt = nullptr;
+
+
 
     void PrepareHost()
     {
@@ -47,7 +53,14 @@ struct ReclaimerNETHost
         hHostLib = LoadLibraryW(host_path);
 
         init_fn = (decltype(init_fn))GetProcAddress(hHostLib, "hostfxr_initialize_for_runtime_config");
+        init_cmdln_fn = (decltype(init_cmdln_fn))GetProcAddress(hHostLib, "hostfxr_initialize_for_dotnet_command_line");
         get_delegate_fn = (decltype(get_delegate_fn))GetProcAddress(hHostLib, "hostfxr_get_runtime_delegate");
+
+
+        get_runtime_properties_fn = (decltype(get_runtime_properties_fn))GetProcAddress(hHostLib, "hostfxr_get_runtime_properties");
+        get_runtime_property_value_fn = (decltype(get_runtime_property_value_fn))GetProcAddress(hHostLib, "hostfxr_get_runtime_property_value");
+        set_runtime_property_value_fn = (decltype(set_runtime_property_value_fn))GetProcAddress(hHostLib, "hostfxr_set_runtime_property_value");
+
         close_fn = (decltype(close_fn))GetProcAddress(hHostLib, "hostfxr_close");
 
     }
@@ -78,7 +91,28 @@ struct ReclaimerNETHost
         if (rc != 0 || get_fn_ptr == nullptr)
             std::cerr << "hdt_get_function_pointer delegate failed: " << std::hex << std::showbase << rc << std::endl;
 
+        PrintRuntime();
+
         close_fn(cxt);
+    }
+
+    void PrintRuntime()
+    {
+        const char_t* keys[0x100];
+        const char_t* values[0x100];
+        size_t count = 0x100;
+
+        get_runtime_properties_fn(
+            cxt,
+            &count,
+            (const char_t**)keys,
+            (const char_t**)values
+        );
+
+        std::cout << " ====== .NET Runtime Properties ======= " << std::endl;
+        for (size_t i = 0; i < count; i++) {
+            std::wcout << std::wstring(keys[i]) << ": \t" << std::wstring(values[i]) << std::endl;
+        }
     }
 
     template <typename T>

@@ -1,24 +1,27 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using Reclaimer.Shinobi;
 
 namespace Reclaimer.Core
 {
     public delegate void ReclaimerEntryFn();
     public static class ReclaimerEntry
     {
+        [NativeGlobal]
+        [ByteSignature("AA BB CC DD EE FF")]
+        extern public static int Test { get; }
+
+        [NativeFunction]
+        [ByteSignature("11 ?? 22 ?? 44")]
+        extern public static void DoSomethingCool();
+
+
         public static void Install()
         {
             Console.WriteLine("Hello from .NET Install()");
 
-            foreach (var ctx in AssemblyLoadContext.All)
-            {
-                Console.WriteLine("> Context " + ctx.Name);
-                foreach (var asm in ctx.Assemblies)
-                {
-                    Console.WriteLine("\t> Assembly " + asm.FullName);
-                }
-            }
+
         }
         public static void Initialize()
         {

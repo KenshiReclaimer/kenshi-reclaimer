@@ -67,13 +67,23 @@ struct ReclaimerNETHost
 
     void LoadRuntime()
     {
-        int rc = init_fn(L"Reclaimer.runtimeconfig.json", nullptr, &cxt);
+        int rc;
+
+
+
+        rc = init_fn(L"Reclaimer.runtimeconfig.json", nullptr, &cxt);
         if (rc != 0 || cxt == nullptr)
         {
             std::cerr << "Init failed: " << std::hex << std::showbase << rc << std::endl;
             close_fn(cxt);
             return;
         }
+
+
+        char_t cwd[MAX_PATH];
+        GetCurrentDirectoryW(MAX_PATH, cwd);
+        wcscat(cwd, L"\\");
+        rc = set_runtime_property_value_fn(cxt, L"APP_PATHS", cwd);
 
         // Get the load assembly function pointer
         rc = get_delegate_fn(
@@ -91,9 +101,11 @@ struct ReclaimerNETHost
         if (rc != 0 || get_fn_ptr == nullptr)
             std::cerr << "hdt_get_function_pointer delegate failed: " << std::hex << std::showbase << rc << std::endl;
 
+
+
+
         PrintRuntime();
 
-        close_fn(cxt);
     }
 
     void PrintRuntime()
@@ -142,6 +154,12 @@ struct ReclaimerNETHost
         if (rc != 0)
             throw L"GetMethod: Cant load " + type + L"; " + method;
         return fn;
+    }
+
+
+    void Close()
+    {
+        close_fn(cxt);
     }
 
 };
@@ -235,4 +253,6 @@ void ReclaimerMain::uninstall()
         L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
         );
     uninstall_assembly();
+
+    dotnet->Close();
 }

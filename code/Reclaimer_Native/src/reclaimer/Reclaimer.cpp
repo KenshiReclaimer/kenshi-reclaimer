@@ -31,6 +31,7 @@ struct ReclaimerNETHost
     hostfxr_get_runtime_properties_fn get_runtime_properties_fn;
     hostfxr_get_runtime_property_value_fn get_runtime_property_value_fn;
     hostfxr_set_runtime_property_value_fn set_runtime_property_value_fn;
+    hostfxr_set_error_writer_fn set_error_writer_fn;
     hostfxr_close_fn close_fn;
 
     // load/run delegates
@@ -39,6 +40,12 @@ struct ReclaimerNETHost
 
     hostfxr_handle cxt = nullptr;
 
+    std::wstring trusted_platform;
+
+    static void ErrorWriter(const char_t* msg)
+    {
+        wprintf(L"[DOTNET ERROR] %s\n", msg);
+    }
 
 
     void PrepareHost()
@@ -61,17 +68,19 @@ struct ReclaimerNETHost
         get_runtime_property_value_fn = (decltype(get_runtime_property_value_fn))GetProcAddress(hHostLib, "hostfxr_get_runtime_property_value");
         set_runtime_property_value_fn = (decltype(set_runtime_property_value_fn))GetProcAddress(hHostLib, "hostfxr_set_runtime_property_value");
 
+        set_error_writer_fn = (decltype(set_error_writer_fn))GetProcAddress(hHostLib, "hostfxr_set_error_writer");
+
         close_fn = (decltype(close_fn))GetProcAddress(hHostLib, "hostfxr_close");
 
+
+        set_error_writer_fn(ErrorWriter);
     }
 
     void LoadRuntime()
     {
         int rc;
 
-
-
-        rc = init_fn(L"Reclaimer.runtimeconfig.json", nullptr, &cxt);
+        rc = init_fn(L"Reclaimer.Core.dll", nullptr, &cxt);
         if (rc != 0 || cxt == nullptr)
         {
             std::cerr << "Init failed: " << std::hex << std::showbase << rc << std::endl;
@@ -79,11 +88,21 @@ struct ReclaimerNETHost
             return;
         }
 
+        // TRUSTED_PLATFORM_ASSEMBLIES
 
-        char_t cwd[MAX_PATH];
-        GetCurrentDirectoryW(MAX_PATH, cwd);
-        wcscat(cwd, L"\\");
-        rc = set_runtime_property_value_fn(cxt, L"APP_PATHS", cwd);
+        const char_t* trusted_platforms;
+        rc = get_runtime_property_value_fn(cxt, L"APP_CONTEXT_DEPS_FILES", &trusted_platforms);
+        trusted_platform = std::wstring(trusted_platforms);
+
+        char_t shinobi_path_c[MAX_PATH];
+        auto count = GetCurrentDirectoryW(MAX_PATH, shinobi_path_c);
+        std::wstring shinobi_path(shinobi_path_c);
+        shinobi_path += L"\\Reclaimer.Core.deps.json";
+
+        trusted_platform += L";";
+        trusted_platform += shinobi_path;
+
+        rc = set_runtime_property_value_fn(cxt, L"APP_CONTEXT_DEPS_FILES", trusted_platform.c_str());
 
         // Get the load assembly function pointer
         rc = get_delegate_fn(
@@ -100,11 +119,6 @@ struct ReclaimerNETHost
             (void**)&get_fn_ptr);
         if (rc != 0 || get_fn_ptr == nullptr)
             std::cerr << "hdt_get_function_pointer delegate failed: " << std::hex << std::showbase << rc << std::endl;
-
-
-
-
-        PrintRuntime();
 
     }
 
@@ -140,8 +154,8 @@ struct ReclaimerNETHost
             (void**)&fn
         );
         
-        if (rc != 0)
-            throw L"LoadAssembly: Cant load " + type + L"; " + method;
+        //if (rc != 0)
+        //    throw L"LoadAssembly: Cant load " + type + L"; " + method;
 
         return fn;
     }

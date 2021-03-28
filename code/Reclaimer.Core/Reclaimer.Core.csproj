@@ -9,22 +9,18 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="Reclaimer.runtimeconfig.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Reclaimer.runtimeconfig.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-  </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(KenshiGamePath)\Reclaimer.Core.dll&quot;" />
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Reclaimer.Shinobi\Reclaimer.Shinobi.csproj" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(KenshiGamePath)\Reclaimer.Core.dll&quot;" />
-  </Target>
+  <ItemGroup>
+    <None Update="Reclaimer.runtimeconfig.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
+using System.Reflection;
 using Reclaimer.Shinobi;
 
 namespace Reclaimer.Core
@@ -10,18 +11,16 @@ namespace Reclaimer.Core
     {
         [NativeGlobal]
         [ByteSignature("AA BB CC DD EE FF")]
-        extern public static int Test { get; }
+        public static int Test { get; }
 
         [NativeFunction]
         [ByteSignature("11 ?? 22 ?? 44")]
-        extern public static void DoSomethingCool();
 
+        public static Action<string> DoSomethingCool;
 
         public static void Install()
         {
             Console.WriteLine("Hello from .NET Install()");
-
-
         }
         public static void Initialize()
         {

@@ -19,13 +19,8 @@ namespace Reclaimer.Shinobi.Internal
                 assembly = Assembly.GetCallingAssembly();
             }
 
-            foreach(var attr in assembly.CustomAttributes)
+            foreach(var attr in assembly.DefinedTypes)
             {
-                Console.WriteLine("CustomAttribute: {0} {1}",
-                    attr.AttributeType.FullName,
-                    attr.ConstructorArguments.Aggregate("Args: ",
-                    (string a, CustomAttributeTypedArgument e) => a + e.Value.ToString() + " " , a => a)
-                    );
             }
         }
 

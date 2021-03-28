@@ -7,8 +7,11 @@ using System.Threading.Tasks;
 namespace Reclaimer.Shinobi
 {
 
-    [AttributeUsage(AttributeTargets.Method)]
     public class NativeFunctionAttribute : NativeAddressAttribute
     {
+        public NativeFunctionAttribute()
+        {
+
+        }
     }
 }

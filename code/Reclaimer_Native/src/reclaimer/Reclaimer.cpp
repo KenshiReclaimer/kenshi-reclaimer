@@ -19,6 +19,7 @@
 #include <coreclr_delegates.h>
 #include <nethost.h>
 #include <hostfxr.h>
+#include <cassert>
 
 struct ReclaimerNETHost
 {
@@ -72,7 +73,6 @@ struct ReclaimerNETHost
 
         close_fn = (decltype(close_fn))GetProcAddress(hHostLib, "hostfxr_close");
 
-
         set_error_writer_fn(ErrorWriter);
     }
 
@@ -80,29 +80,13 @@ struct ReclaimerNETHost
     {
         int rc;
 
-        rc = init_fn(L"Reclaimer.Core.dll", nullptr, &cxt);
+        rc = init_fn(L"Reclaimer.runtimeconfig.json", nullptr, &cxt);
         if (rc != 0 || cxt == nullptr)
         {
             std::cerr << "Init failed: " << std::hex << std::showbase << rc << std::endl;
             close_fn(cxt);
             return;
         }
-
-        // TRUSTED_PLATFORM_ASSEMBLIES
-
-        const char_t* trusted_platforms;
-        rc = get_runtime_property_value_fn(cxt, L"APP_CONTEXT_DEPS_FILES", &trusted_platforms);
-        trusted_platform = std::wstring(trusted_platforms);
-
-        char_t shinobi_path_c[MAX_PATH];
-        auto count = GetCurrentDirectoryW(MAX_PATH, shinobi_path_c);
-        std::wstring shinobi_path(shinobi_path_c);
-        shinobi_path += L"\\Reclaimer.Core.deps.json";
-
-        trusted_platform += L";";
-        trusted_platform += shinobi_path;
-
-        rc = set_runtime_property_value_fn(cxt, L"APP_CONTEXT_DEPS_FILES", trusted_platform.c_str());
 
         // Get the load assembly function pointer
         rc = get_delegate_fn(
@@ -153,10 +137,7 @@ struct ReclaimerNETHost
             nullptr,
             (void**)&fn
         );
-        
-        //if (rc != 0)
-        //    throw L"LoadAssembly: Cant load " + type + L"; " + method;
-
+        assert(rc == 0 && "LoadAssembly: Cant load assembly");
         return fn;
     }
 
@@ -165,13 +146,12 @@ struct ReclaimerNETHost
     {
         T fn = nullptr;
         int rc = get_fn_ptr(type.c_str(), method.c_str(), dlgate.empty() ? nullptr : dlgate.c_str(), nullptr, nullptr, (void**)&fn);
-        if (rc != 0)
-            throw L"GetMethod: Cant load " + type + L"; " + method;
+        assert(rc == 0 && "GetMethod: Cant load ");
         return fn;
     }
 
 
-    void Close()
+    void CloseHostResolver()
     {
         close_fn(cxt);
     }
@@ -196,6 +176,7 @@ void ReclaimerMain::install()
     dotnet = new ReclaimerNETHost;
     dotnet->PrepareHost();
     dotnet->LoadRuntime();
+    dotnet->CloseHostResolver();
 
     printf("Load Reclaimer.Core.dll.. \n");
     auto install_assembly = dotnet->LoadAssembly<ReclaimerEntryFn*>(
@@ -267,6 +248,4 @@ void ReclaimerMain::uninstall()
         L"Reclaimer.Core.ReclaimerEntryFn, Reclaimer.Core"
         );
     uninstall_assembly();
-
-    dotnet->Close();
 }

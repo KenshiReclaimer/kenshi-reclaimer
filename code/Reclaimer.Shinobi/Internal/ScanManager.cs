@@ -8,7 +8,21 @@ using System.Reflection;
 
 namespace Reclaimer.Shinobi.Internal
 {
-
+    static internal class AssemblyExt
+    {
+        public static IEnumerable<Type> GetLoadableTypes(this Assembly assembly)
+        {
+            if (assembly == null) throw new ArgumentNullException(nameof(assembly));
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException e)
+            {
+                return e.Types.Where(t => t != null);
+            }
+        }
+    }
     public class ScanManager
     {
 
@@ -19,11 +33,17 @@ namespace Reclaimer.Shinobi.Internal
                 assembly = Assembly.GetCallingAssembly();
             }
 
-            foreach(var attr in assembly.DefinedTypes)
+            Console.WriteLine("Assembly: {0}", assembly.FullName);
+
+            foreach(var types in AssemblyExt.GetLoadableTypes(assembly))
             {
+                Console.WriteLine("\t> {0}", types.FullName);
+                foreach(var attr in types.CustomAttributes)
+                {
+                    Console.WriteLine("\t\t> {0}", attr.ToString());
+                }
             }
         }
-
 
         public void ResolveScans()
         {

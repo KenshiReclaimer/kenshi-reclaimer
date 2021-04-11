@@ -9,18 +9,19 @@ namespace Reclaimer.Core
     public delegate void ReclaimerEntryFn();
     public static class ReclaimerEntry
     {
-        [NativeGlobal]
-        [ByteSignature("AA BB CC DD EE FF")]
-        public static int Test { get; }
+
 
         [NativeFunction]
         [ByteSignature("11 ?? 22 ?? 44")]
 
-        public static Action<string> DoSomethingCool;
+        public delegate void DoSomethingCool();
+
+        static MemoryManager mem = new MemoryManager();
 
         public static void Install()
         {
             Console.WriteLine("Hello from .NET Install()");
+            mem.Initialize();
         }
         public static void Initialize()
         {

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Reclaimer.Core": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

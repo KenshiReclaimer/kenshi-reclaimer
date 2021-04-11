@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\code\Reclaimer.Core\Reclaimer.Core.csproj" />
+    <ProjectReference Include="..\..\code\Reclaimer.Shinobi\Reclaimer.Shinobi.csproj" />
+  </ItemGroup>
+
+</Project>

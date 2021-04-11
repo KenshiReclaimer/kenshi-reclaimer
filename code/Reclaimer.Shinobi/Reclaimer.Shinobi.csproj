@@ -8,6 +8,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>D:\src\kenshi-reclaimer\bin\</OutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

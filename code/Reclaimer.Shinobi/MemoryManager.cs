@@ -11,5 +11,11 @@ namespace Reclaimer.Shinobi
     {
         public ScanManager scan = new ScanManager();
         public HookManager hook = new HookManager();
+
+        public void Initialize()
+        {
+            scan.CollectScans();
+            scan.ResolveScans();
+        }
     }
 }

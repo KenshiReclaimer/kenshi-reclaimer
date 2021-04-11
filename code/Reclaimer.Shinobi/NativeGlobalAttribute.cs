@@ -3,7 +3,7 @@
 namespace Reclaimer.Shinobi
 {
 
-    [AttributeUsage(AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Class)]
     public class NativeGlobalAttribute : NativeAddressAttribute
     {
     }

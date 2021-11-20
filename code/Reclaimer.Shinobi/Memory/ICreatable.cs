@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Reclaimer.Shinobi
+namespace Reclaimer.Shinobi.Memory
 {
-    public class ModuleRVAAttribute : Attribute
+    public interface ICreatable
     {
+        public void Ctor();
     }
 }

@@ -11,6 +11,15 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Kenshi\" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Serilog" Version="2.6.0" />
+		<ProjectReference Include="..\Reclaimer.Shinobi.Generators\Reclaimer.Shinobi.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(KenshiGamePath)\Reclaimer.Shinobi.dll&quot;" />
   </Target>

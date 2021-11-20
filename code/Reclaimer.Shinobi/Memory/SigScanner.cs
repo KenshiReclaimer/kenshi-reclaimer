@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Serilog;
 
 namespace Reclaimer.Shinobi.Memory
 {
@@ -17,15 +17,6 @@ namespace Reclaimer.Shinobi.Memory
         private long moduleCopyOffset;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SigScanner"/> class using the main module of the current process.
-        /// </summary>
-        /// <param name="doCopy">Whether or not to copy the module upon initialization for search operations to use, as to not get disturbed by possible hooks.</param>
-        public SigScanner(bool doCopy = false)
-            : this(Process.GetCurrentProcess().MainModule!, doCopy)
-        {
-        }
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="SigScanner"/> class.
         /// </summary>
         /// <param name="module">The ProcessModule to be used for scanning.</param>
@@ -35,21 +26,35 @@ namespace Reclaimer.Shinobi.Memory
             this.Module = module;
             this.Is32BitProcess = !Environment.Is64BitProcess;
             this.IsCopy = doCopy;
+            this.OwnsCopy = true;
 
             // Limit the search space to .text section.
             this.SetupSearchSpace(module);
 
             if (this.IsCopy)
                 this.SetupCopiedSegments();
+        }
 
-            Log.Verbose($"Module base: 0x{this.TextSectionBase.ToInt64():X}");
-            Log.Verbose($"Module size: 0x{this.TextSectionSize:X}");
+        public SigScanner(ProcessModule module, IntPtr moduleCopy)
+        {
+            this.Module = module;
+            this.Is32BitProcess = !Environment.Is64BitProcess;
+            this.IsCopy = true;
+            this.OwnsCopy = false;
+
+            // Limit the search space to .text section.
+            this.SetupSearchSpace(module);
+
+            this.moduleCopyPtr = moduleCopy;
+            this.moduleCopyOffset = this.moduleCopyPtr.ToInt64() - this.Module.BaseAddress.ToInt64();
         }
 
         /// <summary>
         /// Gets a value indicating whether or not the search on this module is performed on a copy.
         /// </summary>
         public bool IsCopy { get; }
+
+        public bool OwnsCopy { get; }
 
         /// <summary>
         /// Gets a value indicating whether or not the ProcessModule is 32-bit.
@@ -130,28 +135,6 @@ namespace Reclaimer.Shinobi.Memory
         }
 
         /// <summary>
-        /// Try scanning memory for a signature.
-        /// </summary>
-        /// <param name="baseAddress">The base address to scan from.</param>
-        /// <param name="size">The amount of bytes to scan.</param>
-        /// <param name="signature">The signature to search for.</param>
-        /// <param name="result">The offset, if found.</param>
-        /// <returns>true if the signature was found.</returns>
-        public static bool TryScan(IntPtr baseAddress, int size, string signature, out IntPtr result)
-        {
-            try
-            {
-                result = Scan(baseAddress, size, signature);
-                return true;
-            }
-            catch (KeyNotFoundException)
-            {
-                result = IntPtr.Zero;
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Scan for a .data address using a .text function.
         /// This is intended to be used with IDA sigs.
         /// Place your cursor on the line calling a static address, and create and IDA sig.
@@ -178,29 +161,6 @@ namespace Reclaimer.Shinobi.Memory
         }
 
         /// <summary>
-        /// Try scanning for a .data address using a .text function.
-        /// This is intended to be used with IDA sigs.
-        /// Place your cursor on the line calling a static address, and create and IDA sig.
-        /// </summary>
-        /// <param name="signature">The signature of the function using the data.</param>
-        /// <param name="result">An IntPtr to the static memory location, if found.</param>
-        /// <param name="offset">The offset from function start of the instruction using the data.</param>
-        /// <returns>true if the signature was found.</returns>
-        public bool TryGetStaticAddressFromSig(string signature, out IntPtr result, int offset = 0)
-        {
-            try
-            {
-                result = this.GetStaticAddressFromSig(signature, offset);
-                return true;
-            }
-            catch (KeyNotFoundException)
-            {
-                result = IntPtr.Zero;
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Scan for a byte signature in the .data section.
         /// </summary>
         /// <param name="signature">The signature.</param>
@@ -216,26 +176,6 @@ namespace Reclaimer.Shinobi.Memory
         }
 
         /// <summary>
-        /// Try scanning for a byte signature in the .data section.
-        /// </summary>
-        /// <param name="signature">The signature.</param>
-        /// <param name="result">The real offset of the signature, if found.</param>
-        /// <returns>true if the signature was found.</returns>
-        public bool TryScanData(string signature, out IntPtr result)
-        {
-            try
-            {
-                result = this.ScanData(signature);
-                return true;
-            }
-            catch (KeyNotFoundException)
-            {
-                result = IntPtr.Zero;
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Scan for a byte signature in the whole module search area.
         /// </summary>
         /// <param name="signature">The signature.</param>
@@ -248,26 +188,6 @@ namespace Reclaimer.Shinobi.Memory
                 scanRet = new IntPtr(scanRet.ToInt64() - this.moduleCopyOffset);
 
             return scanRet;
-        }
-
-        /// <summary>
-        /// Try scanning for a byte signature in the whole module search area.
-        /// </summary>
-        /// <param name="signature">The signature.</param>
-        /// <param name="result">The real offset of the signature, if found.</param>
-        /// <returns>true if the signature was found.</returns>
-        public bool TryScanModule(string signature, out IntPtr result)
-        {
-            try
-            {
-                result = this.ScanModule(signature);
-                return true;
-            }
-            catch (KeyNotFoundException)
-            {
-                result = IntPtr.Zero;
-                return false;
-            }
         }
 
         /// <summary>
@@ -299,29 +219,9 @@ namespace Reclaimer.Shinobi.Memory
             var insnByte = Marshal.ReadByte(scanRet);
 
             if (insnByte == 0xE8 || insnByte == 0xE9)
-                return ReadJmpCallSig(scanRet);
+                return ReadCallSig(scanRet);
 
             return scanRet;
-        }
-
-        /// <summary>
-        /// Try scanning for a byte signature in the .text section.
-        /// </summary>
-        /// <param name="signature">The signature.</param>
-        /// <param name="result">The real offset of the signature, if found.</param>
-        /// <returns>true if the signature was found.</returns>
-        public bool TryScanText(string signature, out IntPtr result)
-        {
-            try
-            {
-                result = this.ScanText(signature);
-                return true;
-            }
-            catch (KeyNotFoundException)
-            {
-                result = IntPtr.Zero;
-                return false;
-            }
         }
 
         /// <summary>
@@ -329,26 +229,28 @@ namespace Reclaimer.Shinobi.Memory
         /// </summary>
         public void Dispose()
         {
-            Marshal.FreeHGlobal(this.moduleCopyPtr);
+            if (this.OwnsCopy)
+                Marshal.FreeHGlobal(this.moduleCopyPtr);
         }
 
         /// <summary>
-        /// Helper for ScanText to get the correct address for IDA sigs that mark the first JMP or CALL location.
+        /// Helper for ScanText to get the correct address for IDA sigs that mark the first CALL location.
         /// </summary>
-        /// <param name="sigLocation">The address the JMP or CALL sig resolved to.</param>
+        /// <param name="sigLocation">The address the CALL sig resolved to.</param>
         /// <returns>The real offset of the signature.</returns>
-        private static IntPtr ReadJmpCallSig(IntPtr sigLocation)
+        private static IntPtr ReadCallSig(IntPtr sigLocation)
         {
-            var jumpOffset = Marshal.ReadInt32(sigLocation, 1);
+            var jumpOffset = Marshal.ReadInt32(IntPtr.Add(sigLocation, 1));
             return IntPtr.Add(sigLocation, 5 + jumpOffset);
         }
 
         private static (byte[] Needle, bool[] Mask) ParseSignature(string signature)
         {
+            if (signature.Contains(" ? "))
+                signature = signature.Replace("?", "??");
             signature = signature.Replace(" ", string.Empty);
             if (signature.Length % 2 != 0)
                 throw new ArgumentException("Signature without whitespaces must be divisible by two.", nameof(signature));
-
             var needleLength = signature.Length / 2;
             var needle = new byte[needleLength];
             var mask = new bool[needleLength];

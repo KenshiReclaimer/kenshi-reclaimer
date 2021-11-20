@@ -32,9 +32,8 @@ namespace {{ struct.namespace }} {
         internal const string InitializeMemberFunctions = @"using System.Collections.Generic;
 
 using Serilog;
-using Reclaimer.Shinobi.Memory;
 
-namespace Reclaimer.Shinobi {
+namespace Reclaimer.Shinobi.Memory {
     public unsafe static partial class Resolver {
         private static void InitializeMemberFunctions(SigScanner s)
         {

@@ -10,18 +10,13 @@ namespace Reclaimer.Core
     public static class ReclaimerEntry
     {
 
-
-        [NativeFunction]
-        [ByteSignature("11 ?? 22 ?? 44")]
-
-        public delegate void DoSomethingCool();
-
-        static MemoryManager mem = new MemoryManager();
-
         public static void Install()
         {
             Console.WriteLine("Hello from .NET Install()");
-            mem.Initialize();
+
+
+            Shinobi.Memory.Resolver.Initialize();
+
         }
         public static void Initialize()
         {

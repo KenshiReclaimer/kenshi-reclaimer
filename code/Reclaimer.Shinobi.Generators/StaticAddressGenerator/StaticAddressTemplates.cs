@@ -24,9 +24,8 @@ namespace {{ struct.namespace }} {
 
         internal const string InitializeStaticAddresses = @"using System.Collections.Generic;
 using Serilog;
-using Reclaimer.Shinobi.Memory;
 
-namespace Reclaimer.Shinobi {
+namespace Reclaimer.Shinobi.Memory {
     public unsafe static partial class Resolver {
         private static void InitializeStaticAddresses(SigScanner s)
         {
